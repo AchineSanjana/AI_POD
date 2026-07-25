@@ -1,0 +1,51 @@
+# Central project configuration.
+# Keep secrets out of this file — those live in .env
+
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  external_dir: "data/external"
+  telco_raw_file: "telco_customer_churn.csv"
+  customers_out: "customers.csv"
+  products_out: "products.csv"
+  interactions_out: "interactions.csv"
+
+data:
+  # Telco service columns to reshape into the products/interactions tables
+  service_columns:
+    - "PhoneService"
+    - "MultipleLines"
+    - "InternetService"
+    - "OnlineSecurity"
+    - "OnlineBackup"
+    - "DeviceProtection"
+    - "TechSupport"
+    - "StreamingTV"
+    - "StreamingMovies"
+  positive_values: ["Yes", "DSL", "Fiber optic"]   # values that count as "subscribed"
+
+model:
+  content_based:
+    similarity_metric: "cosine"
+  collaborative_filtering:
+    n_factors: 20
+    random_state: 42
+  hybrid:
+    content_weight: 0.5
+    collaborative_weight: 0.5
+  evaluation:
+    k: 5
+    test_size: 0.2
+    random_state: 42
+
+integrations:
+  company_api:
+    enabled: false        # flip to true once access is confirmed
+    timeout_seconds: 15
+  agent:
+    enabled: false         # flip to true once integration scope is confirmed
+    timeout_seconds: 15
+
+dummyjson:
+  enabled_for_practice_only: true
+  page_size: 30
