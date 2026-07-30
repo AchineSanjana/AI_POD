@@ -23,6 +23,10 @@ class ContentBasedRecommender:
         self.product_profiles_: pd.DataFrame | None = None
         self.feature_columns_: list[str] | None = None
         self.scaler_ = StandardScaler()
+        self.numeric_columns_: list[str] = []
+        self.categorical_columns_: list[str] = []
+        self.categorical_feature_columns_: list[str] = []
+        self.transformed_feature_columns_: list[str] = []
 
     def fit(
         self,
@@ -36,19 +40,46 @@ class ContentBasedRecommender:
             customers: customers table indexed by customer_id, with numeric
                 feature columns (e.g. tenure, MonthlyCharges).
             interactions: long-format (customer_id, product_id) table.
-            feature_columns: numeric columns in `customers` to use as
-                similarity features.
+            feature_columns: columns in `customers` to use as similarity
+                features. Categorical values such as ``Contract`` are one-hot
+                encoded automatically.
         """
         self.feature_columns_ = feature_columns
 
-        merged = interactions.merge(customers, on="customer_id", how="left")
-        scaled = customers.copy()
-        scaled[feature_columns] = self.scaler_.fit_transform(customers[feature_columns])
-        merged_scaled = interactions.merge(scaled, on="customer_id", how="left")
+        feature_frame = customers[feature_columns].copy()
+        self.numeric_columns_ = [
+            col for col in feature_columns if pd.api.types.is_numeric_dtype(feature_frame[col])
+        ]
+        self.categorical_columns_ = [
+            col for col in feature_columns if col not in self.numeric_columns_
+        ]
 
-        self.product_profiles_ = (
-            merged_scaled.groupby("product_id")[feature_columns].mean()
-        )
+        numeric_frame = feature_frame[self.numeric_columns_].astype(float)
+        if self.numeric_columns_:
+            numeric_scaled = pd.DataFrame(
+                self.scaler_.fit_transform(numeric_frame),
+                columns=self.numeric_columns_,
+                index=feature_frame.index,
+            )
+        else:
+            numeric_scaled = pd.DataFrame(index=feature_frame.index)
+
+        if self.categorical_columns_:
+            categorical_dummies = pd.get_dummies(
+                feature_frame[self.categorical_columns_],
+                prefix=self.categorical_columns_,
+            )
+            self.categorical_feature_columns_ = list(categorical_dummies.columns)
+        else:
+            categorical_dummies = pd.DataFrame(index=feature_frame.index)
+            self.categorical_feature_columns_ = []
+
+        transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float)
+        self.transformed_feature_columns_ = list(transformed.columns)
+
+        customer_feature_matrix = customers[["customer_id"]].copy().join(transformed)
+        merged = interactions.merge(customer_feature_matrix, on="customer_id", how="left")
+        self.product_profiles_ = merged.groupby("product_id")[self.transformed_feature_columns_].mean()
         logger.info(f"Fit content-based profiles for {len(self.product_profiles_)} products")
         return self
 
@@ -57,9 +88,33 @@ class ContentBasedRecommender:
         if self.product_profiles_ is None:
             raise RuntimeError("Call fit() before recommend().")
 
-        customer_vec = self.scaler_.transform(
-            customer_features[self.feature_columns_].values.reshape(1, -1)
-        )
+        row = pd.DataFrame([customer_features[self.feature_columns_].tolist()], columns=self.feature_columns_)
+
+        numeric_frame = row[self.numeric_columns_].astype(float) if self.numeric_columns_ else pd.DataFrame(index=[0])
+        if self.numeric_columns_:
+            numeric_scaled = pd.DataFrame(
+                self.scaler_.transform(numeric_frame),
+                columns=self.numeric_columns_,
+            )
+        else:
+            numeric_scaled = pd.DataFrame(index=[0])
+
+        if self.categorical_columns_:
+            categorical_dummies = pd.get_dummies(
+                row[self.categorical_columns_],
+                prefix=self.categorical_columns_,
+            )
+            categorical_dummies = categorical_dummies.reindex(
+                columns=self.categorical_feature_columns_,
+                fill_value=0,
+            )
+        else:
+            categorical_dummies = pd.DataFrame(index=[0])
+
+        transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float)
+        transformed = transformed.reindex(columns=self.transformed_feature_columns_, fill_value=0)
+
+        customer_vec = transformed.to_numpy().reshape(1, -1)
         similarities = cosine_similarity(customer_vec, self.product_profiles_.values)[0]
 
         ranked = (
