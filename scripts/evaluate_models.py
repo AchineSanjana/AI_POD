@@ -2,21 +2,21 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.evaluation.metrics import evaluate_all
-from src.evaluation.split import create_train_test_split
 from src.models.collaborative_filtering import CollaborativeFilteringRecommender
 from src.models.content_based import ContentBasedRecommender
 from src.models.hybrid import HybridRecommender
 from src.models.ranking_model import LearnedRankingRecommender
+from src.evaluation.metrics import evaluate_all
+from src.evaluation.split import create_train_test_split
 
 
-ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "processed"
 REPORT_PATH = ROOT / "docs" / "model_evaluation_report.md"
 

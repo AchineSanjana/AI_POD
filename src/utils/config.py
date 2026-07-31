@@ -6,8 +6,8 @@ Usage:
     cfg["paths"]["processed_dir"]
 """
 
-from pathlib import Path
 import yaml
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"

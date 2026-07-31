@@ -24,7 +24,6 @@ class LearnedRankingRecommender:
             n_estimators=n_estimators,
             max_depth=max_depth,
             eval_metric="logloss",
-            use_label_encoder=False,
             random_state=42,
         )
         self.customers_: pd.DataFrame | None = None
@@ -37,7 +36,7 @@ class LearnedRankingRecommender:
         customers: pd.DataFrame,
         interactions: pd.DataFrame,
         products: pd.DataFrame,
-    ) -> "LearnedRankingRecommender":
+    ) -> LearnedRankingRecommender:
         self.customers_ = customers.copy()
         self.interactions_ = interactions.copy()
         self.products_ = products.copy()

@@ -16,6 +16,10 @@ data/processed/*
 data/external/*
 !data/external/.gitkeep
 
+# Saved models (keep folder structure, ignore actual artifacts)
+models/*
+!models/.gitkeep
+
 # Jupyter
 .ipynb_checkpoints/
 

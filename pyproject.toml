@@ -1,0 +1,8 @@
+[tool.ruff]
+exclude = [
+    "notebooks",
+    "tmp_eval_check.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
