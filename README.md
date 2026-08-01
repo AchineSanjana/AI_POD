@@ -1,6 +1,14 @@
 # AI_POD
 
-SLT recommendation engine
+SLT recommendation engine.
+
+## Roadmap
+
+- [x] Build a reproducible preprocessing pipeline for the Telco dataset
+- [x] Implement content-based, collaborative-filtering, hybrid, and learned ranking recommenders
+- [x] Add offline evaluation metrics for precision, recall, and NDCG
+- [x] Generate evaluation results and document the final winners
+- [x] Provide a CLI for retrieving saved recommendations
 
 ## Model Choice
 
@@ -12,11 +20,11 @@ Follow these steps in order — each one builds on the last.
 
 ### 1. Clone/open the project
 
-Open the `telecom-recommendation-engine` folder in VS Code.
+Open the AI_POD folder in VS Code.
 
 ### 2. Open a terminal in VS Code
 
-`Terminal` → `New Terminal` (or `` Ctrl+` `` / `` Cmd+` ``).
+Use Terminal → New Terminal (or Ctrl+` / Cmd+`).
 
 ### 3. Create a virtual environment
 
@@ -24,33 +32,23 @@ Open the `telecom-recommendation-engine` folder in VS Code.
 python -m venv venv
 ```
 
-This creates an isolated Python environment just for this project, so its
-packages don't clash with anything else on your machine.
-
 ### 4. Activate the virtual environment
 
-- **Mac/Linux:**
+- Mac/Linux:
 
 ```bash
-  source venv/bin/activate
+source venv/bin/activate
 ```
 
-- **Windows (PowerShell):**
+- Windows (PowerShell):
 
 ```powershell
-  venv\Scripts\activate
+venv\Scripts\activate
 ```
-
-You'll know it worked when your terminal prompt shows `(venv)` at the start.
 
 ### 5. Point VS Code at the virtual environment
 
-Press `Ctrl+Shift+P` (`Cmd+Shift+P` on Mac) → type **"Python: Select
-Interpreter"** → choose the one listed as:
-venv (3.11.x) .\venv\Scripts\python.exe Workspace
-
-Don't pick a `base`/`Conda`/`Global` interpreter — those are system-wide and
-won't match the packages you're about to install.
+Press Ctrl+Shift+P (Cmd+Shift+P on Mac) → type Python: Select Interpreter → choose the venv interpreter for this workspace.
 
 ### 6. Install dependencies
 
@@ -58,56 +56,74 @@ won't match the packages you're about to install.
 pip install -r requirements.txt
 ```
 
-### 7. Set up environment variables
-
-```bash
-cp .env.example .env        # Windows: copy .env.example .env
-```
-
-Leave everything blank for now — those variables are only needed once the
-company API / agent integrations (in `src/integrations/`) are switched on.
-
-### 8. Get the dataset
+### 7. Get the dataset
 
 Download the Telco Customer Churn dataset from Kaggle:
 https://www.kaggle.com/datasets/mosapabdelghany/telcom-customer-churn-dataset
 
 Place the CSV at:
-data/raw/telco_customer_churn.csv
 
-### 9. Run the pipeline
+```text
+data/raw/telco_customer_churn.csv
+```
+
+### 8. Run the pipeline
 
 ```bash
 python scripts/run_pipeline.py
 ```
 
-Success looks like:
-Pipeline complete. Summary:
-customers: 7,043 rows x 12 columns
-products: 10 rows x 3 columns
-interactions: ... rows x 2 columns
+This writes the processed customers, products, and interactions tables under the data/processed folder.
 
-### 10. Run the tests
+### 9. Run the tests
 
 ```bash
 python -m pytest tests/ -v
 ```
 
-All 6 tests should pass.
+### 10. Get recommendations
 
-### 11. Open the exploration notebook
+Use the CLI script to print recommendations for a specific customer from the saved model:
 
-Open `notebooks/01_data_exploration.ipynb` in VS Code. When prompted to
-select a kernel, choose the same `venv` interpreter from step 5. Run the
-cells top to bottom.
+```bash
+python scripts/get_recommendations.py --customer_id 7590-VHVEG --top_n 5
+```
 
----
+You can also override the model artifact path if needed:
 
-### Troubleshooting
+```bash
+python scripts/get_recommendations.py --customer_id 7590-VHVEG --model_path models/final_model.joblib
+```
 
-| Problem                                           | Likely fix                                                                                                                        |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `ModuleNotFoundError` when running scripts        | Your virtual environment isn't activated, or VS Code is using the wrong interpreter — redo steps 4–5.                             |
-| `FileNotFoundError` on `telco_customer_churn.csv` | The CSV isn't at `data/raw/telco_customer_churn.csv` — check step 8.                                                              |
-| Notebook kernel doesn't show `venv`               | Restart VS Code after creating the virtual environment, or manually select the kernel via the notebook's top-right kernel picker. |
-| `pip install` fails on Windows                    | Make sure you're inside `(venv)` in the terminal prompt before running it.                                                        |
+### 11. Review the evaluation results
+
+Open [docs/evaluation_results.md](docs/evaluation_results.md) and the exploration notebook at [notebooks/01_data_exploration.ipynb](notebooks/01_data_exploration.ipynb) for the offline analysis and example outputs.
+
+## Final Results
+
+The final offline evaluation shows that the learned ranking model is the strongest overall recommender:
+
+- Precision@5: 0.293
+- Recall@5: 0.880
+- NDCG@5: 0.751
+
+The hybrid model was the next strongest overall baseline, while collaborative filtering performed best for established customers with richer history. The ranking model also led the newer-customer segment with an NDCG@5 of 0.784.
+
+## How to get recommendations
+
+The repository includes a simple CLI for generating saved-model recommendations for one customer at a time:
+
+```bash
+python scripts/get_recommendations.py --customer_id <customer_id> --top_n 5
+```
+
+The script reads the processed customer and product tables, loads the saved model artifact, and prints the ranked product IDs alongside their product names and categories.
+
+## Troubleshooting
+
+| Problem                                       | Likely fix                                                                         |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| ModuleNotFoundError when running scripts      | Activate the virtual environment and ensure VS Code is using the same interpreter. |
+| FileNotFoundError on telco_customer_churn.csv | Place the CSV at data/raw/telco_customer_churn.csv before running the pipeline.    |
+| Notebook kernel does not show the venv        | Restart VS Code or select the notebook kernel manually.                            |
+| pip install fails on Windows                  | Make sure the terminal is running inside the activated venv.                       |
