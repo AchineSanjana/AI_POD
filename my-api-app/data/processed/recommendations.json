@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "title": "Improve onboarding flow",
+    "description": "Helps the system deliver a better user experience.",
+    "category": "api",
+    "score": 0.95
+  },
+  {
+    "id": 2,
+    "title": "Add recommendation caching",
+    "description": "Supports local testing with deterministic synthetic data.",
+    "category": "api",
+    "score": 0.92
+  },
+  {
+    "id": 3,
+    "title": "Validate incoming payloads",
+    "description": "Provides a practical next step for the demo API.",
+    "category": "ml",
+    "score": 0.89
+  },
+  {
+    "id": 4,
+    "title": "Prioritize high-value users",
+    "description": "Improves repeatability during endpoint validation.",
+    "category": "data",
+    "score": 0.86
+  },
+  {
+    "id": 5,
+    "title": "Reduce API response time",
+    "description": "Adds useful coverage for integration checks.",
+    "category": "data",
+    "score": 0.83
+  },
+  {
+    "id": 6,
+    "title": "Track recommendation click-through",
+    "description": "Helps the system deliver a better user experience.",
+    "category": "data",
+    "score": 0.8
+  },
+  {
+    "id": 7,
+    "title": "Refresh stale training data",
+    "description": "Supports local testing with deterministic synthetic data.",
+    "category": "api",
+    "score": 0.77
+  },
+  {
+    "id": 8,
+    "title": "Tune ranking thresholds",
+    "description": "Provides a practical next step for the demo API.",
+    "category": "ops",
+    "score": 0.74
+  },
+  {
+    "id": 9,
+    "title": "Improve onboarding flow",
+    "description": "Improves repeatability during endpoint validation.",
+    "category": "api",
+    "score": 0.71
+  },
+  {
+    "id": 10,
+    "title": "Add recommendation caching",
+    "description": "Adds useful coverage for integration checks.",
+    "category": "ops",
+    "score": 0.68
+  }
+]
