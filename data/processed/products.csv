@@ -1,0 +1,11 @@
+product_id,product_name,category
+PhoneService,Phone Service,Core
+MultipleLines,Multiple Lines,Core
+OnlineSecurity,Online Security,Add-on
+OnlineBackup,Online Backup,Add-on
+DeviceProtection,Device Protection,Add-on
+TechSupport,Tech Support,Add-on
+StreamingTV,Streaming TV,Add-on
+StreamingMovies,Streaming Movies,Add-on
+InternetService_DSL,Internet - DSL,Core
+InternetService_Fiber,Internet - Fiber Optic,Core
