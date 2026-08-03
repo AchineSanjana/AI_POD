@@ -13,6 +13,9 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+!data/processed/customers.csv
+!data/processed/products.csv
+!data/processed/interactions.csv
 data/external/*
 !data/external/.gitkeep
 
