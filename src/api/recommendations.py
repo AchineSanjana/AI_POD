@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MODEL_PATH = PROJECT_ROOT / "models" / "final_model.joblib"
 
 if str(PROJECT_ROOT) not in sys.path:

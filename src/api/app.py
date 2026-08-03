@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
-from app.api.recommendations import router as recommendations_router
-from app.ui import build_home_page, router as ui_router
+from src.api.recommendations import router as recommendations_router
+from src.api.ui import build_home_page, router as ui_router
 
 
 app = FastAPI(title="Recommendations API")

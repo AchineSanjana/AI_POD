@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-pytest
-httpx
-joblib
-pandas
-scikit-learn

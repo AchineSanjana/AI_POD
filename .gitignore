@@ -22,6 +22,7 @@ data/external/*
 # Saved models (keep folder structure, ignore actual artifacts)
 models/*
 !models/.gitkeep
+!models/final_model.joblib
 
 # Jupyter
 .ipynb_checkpoints/

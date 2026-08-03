@@ -6,7 +6,7 @@ from functools import lru_cache
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from app.api.recommendations import load_model
+from src.api.recommendations import load_model
 
 
 router = APIRouter(tags=["ui"])
