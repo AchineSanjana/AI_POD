@@ -24,6 +24,43 @@ data:
     - "StreamingMovies"
   positive_values: ["Yes", "DSL", "Fiber optic"]   # values that count as "subscribed"
 
+  # Customer table feature contract (matches data/processed/customers.csv)
+  customer_features:
+    - name: gender
+      dtype: categorical
+      allowed_values: ["Female", "Male"]
+    - name: SeniorCitizen
+      dtype: numeric
+    - name: Partner
+      dtype: categorical
+      allowed_values: ["Yes", "No"]
+    - name: Dependents
+      dtype: categorical
+      allowed_values: ["Yes", "No"]
+    - name: tenure
+      dtype: numeric
+    - name: Contract
+      dtype: categorical
+      allowed_values: ["Month-to-month", "One year", "Two year"]
+    - name: PaperlessBilling
+      dtype: categorical
+      allowed_values: ["Yes", "No"]
+    - name: PaymentMethod
+      dtype: categorical
+    - name: MonthlyCharges
+      dtype: numeric
+    - name: TotalCharges
+      dtype: numeric
+    - name: Churn
+      dtype: categorical
+      allowed_values: ["Yes", "No"]
+
+  # Product table feature contract (matches data/processed/products.csv)
+  product_category:
+    name: category
+    dtype: categorical
+    allowed_values: ["Core", "Add-on"]
+
 model:
   content_based:
     similarity_metric: "cosine"
