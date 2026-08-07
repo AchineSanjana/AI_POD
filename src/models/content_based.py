@@ -37,12 +37,13 @@ class ContentBasedRecommender:
         """Build an average customer-feature profile per product.
 
         Args:
-            customers: customers table indexed by customer_id, with numeric
-                feature columns (e.g. tenure, MonthlyCharges).
+            customers: customers table indexed by customer_id, with feature
+                columns (e.g. ``numeric_feature_1``, ``numeric_feature_2``).
             interactions: long-format (customer_id, product_id) table.
             feature_columns: columns in `customers` to use as similarity
-                features. Categorical values such as ``Contract`` are one-hot
-                encoded automatically.
+                features. Categorical columns (e.g. ``categorical_feature_1``)
+                are one-hot encoded automatically; numeric columns are
+                z-score scaled.
         """
         self.feature_columns_ = feature_columns
 
