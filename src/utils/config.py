@@ -69,7 +69,7 @@ def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> dict:
         return yaml.safe_load(f)
 
 
-def resolve_path(relative_path: str) -> Path:
+def resolve_path(relative_path: str | Path) -> Path:
     """Resolve a path from config.yaml relative to the project root."""
     return PROJECT_ROOT / relative_path
 

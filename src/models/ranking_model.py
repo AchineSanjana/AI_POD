@@ -184,18 +184,19 @@ class LearnedRankingRecommender:
         interactions = self.interactions_
         products = self.products_
 
-        if customer_id not in customers["customer_id"].values:
+        matching_cust = customers.loc[customers["customer_id"].astype(str) == str(customer_id)]
+        if matching_cust.empty:
             logger.warning("customer_id %s has no customer profile -- returning empty list", customer_id)
             return []
 
-        customer_row = customers.loc[customers["customer_id"] == customer_id].iloc[0]
+        customer_row = matching_cust.iloc[0]
         known_products = set(
-            interactions.loc[interactions["customer_id"] == customer_id, "product_id"]
+            interactions.loc[interactions["customer_id"].astype(str) == str(customer_id), "product_id"].astype(str)
         )
 
         candidate_rows = []
         for _, product in products.iterrows():
-            product_id = product["product_id"]
+            product_id = str(product["product_id"])
             if product_id in known_products:
                 continue
             candidate_rows.append(self._build_candidate_row(customer_row, product))
@@ -217,15 +218,15 @@ class LearnedRankingRecommender:
         else:
             scores = proba[:, 0]
 
-        ranked = pd.Series(scores, index=candidate_pids)
+        ranked = pd.Series(scores, index=pd.Index(candidate_pids))
         top_candidates = (
-            ranked.groupby(level=0)
+            ranked.groupby(by=ranked.index)
             .max()
             .sort_values(ascending=False)
             .head(top_k)
             .index.tolist()
         )
-        return top_candidates
+        return [str(pid) for pid in top_candidates]
 
     # ------------------------------------------------------------------
     # Internal — spec resolution
@@ -237,26 +238,32 @@ class LearnedRankingRecommender:
 
         Called once inside ``fit()`` after the DataFrames are stored.
         """
+        if self.customers_ is None or self.products_ is None:
+            raise RuntimeError("DataFrames must be set before resolving specs.")
+
+        customers = self.customers_
+        products = self.products_
+
         non_feature_customer_cols = {"customer_id"}
         non_feature_product_cols = {"product_id", "product_name"}
 
         if self.customer_specs is not None:
-            self._customer_specs = _ensure_one_hot_specs(self.customer_specs, self.customers_)
+            self._customer_specs = _ensure_one_hot_specs(self.customer_specs, customers)
         else:
             candidate_cols = [
-                c for c in self.customers_.columns  # type: ignore[union-attr]
+                c for c in customers.columns
                 if c not in non_feature_customer_cols
             ]
-            self._customer_specs = _infer_specs_from_df(self.customers_, candidate_cols)  # type: ignore[arg-type]
+            self._customer_specs = _infer_specs_from_df(customers, candidate_cols)
 
         if self.product_specs is not None:
-            self._product_specs = _ensure_one_hot_specs(self.product_specs, self.products_)
+            self._product_specs = _ensure_one_hot_specs(self.product_specs, products)
         else:
             candidate_cols = [
-                c for c in self.products_.columns  # type: ignore[union-attr]
+                c for c in products.columns
                 if c not in non_feature_product_cols
             ]
-            self._product_specs = _infer_specs_from_df(self.products_, candidate_cols)  # type: ignore[arg-type]
+            self._product_specs = _infer_specs_from_df(products, candidate_cols)
 
     # ------------------------------------------------------------------
     # Internal — data preparation
@@ -264,25 +271,39 @@ class LearnedRankingRecommender:
 
     def _prepare_data(self) -> None:
         """Validate primary keys and coerce column dtypes via FeatureSpec."""
-        if "customer_id" not in self.customers_.columns:  # type: ignore[union-attr]
+        if self.customers_ is None or self.products_ is None or self.interactions_ is None:
+            raise RuntimeError("DataFrames must be set before preparing data.")
+
+        if "customer_id" not in self.customers_.columns:
             raise ValueError("customers must contain customer_id")
-        if "product_id" not in self.products_.columns:  # type: ignore[union-attr]
+        if "product_id" not in self.products_.columns:
             raise ValueError("products must contain product_id")
 
         # Coerce dtypes driven by specs — no hardcoded column names.
-        self.customers_ = _coerce_dtypes(self.customers_, self._customer_specs)  # type: ignore[arg-type]
-        self.products_ = _coerce_dtypes(self.products_, self._product_specs)  # type: ignore[arg-type]
-        self.interactions_ = self.interactions_.copy()  # type: ignore[union-attr]
+        self.customers_ = _coerce_dtypes(self.customers_, self._customer_specs)
+        self.products_ = _coerce_dtypes(self.products_, self._product_specs)
+        self.interactions_ = self.interactions_.copy()
 
     def _build_training_frame(self) -> pd.DataFrame:
+        if self.customers_ is None or self.products_ is None or self.interactions_ is None:
+            raise RuntimeError("DataFrames must be set before building training frame.")
+
+        customers = self.customers_
+        products = self.products_
+        interactions = self.interactions_
+
         rows = []
-        for _, customer in self.customers_.iterrows():  # type: ignore[union-attr]
-            customer_id = customer["customer_id"]
+        for _, customer in customers.iterrows():
+            customer_id = str(customer["customer_id"])
             known_products = set(
-                self.interactions_.loc[self.interactions_["customer_id"] == customer_id, "product_id"]  # type: ignore[union-attr]
+                interactions.loc[interactions["customer_id"].astype(str) == customer_id, "product_id"].astype(str)
             )
-            for _, product in self.products_.iterrows():  # type: ignore[union-attr]
-                rows.append(self._build_candidate_row(customer, product, target=(product["product_id"] in known_products)))
+            for _, product in products.iterrows():
+                rows.append(
+                    self._build_candidate_row(
+                        customer, product, target=(str(product["product_id"]) in known_products)
+                    )
+                )
 
         frame = pd.DataFrame(rows)
         frame = frame.fillna(0)

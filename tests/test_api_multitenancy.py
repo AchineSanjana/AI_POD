@@ -3,6 +3,11 @@
 import sys
 from pathlib import Path
 
+# Allow running tests standalone and from project root
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient

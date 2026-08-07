@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # In-memory tenant model cache: {tenant_id: loaded_model}
-MODEL_CACHE: dict[str, object] = {}
+MODEL_CACHE: dict[str, Any] = {}
 
 
 def clear_model_cache() -> None:
@@ -49,7 +49,7 @@ def resolve_tenant_id(
     return tenant_id or "telco_default"
 
 
-def get_model_for_tenant(tenant_id: str) -> object:
+def get_model_for_tenant(tenant_id: str) -> Any:
     """Retrieve tenant model from cache or load lazily from disk."""
     if tenant_id in MODEL_CACHE:
         return MODEL_CACHE[tenant_id]
@@ -71,7 +71,7 @@ def get_model_for_tenant(tenant_id: str) -> object:
     return model
 
 
-def load_model(tenant_id: str = "telco_default") -> object:
+def load_model(tenant_id: str = "telco_default") -> Any:
     """Backward compatibility wrapper for loading tenant model."""
     return get_model_for_tenant(tenant_id)
 
