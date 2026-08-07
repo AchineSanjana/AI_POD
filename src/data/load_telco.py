@@ -6,6 +6,8 @@ Download the dataset from Kaggle and place it at:
 Source: https://www.kaggle.com/datasets/mosapabdelghany/telcom-customer-churn-dataset
 """
 
+import warnings
+
 import pandas as pd
 
 from src.utils.config import load_config, resolve_path
@@ -47,5 +49,11 @@ def load_raw_telco(config: dict | None = None) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
+    warnings.warn(
+        "Running load_telco.py directly is deprecated. "
+        "Use TelcoAdapter(...).load_raw() from src.data.adapters.telco_adapter instead.",
+        DeprecationWarning,
+        stacklevel=1,
+    )
     frame = load_raw_telco()
     print(frame.head())

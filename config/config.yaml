@@ -11,18 +11,25 @@ paths:
   interactions_out: "interactions.csv"
 
 data:
-  # Telco service columns to reshape into the products/interactions tables
-  service_columns:
-    - "PhoneService"
-    - "MultipleLines"
-    - "InternetService"
-    - "OnlineSecurity"
-    - "OnlineBackup"
-    - "DeviceProtection"
-    - "TechSupport"
-    - "StreamingTV"
-    - "StreamingMovies"
-  positive_values: ["Yes", "DSL", "Fiber optic"]   # values that count as "subscribed"
+  # ---------------------------------------------------------------------------
+  # Interaction-source block: controls how reshape_telco.py builds interactions
+  # ---------------------------------------------------------------------------
+  interaction_source:
+    # All Telco service columns to consider when building the interaction matrix
+    service_columns:
+      - "PhoneService"
+      - "MultipleLines"
+      - "InternetService"
+      - "OnlineSecurity"
+      - "OnlineBackup"
+      - "DeviceProtection"
+      - "TechSupport"
+      - "StreamingTV"
+      - "StreamingMovies"
+    # Values that mean "subscribed" (count as a positive interaction)
+    positive_values: ["Yes", "DSL", "Fiber optic"]
+    # Values that mean "not subscribed" — mirrors NEGATIVE_VALUES in reshape_telco.py
+    negative_values: ["No", "No internet service", "No phone service"]
 
   # Customer table feature contract (matches data/processed/customers.csv)
   customer_features:
@@ -42,6 +49,7 @@ data:
     - name: Contract
       dtype: categorical
       allowed_values: ["Month-to-month", "One year", "Two year"]
+      encoding: one_hot
     - name: PaperlessBilling
       dtype: categorical
       allowed_values: ["Yes", "No"]
@@ -60,16 +68,38 @@ data:
     name: category
     dtype: categorical
     allowed_values: ["Core", "Add-on"]
+    encoding: one_hot
 
 model:
   content_based:
     similarity_metric: "cosine"
+    # Names of customer features used when building content-based profiles.
+    # Must be a subset of data.customer_features[*].name.
+    features:
+      - tenure
+      - MonthlyCharges
+      - SeniorCitizen
+      - Contract
+      - PaperlessBilling
+      - PaymentMethod
   collaborative_filtering:
     n_factors: 20
     random_state: 42
   hybrid:
     content_weight: 0.5
     collaborative_weight: 0.5
+  ranking:
+    # Customer-side feature names fed into the ranking model.
+    # Must be a subset of data.customer_features[*].name.
+    customer_features:
+      - tenure
+      - MonthlyCharges
+      - SeniorCitizen
+      - Contract
+    # Product-side feature names fed into the ranking model.
+    # Must match data.product_category.name or data.product_features[*].name.
+    product_features:
+      - category
   evaluation:
     k: 5
     test_size: 0.2

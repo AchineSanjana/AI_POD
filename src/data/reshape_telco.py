@@ -9,6 +9,8 @@ This turns a churn-prediction dataset into a usable customer x product
 interaction matrix for content-based and collaborative-filtering models.
 """
 
+import warnings
+
 import pandas as pd
 
 from src.data.load_telco import load_raw_telco
@@ -117,6 +119,13 @@ def _humanize(col: str) -> str:
 
 
 def run(config: dict | None = None) -> dict[str, pd.DataFrame]:
+    warnings.warn(
+        "reshape_telco.run() is deprecated. "
+        "Use TelcoAdapter(...).run() from src.data.adapters.telco_adapter instead. "
+        "reshape_telco.py will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     config = config or load_config()
     raw_df = load_raw_telco(config)
 
