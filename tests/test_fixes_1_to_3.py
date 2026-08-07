@@ -16,6 +16,7 @@ from src.core.schema import CustomerSchema, FeatureSpec, InteractionSchema, Prod
 from src.utils.config import (
     build_content_based_feature_specs_from_config,
     build_ranking_feature_specs_from_config,
+    get_content_feature_columns,
     load_config,
     validate_model_feature_lists,
 )
@@ -48,6 +49,12 @@ class TestModelFeatureSubsetsInConfig:
         assert all(isinstance(s, FeatureSpec) for s in specs)
         expected_names = set(cfg["model"]["content_based"]["features"])
         assert {s.name for s in specs} == expected_names
+
+    def test_get_content_feature_columns_returns_list_of_strings(self):
+        cfg = load_config()
+        cols = get_content_feature_columns(cfg)
+        assert isinstance(cols, list)
+        assert cols == cfg["model"]["content_based"]["features"]
 
     def test_build_ranking_feature_specs_returns_two_lists(self):
         cfg = load_config()

@@ -70,6 +70,84 @@ data:
     allowed_values: ["Core", "Add-on"]
     encoding: one_hot
 
+# ---------------------------------------------------------------------------
+# Tenant configuration section
+# ---------------------------------------------------------------------------
+tenants:
+  telco_default:
+    data_source:
+      type: csv
+      path: data/raw/telco_customer_churn.csv
+    customers:
+      id_column: customerID          # raw column name before rename
+      features:
+        - name: gender
+          dtype: categorical
+          allowed_values: ["Female", "Male"]
+        - name: SeniorCitizen
+          dtype: numeric
+        - name: Partner
+          dtype: categorical
+          allowed_values: ["Yes", "No"]
+        - name: Dependents
+          dtype: categorical
+          allowed_values: ["Yes", "No"]
+        - name: tenure
+          dtype: numeric
+        - name: Contract
+          dtype: categorical
+          allowed_values: ["Month-to-month", "One year", "Two year"]
+          encoding: one_hot
+        - name: PaperlessBilling
+          dtype: categorical
+          allowed_values: ["Yes", "No"]
+        - name: PaymentMethod
+          dtype: categorical
+        - name: MonthlyCharges
+          dtype: numeric
+        - name: TotalCharges
+          dtype: numeric
+        - name: Churn
+          dtype: categorical
+          allowed_values: ["Yes", "No"]
+    products:
+      # Telco's product table isn't a flat column in the raw CSV — it's derived from
+      # service_columns via interaction_source rules (Step 2.1). Note this explicitly:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: interaction_source     # references the block built in Step 2.1
+
+  fixture_ecommerce:
+    data_source:
+      type: csv
+      path: data/raw/fixture_ecommerce.csv
+    customers:
+      id_column: user_id
+      features:
+        - name: signup_days
+          dtype: numeric
+        - name: monthly_spend
+          dtype: numeric
+        - name: plan_type
+          dtype: categorical
+          allowed_values: ["Basic", "Pro", "Enterprise"]
+          encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns: ["electronics", "fashion", "home_decor"]
+      positive_values: ["Yes"]
+      negative_values: ["No"]
+
+# Lightweight tenant authentication mapping (API Key -> tenant_id)
+tenants_auth:
+  "sk-telco-xxxx": telco_default
+  "sk-ecommerce-xxxx": fixture_ecommerce
+
+
 model:
   content_based:
     similarity_metric: "cosine"

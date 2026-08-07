@@ -15,6 +15,7 @@ from src.models.hybrid import HybridRecommender
 from src.models.ranking_model import LearnedRankingRecommender
 from src.evaluation.metrics import evaluate_all
 from src.evaluation.split import create_train_test_split
+from src.utils.config import get_content_feature_columns, load_config
 
 
 DATA_DIR = ROOT / "data" / "processed"
@@ -34,7 +35,8 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
 def build_report() -> str:
     customers, interactions, products = load_data()
-    feature_columns = ["tenure", "MonthlyCharges", "Contract"]
+    config = load_config()
+    feature_columns = get_content_feature_columns(config)
     train_interactions, test_interactions = create_train_test_split(
         interactions, max_test_items_per_customer=2, random_state=42
     )

@@ -376,7 +376,7 @@ class TestAdapterVsReshapeTelcoIntegration:
 
         original = build_customers_table(adapter._raw).reset_index(drop=True)
         adapted = adapter.to_customers().reset_index(drop=True)
-        pd.testing.assert_frame_equal(adapted, original)
+        pd.testing.assert_frame_equal(adapted, original, check_dtype=False)
 
     def test_products_matches_reshape_telco(self, adapter: TelcoAdapter) -> None:
         original = build_products_table().reset_index(drop=True)

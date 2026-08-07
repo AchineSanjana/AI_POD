@@ -15,13 +15,13 @@ from src.models.collaborative_filtering import CollaborativeFilteringRecommender
 from src.models.content_based import ContentBasedRecommender
 from src.models.hybrid import HybridRecommender
 from src.models.ranking_model import LearnedRankingRecommender
+from src.utils.config import get_content_feature_columns, load_config
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 DATA_DIR = ROOT / "data" / "processed"
 REPORT_PATH = ROOT / "docs" / "evaluation_results.md"
-FEATURE_COLUMNS = ["tenure", "MonthlyCharges", "Contract"]
 TOP_K = 5
 RANDOM_STATE = 42
 
@@ -38,10 +38,11 @@ def fit_models(
     customers: pd.DataFrame,
     train_interactions: pd.DataFrame,
     products: pd.DataFrame,
+    feature_columns: list[str],
 ):
-    content_model = ContentBasedRecommender().fit(customers, train_interactions, FEATURE_COLUMNS)
+    content_model = ContentBasedRecommender().fit(customers, train_interactions, feature_columns)
     collaborative_model = CollaborativeFilteringRecommender(n_factors=5).fit(train_interactions)
-    hybrid_model = HybridRecommender().fit(customers, train_interactions, FEATURE_COLUMNS)
+    hybrid_model = HybridRecommender().fit(customers, train_interactions, feature_columns)
     ranking_model = LearnedRankingRecommender().fit(customers, train_interactions, products)
     return {
         "content_based": content_model,
@@ -108,16 +109,17 @@ def choose_examples(
     customers: pd.DataFrame,
     train_interactions: pd.DataFrame,
     test_interactions: pd.DataFrame,
+    products: pd.DataFrame,
     models: dict[str, object],
 ) -> list[dict[str, object]]:
     customer_lookup = customers.set_index("customer_id")
     examples: list[dict[str, object]] = []
 
     def profile_summary(customer_row: pd.Series) -> str:
-        services = []
-        for pid in ["PhoneService", "MultipleLines", "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies", "InternetService_DSL", "InternetService_Fiber"]:
-            if pid in train_products.get(customer_row.name, set()):
-                services.append(pid)
+        services = [
+            pid for pid in products["product_id"]
+            if pid in train_products.get(customer_row.name, set())
+        ]
         contract = customer_row.get("Contract", "")
         return f"tenure={int(customer_row.get('tenure', 0))}, MonthlyCharges={float(customer_row.get('MonthlyCharges', 0)):.2f}, contract={contract}, current_services={services}"
 
@@ -187,10 +189,12 @@ def choose_examples(
 
 def build_report() -> str:
     customers, interactions, products = load_data()
+    config = load_config()
+    feature_columns = get_content_feature_columns(config)
     train_interactions, test_interactions = create_train_test_split(interactions, max_test_items_per_customer=2, random_state=RANDOM_STATE)
-    models = fit_models(customers, train_interactions, products)
+    models = fit_models(customers, train_interactions, products, feature_columns)
     overall, segments = evaluate_models(models, customers, train_interactions, test_interactions)
-    examples = choose_examples(customers, train_interactions, test_interactions, models)
+    examples = choose_examples(customers, train_interactions, test_interactions, products, models)
 
     lines: list[str] = []
     lines.append("# Evaluation Results")
@@ -199,7 +203,7 @@ def build_report() -> str:
     lines.append(f"- Split: {len(train_interactions)} training rows / {len(test_interactions)} held-out rows")
     lines.append(f"- Evaluation customers: {test_interactions['customer_id'].nunique()}")
     lines.append(f"- k: {TOP_K}")
-    lines.append(f"- Content/hybrid features: {', '.join(FEATURE_COLUMNS)}")
+    lines.append(f"- Content/hybrid features: {', '.join(feature_columns)}")
     lines.append("")
     lines.append("## Metrics")
     lines.append("")
@@ -259,10 +263,21 @@ def build_report() -> str:
             lines.append(f"- {model_name}: {names}")
         lines.append("")
 
-        if "InternetService_Fiber" in example["current_products"] or "Internet - Fiber Optic (InternetService_Fiber)" in current_products:
-            lines.append("Why this makes sense: fiber customers and higher-spend profiles should be steered toward add-ons like security, backup, or support rather than being pushed back to basic connectivity.")
-        elif "Phone Service (PhoneService)" in current_products and len(example["current_products"]) <= 2:
-            lines.append("Why this makes sense: a lightweight starting profile often receives core connectivity suggestions first, with add-ons appearing after the base service.")
+        current_pids = example["current_products"]
+        current_categories = [
+            product_lookup.loc[pid, "category"]
+            for pid in current_pids
+            if pid in product_lookup.index and "category" in product_lookup.columns
+        ]
+        has_core = any(
+            str(cat).lower() in ["core", "primary", "base"]
+            for cat in current_categories
+        )
+
+        if has_core and len(current_pids) > 1:
+            lines.append("Why this makes sense: customers with established core services are recommended relevant add-ons or complementary products rather than duplicate core services.")
+        elif len(current_pids) <= 2:
+            lines.append("Why this makes sense: a lightweight starting profile often receives core product suggestions first, with add-ons appearing after base services.")
         else:
             lines.append("Why this makes sense: the models are clustering around products that are commonly co-subscribed with the customer's current package, which is the expected offline behavior.")
         lines.append("")

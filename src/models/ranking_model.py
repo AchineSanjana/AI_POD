@@ -88,6 +88,26 @@ def _coerce_dtypes(df: pd.DataFrame, specs: list[FeatureSpec]) -> pd.DataFrame:
     return df
 
 
+def _ensure_one_hot_specs(specs: list[FeatureSpec], df: pd.DataFrame) -> list[FeatureSpec]:
+    out: list[FeatureSpec] = []
+    for s in specs:
+        if s.dtype == "categorical" and (s.encoding != "one_hot" or not s.allowed_values):
+            allowed = s.allowed_values
+            if not allowed and s.name in df.columns:
+                allowed = sorted(str(v) for v in df[s.name].dropna().unique())
+            out.append(
+                FeatureSpec(
+                    name=s.name,
+                    dtype=s.dtype,
+                    allowed_values=allowed,
+                    encoding="one_hot",
+                )
+            )
+        else:
+            out.append(s)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -184,11 +204,28 @@ class LearnedRankingRecommender:
             return []
 
         candidate_frame = pd.DataFrame(candidate_rows)
-        candidate_frame = candidate_frame[self.feature_columns_].drop(columns=["product_id", "customer_id"], errors="ignore")
-        scores = self.model_.predict_proba(candidate_frame)[:, 1]
-        ranked = pd.Series(scores, index=products.loc[~products["product_id"].isin(known_products), "product_id"])
-        return ranked.sort_values(ascending=False).head(top_k).index.tolist()
+        candidate_pids = [str(pid) for pid in candidate_frame["product_id"]]
+        feature_frame = (
+            candidate_frame.reindex(columns=self.feature_columns_, fill_value=0)
+            .drop(columns=["product_id", "customer_id"], errors="ignore")
+        )
+        proba = self.model_.predict_proba(feature_frame)
+        if proba.ndim == 1:
+            scores = proba
+        elif proba.shape[1] > 1:
+            scores = proba[:, 1]
+        else:
+            scores = proba[:, 0]
 
+        ranked = pd.Series(scores, index=candidate_pids)
+        top_candidates = (
+            ranked.groupby(level=0)
+            .max()
+            .sort_values(ascending=False)
+            .head(top_k)
+            .index.tolist()
+        )
+        return top_candidates
 
     # ------------------------------------------------------------------
     # Internal — spec resolution
@@ -204,7 +241,7 @@ class LearnedRankingRecommender:
         non_feature_product_cols = {"product_id", "product_name"}
 
         if self.customer_specs is not None:
-            self._customer_specs = self.customer_specs
+            self._customer_specs = _ensure_one_hot_specs(self.customer_specs, self.customers_)
         else:
             candidate_cols = [
                 c for c in self.customers_.columns  # type: ignore[union-attr]
@@ -213,7 +250,7 @@ class LearnedRankingRecommender:
             self._customer_specs = _infer_specs_from_df(self.customers_, candidate_cols)  # type: ignore[arg-type]
 
         if self.product_specs is not None:
-            self._product_specs = self.product_specs
+            self._product_specs = _ensure_one_hot_specs(self.product_specs, self.products_)
         else:
             candidate_cols = [
                 c for c in self.products_.columns  # type: ignore[union-attr]

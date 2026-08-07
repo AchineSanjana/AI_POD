@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
-from src.api.recommendations import load_model
+from src.api.recommendations import get_model_for_tenant
 
 
 router = APIRouter(tags=["ui"])
 
 
-@lru_cache(maxsize=1)
-def get_sample_customer_ids(limit: int = 20) -> list[str]:
-    model = load_model()
+def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 20) -> list[str]:
+    try:
+        model = get_model_for_tenant(tenant_id)
+    except Exception:
+        return []
+
     customers = getattr(model, "customers_", None)
     if customers is None or customers.empty:
         return []
@@ -25,9 +27,9 @@ def get_sample_customer_ids(limit: int = 20) -> list[str]:
     return customers["customer_id"].dropna().astype(str).head(limit).tolist()
 
 
-def build_home_page() -> str:
-    sample_ids = get_sample_customer_ids()
-    default_customer_id = sample_ids[0] if sample_ids else "7590-VHVEG"
+def build_home_page(tenant_id: str = "telco_default", default_customer_id: str | None = None) -> str:
+    sample_ids = get_sample_customer_ids(tenant_id)
+    effective_customer_id = default_customer_id or (sample_ids[0] if sample_ids else "7590-VHVEG")
     options_html = "".join(f'<option value="{customer_id}"></option>' for customer_id in sample_ids)
     sample_ids_json = json.dumps(sample_ids)
 
@@ -251,13 +253,13 @@ def build_home_page() -> str:
   <div class="container">
     <div class="page">
       <div class="header">
-        <div class="eyebrow">Sri Lankan telecom style</div>
+        <div class="eyebrow">Multi-Tenant Recommender</div>
         <h1>Recommendation Demo</h1>
-        <p class="subtext">Enter a customer ID and get model-backed recommendations from the local FastAPI app.</p>
+        <p class="subtext">Enter a Tenant ID and Customer ID to fetch recommendations from the FastAPI app.</p>
         <div class="simple-row">
           <span class="pill">FastAPI</span>
+          <span class="pill">Multi-Tenant</span>
           <span class="pill">Model-backed</span>
-          <span class="pill">Blue + green</span>
         </div>
       </div>
 
@@ -266,8 +268,13 @@ def build_home_page() -> str:
           <h2>Get recommendations</h2>
           <form id="recommendation-form">
             <div class="field">
+              <label for="tenant_id">Tenant ID</label>
+              <input id="tenant_id" name="tenant_id" value="{tenant_id}" required />
+            </div>
+
+            <div class="field">
               <label for="customer_id">Customer ID</label>
-              <input id="customer_id" name="customer_id" list="customer-suggestions" value="{default_customer_id}" required />
+              <input id="customer_id" name="customer_id" list="customer-suggestions" value="{effective_customer_id}" required />
               <datalist id="customer-suggestions">
                 {options_html}
               </datalist>
@@ -285,7 +292,7 @@ def build_home_page() -> str:
           </form>
 
           <div id="status" class="status" aria-live="polite">Ready to fetch recommendations.</div>
-          <div class="meta">Known customer samples: {len(sample_ids)}</div>
+          <div class="meta">Known customer samples for '{tenant_id}': {len(sample_ids)}</div>
           <div class="meta"><a href="/health" target="_blank" rel="noreferrer">Health check</a></div>
         </div>
 
@@ -349,16 +356,17 @@ def build_home_page() -> str:
           </table>
         </div>
       `;
-      resultsMetaEl.textContent = `Recommendations for ${{payload.customer_id}}`;
+      resultsMetaEl.textContent = `Recommendations for ${{payload.customer_id}} (Tenant: ${{payload.tenant_id || 'default'}})`;
     }}
 
     form.addEventListener('submit', async (event) => {{
       event.preventDefault();
+      const tenantId = document.getElementById('tenant_id').value.trim();
       const customerId = document.getElementById('customer_id').value.trim();
       const topN = Number(document.getElementById('top_n').value || 5);
 
-      if (!customerId) {{
-        setStatus('Enter a customer ID.', 'error');
+      if (!customerId || !tenantId) {{
+        setStatus('Enter both Tenant ID and Customer ID.', 'error');
         return;
       }}
 
@@ -366,14 +374,14 @@ def build_home_page() -> str:
       resultsMetaEl.textContent = 'Fetching fresh recommendations...';
 
       try {{
-        const response = await fetch(`/recommendations/${{encodeURIComponent(customerId)}}?top_n=${{topN}}`);
+        const response = await fetch(`/recommendations/${{encodeURIComponent(customerId)}}?tenant_id=${{encodeURIComponent(tenantId)}}&top_n=${{topN}}`);
         const payload = await response.json();
 
         if (!response.ok) {{
           throw new Error(payload.detail || 'Request failed');
         }}
 
-        setStatus(`Loaded recommendations for ${{customerId}}.`, 'success');
+        setStatus(`Loaded recommendations for ${{customerId}} (Tenant: ${{tenantId}}).`, 'success');
         renderRecommendations(payload);
       }} catch (error) {{
         resultsMetaEl.textContent = 'Unable to load recommendations.';
@@ -387,5 +395,8 @@ def build_home_page() -> str:
 
 
 @router.get("/ui", response_class=HTMLResponse)
-def home() -> HTMLResponse:
-    return HTMLResponse(build_home_page())
+def home(
+    tenant_id: str = Query("telco_default", description="Tenant ID"),
+    customer_id: str | None = Query(None, description="Default Customer ID"),
+) -> HTMLResponse:
+    return HTMLResponse(build_home_page(tenant_id=tenant_id, default_customer_id=customer_id))

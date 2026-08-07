@@ -125,6 +125,13 @@ def build_content_based_feature_specs_from_config(config: dict) -> list[FeatureS
     return schema.feature_specs(names)
 
 
+def get_content_feature_columns(config: dict) -> list[str]:
+    """Return feature column names used by content-based / hybrid models."""
+    specs = build_content_based_feature_specs_from_config(config)
+    return [s.name for s in specs]
+
+
+
 def build_ranking_feature_specs_from_config(
     config: dict,
 ) -> tuple[list[FeatureSpec], list[FeatureSpec]]:
@@ -186,3 +193,135 @@ def _validate_no_duplicates(names: list[str], list_name: str) -> None:
     if duplicates:
         joined = ", ".join(f"'{n}'" for n in duplicates)
         raise ValueError(f"{list_name}: duplicate feature names: {joined}")
+
+
+# ---------------------------------------------------------------------------
+# Tenant Configuration Dataclasses & Parsing
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DataSourceConfig:
+    type: str
+    path: str
+
+
+@dataclass
+class TenantCustomersConfig:
+    id_column: str
+    features: list[FeatureSpec]
+
+
+@dataclass
+class TenantProductsConfig:
+    derived_from: str
+    category_column: str
+
+
+@dataclass
+class TenantInteractionsConfig:
+    source: str
+    interaction_source: InteractionSourceConfig | None = None
+
+
+@dataclass
+class TenantConfig:
+    tenant_id: str
+    data_source: DataSourceConfig
+    customers: TenantCustomersConfig
+    products: TenantProductsConfig
+    interactions: TenantInteractionsConfig
+
+
+def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
+    """Parse and return a structured TenantConfig for the specified tenant_id.
+
+    Reuses InteractionSourceConfig when interactions.source == "interaction_source".
+
+    Args:
+        config: Full config dict from :func:`load_config`.
+        tenant_id: Key under `tenants` (e.g. 'telco_default').
+
+    Returns:
+        A structured TenantConfig object.
+
+    Raises:
+        KeyError: If top-level 'tenants' or tenant_id or any required sub-field is missing.
+    """
+    if "tenants" not in config:
+        raise KeyError("Config is missing top-level section 'tenants'")
+    tenants = config["tenants"]
+    if not isinstance(tenants, dict) or tenant_id not in tenants:
+        raise KeyError(f"Tenant '{tenant_id}' not found in config['tenants']")
+
+    block = tenants[tenant_id]
+    if not isinstance(block, dict):
+        raise KeyError(f"Config for tenant '{tenant_id}' must be a dict")
+
+    # 1. data_source
+    if "data_source" not in block:
+        raise KeyError(f"Tenant '{tenant_id}' missing required section 'data_source'")
+    ds = block["data_source"]
+    if not isinstance(ds, dict) or "type" not in ds:
+        raise KeyError(f"Tenant '{tenant_id}' data_source missing required field 'type'")
+    if "path" not in ds:
+        raise KeyError(f"Tenant '{tenant_id}' data_source missing required field 'path'")
+    data_source = DataSourceConfig(type=str(ds["type"]), path=str(ds["path"]))
+
+    # 2. customers
+    if "customers" not in block:
+        raise KeyError(f"Tenant '{tenant_id}' missing required section 'customers'")
+    cust = block["customers"]
+    if not isinstance(cust, dict) or "id_column" not in cust:
+        raise KeyError(f"Tenant '{tenant_id}' customers missing required field 'id_column'")
+    if "features" not in cust:
+        raise KeyError(f"Tenant '{tenant_id}' customers missing required field 'features'")
+    features = [_feature_spec_from_config(entry) for entry in cust["features"]]
+    customers = TenantCustomersConfig(
+        id_column=str(cust["id_column"]),
+        features=features,
+    )
+
+    # 3. products
+    if "products" not in block:
+        raise KeyError(f"Tenant '{tenant_id}' missing required section 'products'")
+    prod = block["products"]
+    if not isinstance(prod, dict) or "derived_from" not in prod:
+        raise KeyError(f"Tenant '{tenant_id}' products missing required field 'derived_from'")
+    if "category_column" not in prod:
+        raise KeyError(f"Tenant '{tenant_id}' products missing required field 'category_column'")
+    products = TenantProductsConfig(
+        derived_from=str(prod["derived_from"]),
+        category_column=str(prod["category_column"]),
+    )
+
+    # 4. interactions
+    if "interactions" not in block:
+        raise KeyError(f"Tenant '{tenant_id}' missing required section 'interactions'")
+    inter = block["interactions"]
+    if not isinstance(inter, dict) or "source" not in inter:
+        raise KeyError(f"Tenant '{tenant_id}' interactions missing required field 'source'")
+    source_name = str(inter["source"])
+    isc: InteractionSourceConfig | None = None
+    if source_name == "interaction_source":
+        isc = get_interaction_source_config(config)
+    elif "service_columns" in inter:
+        isc = InteractionSourceConfig(
+            service_columns=list(inter["service_columns"]),
+            positive_values=list(inter.get("positive_values", ["Yes"])),
+            negative_values=list(inter.get("negative_values", ["No"])),
+        )
+
+    interactions = TenantInteractionsConfig(
+        source=source_name,
+        interaction_source=isc,
+    )
+
+    return TenantConfig(
+        tenant_id=tenant_id,
+        data_source=data_source,
+        customers=customers,
+        products=products,
+        interactions=interactions,
+    )
+

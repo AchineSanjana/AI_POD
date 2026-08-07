@@ -1,8 +1,7 @@
-import joblib
 from fastapi.testclient import TestClient
 
-from app.api.recommendations import MODEL_PATH
-from app.main import app
+from src.api.app import app
+from src.api.recommendations import MODEL_CACHE, clear_model_cache, get_model_for_tenant
 
 
 client = TestClient(app)
@@ -15,20 +14,58 @@ def test_health_check():
 
 
 def test_get_recommendations_for_known_customer():
-    model = joblib.load(MODEL_PATH)
+    clear_model_cache()
+    model = get_model_for_tenant("telco_default")
     customer_id = model.customers_.iloc[0]["customer_id"]
 
-    response = client.get("/recommendations", params={"customer_id": customer_id, "top_n": 3})
+    response = client.get(
+        "/recommendations",
+        params={"customer_id": customer_id, "tenant_id": "telco_default", "top_n": 3},
+    )
     assert response.status_code == 200
 
     payload = response.json()
     assert payload["customer_id"] == customer_id
+    assert payload["tenant_id"] == "telco_default"
     assert isinstance(payload["recommendations"], list)
     assert len(payload["recommendations"]) <= 3
     assert payload["recommendations"]
     assert "product_id" in payload["recommendations"][0]
 
 
-def test_get_recommendations_for_unknown_customer():
-    response = client.get("/recommendations/999", params={"top_n": 3})
+def test_get_recommendations_missing_tenant_model():
+    response = client.get(
+        "/recommendations",
+        params={"customer_id": "cust_1", "tenant_id": "non_existent_tenant"},
+    )
     assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "No trained model found for tenant 'non_existent_tenant'. "
+        "Run the pipeline for this tenant first."
+    )
+
+
+def test_get_recommendations_unknown_customer_validation():
+    response = client.get(
+        "/recommendations/99999",
+        params={"tenant_id": "telco_default", "top_n": 3},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Customer '99999' not found for tenant 'telco_default'"
+
+
+def test_model_caching_behavior():
+    clear_model_cache()
+    assert "telco_default" not in MODEL_CACHE
+
+    model = get_model_for_tenant("telco_default")
+    customer_id = model.customers_.iloc[0]["customer_id"]
+
+    # Request populates cache
+    response = client.get(
+        f"/recommendations/{customer_id}",
+        params={"tenant_id": "telco_default"},
+    )
+    assert response.status_code == 200
+    assert "telco_default" in MODEL_CACHE
+    assert MODEL_CACHE["telco_default"] is model
