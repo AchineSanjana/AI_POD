@@ -4,7 +4,10 @@ from typing import Any
 
 import joblib
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+
+# pyrefly: ignore [missing-import]
+from src.utils.config import get_tenant_auth_mapping, load_config
 
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
@@ -21,6 +24,29 @@ MODEL_CACHE: dict[str, object] = {}
 def clear_model_cache() -> None:
     """Clear the in-memory tenant model cache (useful for testing)."""
     MODEL_CACHE.clear()
+
+
+def resolve_tenant_id(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    tenant_id: str | None = Query(None, description="Optional tenant ID fallback if X-API-Key is not set"),
+) -> str:
+    """Resolve API key to tenant_id server-side from tenants_auth mapping.
+
+    NOTE: Starter implementation for developer evaluation & onboarding.
+    Not production-grade (lacks rate limiting, key rotation, distributed token cache).
+    A production deployment should use a dedicated Identity Provider (e.g. OAuth2/OIDC,
+    AWS Cognito, Auth0, or an API gateway with mTLS/HMAC).
+    """
+    config = load_config()
+    auth_mapping = get_tenant_auth_mapping(config)
+
+    if x_api_key is not None:
+        if x_api_key not in auth_mapping:
+            raise HTTPException(status_code=401, detail=f"Invalid API Key: '{x_api_key}'")
+        return auth_mapping[x_api_key]
+
+    # Fallback to query parameter or default for developer UI / local testing
+    return tenant_id or "telco_default"
 
 
 def get_model_for_tenant(tenant_id: str) -> object:
@@ -103,8 +129,8 @@ def _recommend_for_customer(tenant_id: str, customer_id: str, top_n: int) -> lis
 @router.get("")
 def get_recommendations(
     customer_id: str = Query(..., description="Customer ID to score"),
-    tenant_id: str = Query("telco_default", description="Tenant ID"),
     top_n: int = Query(5, ge=1, le=50),
+    tenant_id: str = Depends(resolve_tenant_id),
 ) -> dict[str, Any]:
     return {
         "tenant_id": tenant_id,
@@ -116,8 +142,8 @@ def get_recommendations(
 @router.get("/{customer_id}")
 def get_recommendations_for_customer(
     customer_id: str,
-    tenant_id: str = Query("telco_default", description="Tenant ID"),
     top_n: int = Query(5, ge=1, le=50),
+    tenant_id: str = Depends(resolve_tenant_id),
 ) -> dict[str, Any]:
     return {
         "tenant_id": tenant_id,

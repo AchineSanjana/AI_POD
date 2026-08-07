@@ -325,3 +325,8 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
         interactions=interactions,
     )
 
+
+def get_tenant_auth_mapping(config: dict) -> dict[str, str]:
+    """Return dictionary mapping api_key -> tenant_id from config['tenants_auth']."""
+    return dict(config.get("tenants_auth", {}))
+

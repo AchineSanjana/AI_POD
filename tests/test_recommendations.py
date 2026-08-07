@@ -69,3 +69,58 @@ def test_model_caching_behavior():
     assert response.status_code == 200
     assert "telco_default" in MODEL_CACHE
     assert MODEL_CACHE["telco_default"] is model
+
+
+def test_recommendations_with_valid_api_key():
+    model = get_model_for_tenant("telco_default")
+    customer_id = model.customers_.iloc[0]["customer_id"]
+
+    response = client.get(
+        "/recommendations",
+        params={"customer_id": customer_id},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tenant_id"] == "telco_default"
+    assert payload["customer_id"] == customer_id
+
+
+def test_recommendations_with_ecommerce_api_key():
+    model = get_model_for_tenant("fixture_ecommerce")
+    customer_id = model.customers_.iloc[0]["customer_id"]
+
+    response = client.get(
+        f"/recommendations/{customer_id}",
+        headers={"X-API-Key": "sk-ecommerce-xxxx"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tenant_id"] == "fixture_ecommerce"
+    assert payload["customer_id"] == customer_id
+
+
+def test_recommendations_with_invalid_api_key():
+    response = client.get(
+        "/recommendations",
+        params={"customer_id": "any_customer"},
+        headers={"X-API-Key": "sk-invalid-key-999"},
+    )
+    assert response.status_code == 401
+    assert "Invalid API Key" in response.json()["detail"]
+
+
+def test_api_key_overrides_client_tenant_id():
+    """Server-side resolution from API key must take precedence over client-supplied tenant_id query param."""
+    model = get_model_for_tenant("telco_default")
+    customer_id = model.customers_.iloc[0]["customer_id"]
+
+    response = client.get(
+        "/recommendations",
+        params={"customer_id": customer_id, "tenant_id": "fixture_ecommerce"},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tenant_id"] == "telco_default"
+    assert payload["customer_id"] == customer_id
