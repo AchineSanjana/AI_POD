@@ -1,3 +1,4 @@
+# Domain-agnostic recommendations API endpoints driven by CustomerSchema, ProductSchema, and tenant config.
 from pathlib import Path
 import sys
 from typing import Any
@@ -81,11 +82,19 @@ def _get_model_tables(tenant_id: str) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     customers = getattr(model, "customers_", None)
     products = getattr(model, "products_", None)
+
     if customers is None or products is None:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Trained model for tenant '{tenant_id}' is missing embedded customer/product tables",
-        )
+        proc_dir = PROJECT_ROOT / "data" / "processed" / tenant_id
+        if (proc_dir / "customers.csv").exists() and (proc_dir / "products.csv").exists():
+            if customers is None:
+                customers = pd.read_csv(proc_dir / "customers.csv")
+            if products is None:
+                products = pd.read_csv(proc_dir / "products.csv")
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Trained model for tenant '{tenant_id}' is missing embedded customer/product tables",
+            )
 
     if "customerID" in customers.columns:
         customers = customers.rename(columns={"customerID": "customer_id"})

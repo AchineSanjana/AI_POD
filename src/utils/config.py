@@ -225,12 +225,22 @@ class TenantInteractionsConfig:
 
 
 @dataclass
+class TenantSegmentationConfig:
+    field: str
+    split: str = "median"
+    threshold: float | None = None
+    lower_label: str = "newer"
+    upper_label: str = "established"
+
+
+@dataclass
 class TenantConfig:
     tenant_id: str
     data_source: DataSourceConfig
     customers: TenantCustomersConfig
     products: TenantProductsConfig
     interactions: TenantInteractionsConfig
+    segmentation: TenantSegmentationConfig | None = None
 
 
 def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
@@ -317,12 +327,31 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
         interaction_source=isc,
     )
 
+    # 5. optional segmentation
+    segmentation: TenantSegmentationConfig | None = None
+    if "segmentation" in block and isinstance(block["segmentation"], dict):
+        seg = block["segmentation"]
+        if "field" in seg:
+            thresh = None
+            if "threshold" in seg and seg["threshold"] is not None:
+                thresh = float(seg["threshold"])
+            elif str(seg.get("split", "")).replace(".", "", 1).isdigit():
+                thresh = float(seg["split"])
+            segmentation = TenantSegmentationConfig(
+                field=str(seg["field"]),
+                split=str(seg.get("split", "median")),
+                threshold=thresh,
+                lower_label=str(seg.get("lower_label", "newer")),
+                upper_label=str(seg.get("upper_label", "established")),
+            )
+
     return TenantConfig(
         tenant_id=tenant_id,
         data_source=data_source,
         customers=customers,
         products=products,
         interactions=interactions,
+        segmentation=segmentation,
     )
 
 

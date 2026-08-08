@@ -218,9 +218,9 @@ class LearnedRankingRecommender:
         else:
             scores = proba[:, 0]
 
-        ranked = pd.Series(scores, index=pd.Index(candidate_pids))
+        ranked = pd.Series(data=scores, index=candidate_pids)
         top_candidates = (
-            ranked.groupby(by=ranked.index)
+            ranked.groupby(level=0)
             .max()
             .sort_values(ascending=False)
             .head(top_k)

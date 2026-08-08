@@ -1,3 +1,4 @@
+# Domain-agnostic recommendations web UI driven by CustomerSchema, ProductSchema, and tenant config.
 from __future__ import annotations
 
 import json
@@ -29,7 +30,7 @@ def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 20) -
 
 def build_home_page(tenant_id: str = "telco_default", default_customer_id: str | None = None) -> str:
     sample_ids = get_sample_customer_ids(tenant_id)
-    effective_customer_id = default_customer_id or (sample_ids[0] if sample_ids else "7590-VHVEG")
+    effective_customer_id = default_customer_id or (sample_ids[0] if sample_ids else "sample_customer_1")
     options_html = "".join(f'<option value="{customer_id}"></option>' for customer_id in sample_ids)
     sample_ids_json = json.dumps(sample_ids)
 

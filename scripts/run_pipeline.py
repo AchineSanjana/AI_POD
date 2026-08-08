@@ -118,6 +118,9 @@ def evaluate_models(
             customers, interactions, products
         )
 
+    winning_model.customers_ = customers
+    winning_model.products_ = products
+
     return scores, winning_name, winning_model
 
 

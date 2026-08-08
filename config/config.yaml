@@ -117,6 +117,9 @@ tenants:
       category_column: category
     interactions:
       source: interaction_source     # references the block built in Step 2.1
+    segmentation:
+      field: tenure
+      split: median
 
   fixture_ecommerce:
     data_source:
@@ -141,11 +144,70 @@ tenants:
       service_columns: ["electronics", "fashion", "home_decor"]
       positive_values: ["Yes"]
       negative_values: ["No"]
+    segmentation:
+      field: signup_days
+      split: median
+
+  movielens_demo:
+    data_source:
+      type: csv
+      path: data/raw/movielens_small.csv
+    customers:
+      id_column: user_id
+      features:
+        - name: rating_count
+          dtype: numeric
+        - name: avg_rating
+          dtype: numeric
+        - name: favorite_genre
+          dtype: categorical
+          allowed_values: ["Action", "Adventure", "Animation", "Children", "Comedy", "Crime", "Documentary", "Drama", "Fantasy", "Film-Noir", "Horror", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller", "War", "Western", "Other"]
+          encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns: ["action", "adventure", "animation", "children", "comedy", "crime", "documentary", "drama", "fantasy", "horror", "mystery", "romance", "sci_fi", "thriller"]
+      positive_values: ["Yes"]
+      negative_values: ["No"]
+    segmentation:
+      field: rating_count
+      split: median
+
+  movielens_small:
+    data_source:
+      type: csv
+      path: data/raw/movielens_small.csv
+    customers:
+      id_column: user_id
+      features:
+        - name: rating_count
+          dtype: numeric
+        - name: avg_rating
+          dtype: numeric
+        - name: favorite_genre
+          dtype: categorical
+          allowed_values: ["Action", "Adventure", "Animation", "Children", "Comedy", "Crime", "Documentary", "Drama", "Fantasy", "Film-Noir", "Horror", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller", "War", "Western", "Other"]
+          encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns: ["action", "adventure", "animation", "children", "comedy", "crime", "documentary", "drama", "fantasy", "horror", "mystery", "romance", "sci_fi", "thriller"]
+      positive_values: ["Yes"]
+      negative_values: ["No"]
+    segmentation:
+      field: rating_count
+      split: median
 
 # Lightweight tenant authentication mapping (API Key -> tenant_id)
 tenants_auth:
   "sk-telco-xxxx": telco_default
   "sk-ecommerce-xxxx": fixture_ecommerce
+  "sk-movielens-xxxx": movielens_demo
+  "sk-movielens-small-xxxx": movielens_small
 
 
 model:

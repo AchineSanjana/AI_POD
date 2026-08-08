@@ -1,129 +1,225 @@
-# AI_POD
+# AI_POD: Multi-Tenant Recommendation Engine
 
-SLT recommendation engine.
+A generalized, domain-agnostic, multi-tenant recommendation platform that ingests customer activity across disparate industry domains (e.g. Telecommunications, Entertainment, E-Commerce), normalizes them into domain-neutral schema contracts, trains multiple candidate algorithms, autonomously selects the top-performing model, and serves personalized recommendations via a multi-tenant API.
 
-## Roadmap
+---
 
-- [x] Build a reproducible preprocessing pipeline for the Telco dataset
-- [x] Implement content-based, collaborative-filtering, hybrid, and learned ranking recommenders
-- [x] Add offline evaluation metrics for precision, recall, and NDCG
-- [x] Generate evaluation results and document the final winners
-- [x] Provide a CLI for retrieving saved recommendations
+## Architecture Overview
 
-## Model Choice
+```mermaid
+flowchart TD
+    subgraph Data Layer
+        R1[Raw Data: CSV / Parquet] --> A1[DataAdapter]
+        A1 --> |GenericConfigAdapter or Custom Subclass| S1[Domain-Neutral DataFrames]
+        S1 --> S_C[CustomerSchema]
+        S1 --> S_P[ProductSchema]
+        S1 --> S_I[InteractionSchema]
+    end
 
-The shipped primary recommender is the learned ranking model in [src/models/ranking_model.py](src/models/ranking_model.py). The content-based, collaborative-filtering, and hybrid models remain in the codebase as baselines and fallbacks for comparison and debugging.
+    subgraph Model Suite
+        S_C & S_P & S_I --> M1[Content-Based Profile Cosine]
+        S_I --> M2[Collaborative Filtering SVD]
+        M1 & M2 --> M3[Dynamic Hybrid Ensemble]
+        S_C & S_P & S_I --> M4[Learned Ranking XGBoost]
+    end
 
-## Setup
+    subgraph Evaluation & Selection
+        M1 & M2 & M3 & M4 --> E1[Stratified Train/Test Split]
+        E1 --> E2[Precision@k / Recall@k / NDCG@k]
+        E2 --> W1[Autonomous Model Selection]
+        W1 --> P1[Persist models/{tenant_id}/final_model.joblib]
+    end
 
-Follow these steps in order — each one builds on the last.
+    subgraph Serving Layer
+        P1 --> API[FastAPI /recommendations via X-API-Key]
+        P1 --> CLI[scripts/get_recommendations.py CLI]
+    end
+```
 
-### 1. Clone/open the project
+### Key Architectural Tenets
+1. **Schema Contracts**: All data adapters must emit DataFrames strictly conforming to [`CustomerSchema`](src/core/schema.py), [`ProductSchema`](src/core/schema.py), and [`InteractionSchema`](src/core/schema.py).
+2. **Decoupled Feature Specifications**: Recommenders operate on abstract [`FeatureSpec`](src/core/schema.py) metadata contracts rather than hardcoded column semantics.
+3. **Multi-Tenant Isolation**: Data is partitioned under `data/processed/{tenant_id}/`, models are saved under `models/{tenant_id}/`, and API requests are routed securely via header keys.
 
-Open the AI_POD folder in VS Code.
+---
 
-### 2. Open a terminal in VS Code
+## Onboarding a New Company / Tenant
 
-Use Terminal → New Terminal (or Ctrl+` / Cmd+`).
+Adding a new tenant requires zero algorithmic code rewrites. There are two supported onboarding paths:
 
-### 3. Create a virtual environment
+### Path A: Config-Only Onboarding (Recommended)
+For standard tabular data (CSV/Parquet), declare a new tenant block in [`config/config.yaml`](config/config.yaml). The [`GenericConfigAdapter`](src/data/adapters/generic_config_adapter.py) reads this configuration directly:
+
+```yaml
+tenants:
+  retail_demo:
+    data_source:
+      type: csv
+      path: data/raw/retail_transactions.csv
+    customers:
+      id_column: user_id
+      features:
+        - name: signup_days
+          dtype: numeric
+        - name: membership_level
+          dtype: categorical
+          allowed_values: ["Bronze", "Silver", "Gold"]
+          encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns: ["apparel", "electronics", "home_decor"]
+      positive_values: ["Purchased", "Yes"]
+      negative_values: ["Returned", "No"]
+    segmentation:
+      field: signup_days
+      split: median
+```
+
+### Path B: Custom Adapter Onboarding
+For non-standard or highly complex multi-table raw data formats, subclass [`DataAdapter`](src/data/base_adapter.py) directly:
+
+```python
+from src.data.base_adapter import DataAdapter
+import pandas as pd
+
+class CustomStoreAdapter(DataAdapter):
+    def to_customers(self) -> pd.DataFrame:
+        # Load and transform raw customer attributes
+        ...
+    def to_products(self) -> pd.DataFrame:
+        # Load and transform raw catalog items
+        ...
+    def to_interactions(self) -> pd.DataFrame:
+        # Return long-format interactions: customer_id, product_id, weight
+        ...
+```
+
+---
+
+## Running for a Specific Tenant
+
+All execution and evaluation scripts accept a `--tenant_id` flag (defaulting to `telco_default`):
+
+### 1. Ingest, Train, and Select Winning Model
+```bash
+# Run end-to-end pipeline for a specific tenant
+python scripts/run_pipeline.py --tenant_id movielens_demo
+
+# Train models specifically for a tenant
+python scripts/train_model.py --tenant_id movielens_demo
+```
+
+### 2. Generate Recommendations via CLI
+```bash
+# Retrieve top-5 recommendations for a customer under a specific tenant
+python scripts/get_recommendations.py --tenant_id movielens_demo --customer_id 1 --top_n 5
+```
+
+### 3. Generate Offline Evaluation Reports
+```bash
+# Generate per-tenant evaluation report and multi-tenant generalization proof
+python scripts/generate_evaluation_results.py --tenant_id movielens_demo
+```
+
+---
+
+## Multi-Tenant API Serving
+
+Start the FastAPI serving service:
 
 ```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Recommendation Request (X-API-Key Authentication)
+API keys in `config/config.yaml` route requests automatically to their tenant's trained model with complete catalog isolation:
+
+```bash
+# Telco Tenant Query
+curl -H "X-API-Key: sk-telco-xxxx" \
+     "http://localhost:8000/recommendations?customer_id=7590-VHVEG&top_n=5"
+
+# MovieLens Tenant Query
+curl -H "X-API-Key: sk-movielens-xxxx" \
+     "http://localhost:8000/recommendations?customer_id=1&top_n=5"
+```
+
+---
+
+## Example Tenant: Telco
+
+The telecommunications churn dataset is provided as a default benchmark tenant.
+
+### 1. Clone & Set Up Virtual Environment
+
+```bash
+# Clone the repository and navigate to root
+cd AI_POD
+
+# Create and activate virtual environment
 python -m venv venv
-```
 
-### 4. Activate the virtual environment
-
-- Mac/Linux:
-
-```bash
+# Mac/Linux:
 source venv/bin/activate
-```
 
-- Windows (PowerShell):
-
-```powershell
+# Windows (PowerShell):
 venv\Scripts\activate
-```
 
-### 5. Point VS Code at the virtual environment
-
-Press Ctrl+Shift+P (Cmd+Shift+P on Mac) → type Python: Select Interpreter → choose the venv interpreter for this workspace.
-
-### 6. Install dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 7. Get the dataset
-
+### 2. Download Telco Dataset
 Download the Telco Customer Churn dataset from Kaggle:
 https://www.kaggle.com/datasets/mosapabdelghany/telcom-customer-churn-dataset
 
 Place the CSV at:
-
 ```text
 data/raw/telco_customer_churn.csv
 ```
 
-### 8. Run the pipeline
-
+### 3. Run Pipeline & Tests
 ```bash
-python scripts/run_pipeline.py
+# Run Telco pipeline
+python scripts/run_pipeline.py --tenant_id telco_default
+
+# Run test suite
+pytest tests/ -v
 ```
 
-This writes the processed customers, products, and interactions tables under the data/processed folder.
-
-### 9. Run the tests
-
+### 4. Get Telco Recommendations
 ```bash
-python -m pytest tests/ -v
-```
-
-### 10. Get recommendations
-
-Use the CLI script to print recommendations for a specific customer from the saved model:
-
-```bash
-python scripts/get_recommendations.py --customer_id 7590-VHVEG --top_n 5
+python scripts/get_recommendations.py --tenant_id telco_default --customer_id 7590-VHVEG --top_n 5
 ```
 
 You can also override the model artifact path if needed:
-
 ```bash
-python scripts/get_recommendations.py --customer_id 7590-VHVEG --model_path models/final_model.joblib
+python scripts/get_recommendations.py --customer_id 7590-VHVEG --model_path models/telco_default/final_model.joblib
 ```
 
-### 11. Review the evaluation results
+### 5. Review Telco Evaluation Results
+Open [docs/evaluation_results_telco_default.md](docs/evaluation_results_telco_default.md) (and its backward-compatible alias [docs/evaluation_results.md](docs/evaluation_results.md)) as well as [docs/generalization_proof.md](docs/generalization_proof.md).
 
-Open [docs/evaluation_results.md](docs/evaluation_results.md) and the exploration notebook at [notebooks/01_data_exploration.ipynb](notebooks/01_data_exploration.ipynb) for the offline analysis and example outputs.
+---
 
-## Final Results
+## Generalization Proof & Evaluation Artifacts
 
-The final offline evaluation shows that the learned ranking model is the strongest overall recommender:
+* **Multi-Tenant Comparison Report**: [docs/generalization_proof.md](docs/generalization_proof.md)
+* **Telco Default Report**: [docs/evaluation_results_telco_default.md](docs/evaluation_results_telco_default.md)
+* **MovieLens Demo Report**: [docs/evaluation_results_movielens_demo.md](docs/evaluation_results_movielens_demo.md)
+* **Exploration Notebook**: [notebooks/01_data_exploration.ipynb](notebooks/01_data_exploration.ipynb)
 
-- Precision@5: 0.293
-- Recall@5: 0.880
-- NDCG@5: 0.751
-
-The hybrid model was the next strongest overall baseline, while collaborative filtering performed best for established customers with richer history. The ranking model also led the newer-customer segment with an NDCG@5 of 0.784.
-
-## How to get recommendations
-
-The repository includes a simple CLI for generating saved-model recommendations for one customer at a time:
-
-```bash
-python scripts/get_recommendations.py --customer_id <customer_id> --top_n 5
-```
-
-The script reads the processed customer and product tables, loads the saved model artifact, and prints the ranked product IDs alongside their product names and categories.
+---
 
 ## Troubleshooting
 
-| Problem                                       | Likely fix                                                                         |
-| --------------------------------------------- | ---------------------------------------------------------------------------------- |
-| ModuleNotFoundError when running scripts      | Activate the virtual environment and ensure VS Code is using the same interpreter. |
-| FileNotFoundError on telco_customer_churn.csv | Place the CSV at data/raw/telco_customer_churn.csv before running the pipeline.    |
-| Notebook kernel does not show the venv        | Restart VS Code or select the notebook kernel manually.                            |
-| pip install fails on Windows                  | Make sure the terminal is running inside the activated venv.                       |
+| Problem | Likely fix |
+| --- | --- |
+| `ModuleNotFoundError` when running scripts | Activate the virtual environment (`venv/bin/activate` or `venv\Scripts\activate`) and verify `PYTHONPATH`. |
+| `FileNotFoundError` on raw CSV | Place the raw data file at the configured `data_source.path` declared in `config/config.yaml`. |
+| `HTTPException 401: Invalid or missing X-API-Key` | Provide the corresponding API key header (e.g. `X-API-Key: sk-telco-xxxx`) mapped in `config/config.yaml`. |
+| `HTTPException 404: Customer not found` | Confirm the `customer_id` exists in `data/processed/{tenant_id}/customers.csv`. |
+| `pytest` failure on missing directory | Run `python scripts/run_pipeline.py --tenant_id <tenant_id>` to generate processed tables and models. |

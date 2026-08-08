@@ -1,3 +1,4 @@
+# Domain-agnostic hybrid recommender driven by CustomerSchema, ProductSchema, and tenant config.
 """Hybrid recommender.
 
 Blends content-based and collaborative-filtering recommendations so new

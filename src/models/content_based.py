@@ -1,8 +1,9 @@
+# Domain-agnostic content-based recommender driven by CustomerSchema, ProductSchema, and tenant config.
 """Content-based recommender.
 
 Matches customers to products using customer/product feature similarity.
 This is the primary approach for cold-start customers (little/no
-interaction history), since it doesn't require prior purchases to work.
+interaction history), since it doesn't require prior interactions to work.
 """
 
 import pandas as pd

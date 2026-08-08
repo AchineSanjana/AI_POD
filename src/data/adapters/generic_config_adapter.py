@@ -105,6 +105,8 @@ class GenericConfigAdapter(DataAdapter):
 
         if id_col in df.columns:
             df = df.rename(columns={id_col: "customer_id"})
+        if "customer_id" in df.columns:
+            df["customer_id"] = df["customer_id"].astype(str)
 
         for spec in feature_specs:
             if spec.name not in df.columns:
