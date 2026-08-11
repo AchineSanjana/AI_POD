@@ -2,37 +2,78 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Any
 
+import pandas as pd
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from src.api.recommendations import get_model_for_tenant
+from src.utils.config import load_config, resolve_path
 
 
 router = APIRouter(tags=["ui"])
 
 
-def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 20) -> list[str]:
+def get_available_tenants() -> list[str]:
+    """Retrieve list of configured tenant IDs from config.yaml."""
+    try:
+        cfg = load_config()
+        if "tenants" in cfg and isinstance(cfg["tenants"], dict):
+            return list(cfg["tenants"].keys())
+    except Exception:
+        pass
+    return ["telco_default", "fixture_ecommerce", "movielens_demo", "movielens_small"]
+
+
+def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 25) -> list[str]:
+    """Get sample customer IDs for a tenant either from loaded model or processed CSV."""
     try:
         model = get_model_for_tenant(tenant_id)
+        customers = getattr(model, "customers_", None)
+        if customers is not None and not customers.empty:
+            if "customerID" in customers.columns:
+                customers = customers.rename(columns={"customerID": "customer_id"})
+            if "customer_id" in customers.columns:
+                return customers["customer_id"].dropna().astype(str).head(limit).tolist()
     except Exception:
-        return []
+        pass
 
-    customers = getattr(model, "customers_", None)
-    if customers is None or customers.empty:
-        return []
+    try:
+        proc_path = resolve_path(Path("data") / "processed" / tenant_id / "customers.csv")
+        if not proc_path.exists():
+            proc_path = Path("data") / "processed" / tenant_id / "customers.csv"
+        if proc_path.exists():
+            df = pd.read_csv(proc_path)
+            if "customerID" in df.columns:
+                df = df.rename(columns={"customerID": "customer_id"})
+            if "customer_id" in df.columns:
+                return df["customer_id"].dropna().astype(str).head(limit).tolist()
+    except Exception:
+        pass
 
-    if "customerID" in customers.columns:
-        customers = customers.rename(columns={"customerID": "customer_id"})
-
-    return customers["customer_id"].dropna().astype(str).head(limit).tolist()
+    return []
 
 
-def build_home_page(tenant_id: str = "telco_default", default_customer_id: str | None = None) -> str:
-    sample_ids = get_sample_customer_ids(tenant_id)
-    effective_customer_id = default_customer_id or (sample_ids[0] if sample_ids else "sample_customer_1")
-    options_html = "".join(f'<option value="{customer_id}"></option>' for customer_id in sample_ids)
-    sample_ids_json = json.dumps(sample_ids)
+def build_home_page(tenant_id: str | None = None, default_customer_id: str | None = None) -> str:
+    available_tenants = get_available_tenants()
+    if not available_tenants:
+        available_tenants = ["telco_default"]
+
+    selected_tenant = tenant_id if (tenant_id and tenant_id in available_tenants) else available_tenants[0]
+
+    # Preload sample IDs for each tenant for fast switching in UI
+    tenant_samples_map = {t: get_sample_customer_ids(t, limit=25) for t in available_tenants}
+    current_samples = tenant_samples_map.get(selected_tenant, [])
+    effective_customer_id = default_customer_id or (current_samples[0] if current_samples else "")
+
+    tenant_options_html = "\n".join(
+        f'<option value="{t}" {"selected" if t == selected_tenant else ""}>{t}</option>'
+        for t in available_tenants
+    )
+    customer_options_html = "".join(f'<option value="{cid}"></option>' for cid in current_samples)
+    tenant_samples_json = json.dumps(tenant_samples_map)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -114,7 +155,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
       padding: 18px;
       display: grid;
       gap: 18px;
-      grid-template-columns: 320px minmax(0, 1fr);
+      grid-template-columns: 340px minmax(0, 1fr);
       align-items: start;
     }}
 
@@ -131,7 +172,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
 
     .field label {{ display: block; margin-bottom: 6px; font-size: 0.92rem; font-weight: 700; }}
 
-    .field input {{
+    .field input, .field select {{
       width: 100%;
       padding: 12px 14px;
       border: 1px solid var(--border);
@@ -139,9 +180,24 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
       font: inherit;
       outline: none;
       background: #fff;
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
     }}
 
-    .field input:focus {{
+    .field select {{
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d73c9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 16px;
+      padding-right: 40px;
+      font-weight: 600;
+    }}
+
+    .field input:focus, .field select:focus {{
       border-color: rgba(13, 115, 201, 0.65);
       box-shadow: 0 0 0 3px rgba(13, 115, 201, 0.12);
     }}
@@ -256,7 +312,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
       <div class="header">
         <div class="eyebrow">Multi-Tenant Recommender</div>
         <h1>Recommendation Demo</h1>
-        <p class="subtext">Enter a Tenant ID and Customer ID to fetch recommendations from the FastAPI app.</p>
+        <p class="subtext">Select a Tenant ID from the dropdown and choose or enter a Customer ID to fetch recommendations from the model.</p>
         <div class="simple-row">
           <span class="pill">FastAPI</span>
           <span class="pill">Multi-Tenant</span>
@@ -270,14 +326,16 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
           <form id="recommendation-form">
             <div class="field">
               <label for="tenant_id">Tenant ID</label>
-              <input id="tenant_id" name="tenant_id" value="{tenant_id}" required />
+              <select id="tenant_id" name="tenant_id" required>
+                {tenant_options_html}
+              </select>
             </div>
 
             <div class="field">
               <label for="customer_id">Customer ID</label>
-              <input id="customer_id" name="customer_id" list="customer-suggestions" value="{effective_customer_id}" required />
+              <input id="customer_id" name="customer_id" list="customer-suggestions" value="{effective_customer_id}" placeholder="e.g. 7590-VHVEG or 1" required />
               <datalist id="customer-suggestions">
-                {options_html}
+                {customer_options_html}
               </datalist>
             </div>
 
@@ -293,7 +351,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
           </form>
 
           <div id="status" class="status" aria-live="polite">Ready to fetch recommendations.</div>
-          <div class="meta">Known customer samples for '{tenant_id}': {len(sample_ids)}</div>
+          <div class="meta">Known customer samples for '<span id="sample-tenant">{selected_tenant}</span>': <span id="sample-count">{len(current_samples)}</span></div>
           <div class="meta"><a href="/health" target="_blank" rel="noreferrer">Health check</a></div>
         </div>
 
@@ -312,7 +370,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
                   <tr><th>Rank</th><th>Product</th><th>Product ID</th><th>Category</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td colspan="4" style="color: var(--muted);">No recommendations loaded yet.</td></tr>
+                  <tr><td colspan="4" style="color: var(--muted);">No recommendations loaded yet. Select a customer and click 'Get recommendations'.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -323,11 +381,46 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
   </div>
 
   <script>
-    const sampleCustomerIds = {sample_ids_json};
+    const tenantSamplesMap = {tenant_samples_json};
+    const tenantSelect = document.getElementById('tenant_id');
+    const customerInput = document.getElementById('customer_id');
+    const customerSuggestions = document.getElementById('customer-suggestions');
+    const sampleTenantEl = document.getElementById('sample-tenant');
+    const sampleCountEl = document.getElementById('sample-count');
     const form = document.getElementById('recommendation-form');
     const statusEl = document.getElementById('status');
     const resultsEl = document.getElementById('results');
     const resultsMetaEl = document.getElementById('results-meta');
+
+    function updateCustomerSuggestions(tenantId, autoSelectFirst = true) {{
+      const samples = tenantSamplesMap[tenantId] || [];
+      customerSuggestions.innerHTML = samples.map(id => `<option value="${{id}}"></option>`).join('');
+      if (sampleCountEl) sampleCountEl.textContent = samples.length;
+      if (sampleTenantEl) sampleTenantEl.textContent = tenantId;
+
+      if (autoSelectFirst) {{
+        customerInput.value = samples.length > 0 ? samples[0] : '';
+      }}
+    }}
+
+    tenantSelect.addEventListener('change', (e) => {{
+      const newTenant = e.target.value;
+      updateCustomerSuggestions(newTenant, true);
+      setStatus(`Switched to tenant '${{newTenant}}'. Ready to fetch recommendations.`, '');
+      resultsMetaEl.textContent = `Select or enter a Customer ID for '${{newTenant}}'.`;
+      resultsEl.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Rank</th><th>Product</th><th>Product ID</th><th>Category</th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" style="color: var(--muted);">No recommendations loaded yet. Click 'Get recommendations' to fetch for tenant '${{newTenant}}'.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }});
 
     function setStatus(message, kind = '') {{
       statusEl.textContent = message;
@@ -340,7 +433,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
           <td><span class="rank-badge">${{item.rank}}</span></td>
           <td>
             <div class="product-name">${{item.product_name || item.product_id}}</div>
-            <div class="product-id">${{item.product_name ? 'Recommended from the local model' : 'No display name found'}}</div>
+            <div class="product-id">${{item.product_name ? 'Recommended from model' : 'No display name found'}}</div>
           </td>
           <td>${{item.product_id}}</td>
           <td>${{item.category ? `<span class="category-tag">${{item.category}}</span>` : ''}}</td>
@@ -362,8 +455,8 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
 
     form.addEventListener('submit', async (event) => {{
       event.preventDefault();
-      const tenantId = document.getElementById('tenant_id').value.trim();
-      const customerId = document.getElementById('customer_id').value.trim();
+      const tenantId = tenantSelect.value.trim();
+      const customerId = customerInput.value.trim();
       const topN = Number(document.getElementById('top_n').value || 5);
 
       if (!customerId || !tenantId) {{
@@ -371,7 +464,7 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
         return;
       }}
 
-      setStatus('Loading recommendations...', '');
+      setStatus(`Loading recommendations for '${{customerId}}' (${{tenantId}})...`, '');
       resultsMetaEl.textContent = 'Fetching fresh recommendations...';
 
       try {{
@@ -395,9 +488,26 @@ def build_home_page(tenant_id: str = "telco_default", default_customer_id: str |
 """
 
 
+@router.get("/ui/tenants")
+def get_tenants_endpoint() -> dict[str, Any]:
+    """Return list of all configured tenants."""
+    return {"tenants": get_available_tenants()}
+
+
+@router.get("/ui/sample-customers")
+def get_sample_customers_endpoint(
+    tenant_id: str = Query("telco_default", description="Tenant ID")
+) -> dict[str, Any]:
+    """Return sample customer IDs for the given tenant."""
+    return {
+        "tenant_id": tenant_id,
+        "sample_customer_ids": get_sample_customer_ids(tenant_id),
+    }
+
+
 @router.get("/ui", response_class=HTMLResponse)
 def home(
-    tenant_id: str = Query("telco_default", description="Tenant ID"),
+    tenant_id: str | None = Query(None, description="Default selected Tenant ID"),
     customer_id: str | None = Query(None, description="Default Customer ID"),
 ) -> HTMLResponse:
     return HTMLResponse(build_home_page(tenant_id=tenant_id, default_customer_id=customer_id))
