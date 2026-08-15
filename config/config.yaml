@@ -1,126 +1,139 @@
-# Central project configuration.
-# Keep secrets out of this file — those live in .env
-
 paths:
-  raw_dir: "data/raw"
-  processed_dir: "data/processed"
-  external_dir: "data/external"
-  telco_raw_file: "telco_customer_churn.csv"
-  customers_out: "customers.csv"
-  products_out: "products.csv"
-  interactions_out: "interactions.csv"
-
+  raw_dir: data/raw
+  processed_dir: data/processed
+  external_dir: data/external
+  telco_raw_file: telco_customer_churn.csv
+  customers_out: customers.csv
+  products_out: products.csv
+  interactions_out: interactions.csv
 data:
-  # ---------------------------------------------------------------------------
-  # Interaction-source block: controls how reshape_telco.py builds interactions
-  # ---------------------------------------------------------------------------
   interaction_source:
-    # All Telco service columns to consider when building the interaction matrix
     service_columns:
-      - "PhoneService"
-      - "MultipleLines"
-      - "InternetService"
-      - "OnlineSecurity"
-      - "OnlineBackup"
-      - "DeviceProtection"
-      - "TechSupport"
-      - "StreamingTV"
-      - "StreamingMovies"
-    # Values that mean "subscribed" (count as a positive interaction)
-    positive_values: ["Yes", "DSL", "Fiber optic"]
-    # Values that mean "not subscribed" — mirrors NEGATIVE_VALUES in reshape_telco.py
-    negative_values: ["No", "No internet service", "No phone service"]
-
-  # Customer table feature contract (matches data/processed/customers.csv)
+    - PhoneService
+    - MultipleLines
+    - InternetService
+    - OnlineSecurity
+    - OnlineBackup
+    - DeviceProtection
+    - TechSupport
+    - StreamingTV
+    - StreamingMovies
+    positive_values:
+    - 'Yes'
+    - DSL
+    - Fiber optic
+    negative_values:
+    - 'No'
+    - No internet service
+    - No phone service
   customer_features:
-    - name: gender
-      dtype: categorical
-      allowed_values: ["Female", "Male"]
-    - name: SeniorCitizen
-      dtype: numeric
-    - name: Partner
-      dtype: categorical
-      allowed_values: ["Yes", "No"]
-    - name: Dependents
-      dtype: categorical
-      allowed_values: ["Yes", "No"]
-    - name: tenure
-      dtype: numeric
-    - name: Contract
-      dtype: categorical
-      allowed_values: ["Month-to-month", "One year", "Two year"]
-      encoding: one_hot
-    - name: PaperlessBilling
-      dtype: categorical
-      allowed_values: ["Yes", "No"]
-    - name: PaymentMethod
-      dtype: categorical
-    - name: MonthlyCharges
-      dtype: numeric
-    - name: TotalCharges
-      dtype: numeric
-    - name: Churn
-      dtype: categorical
-      allowed_values: ["Yes", "No"]
-
-  # Product table feature contract (matches data/processed/products.csv)
+  - name: gender
+    dtype: categorical
+    allowed_values:
+    - Female
+    - Male
+  - name: SeniorCitizen
+    dtype: numeric
+  - name: Partner
+    dtype: categorical
+    allowed_values:
+    - 'Yes'
+    - 'No'
+  - name: Dependents
+    dtype: categorical
+    allowed_values:
+    - 'Yes'
+    - 'No'
+  - name: tenure
+    dtype: numeric
+  - name: Contract
+    dtype: categorical
+    allowed_values:
+    - Month-to-month
+    - One year
+    - Two year
+    encoding: one_hot
+  - name: PaperlessBilling
+    dtype: categorical
+    allowed_values:
+    - 'Yes'
+    - 'No'
+  - name: PaymentMethod
+    dtype: categorical
+  - name: MonthlyCharges
+    dtype: numeric
+  - name: TotalCharges
+    dtype: numeric
+  - name: Churn
+    dtype: categorical
+    allowed_values:
+    - 'Yes'
+    - 'No'
   product_category:
     name: category
     dtype: categorical
-    allowed_values: ["Core", "Add-on"]
+    allowed_values:
+    - Core
+    - Add-on
     encoding: one_hot
-
-# ---------------------------------------------------------------------------
-# Tenant configuration section
-# ---------------------------------------------------------------------------
 tenants:
   telco_default:
     data_source:
       type: csv
       path: data/raw/telco_customer_churn.csv
     customers:
-      id_column: customerID          # raw column name before rename
+      id_column: customerID
       features:
-        - name: gender
-          dtype: categorical
-          allowed_values: ["Female", "Male"]
-        - name: SeniorCitizen
-          dtype: numeric
-        - name: Partner
-          dtype: categorical
-          allowed_values: ["Yes", "No"]
-        - name: Dependents
-          dtype: categorical
-          allowed_values: ["Yes", "No"]
-        - name: tenure
-          dtype: numeric
-        - name: Contract
-          dtype: categorical
-          allowed_values: ["Month-to-month", "One year", "Two year"]
-          encoding: one_hot
-        - name: PaperlessBilling
-          dtype: categorical
-          allowed_values: ["Yes", "No"]
-        - name: PaymentMethod
-          dtype: categorical
-        - name: MonthlyCharges
-          dtype: numeric
-        - name: TotalCharges
-          dtype: numeric
-        - name: Churn
-          dtype: categorical
-          allowed_values: ["Yes", "No"]
+      - name: gender
+        dtype: categorical
+        allowed_values:
+        - Female
+        - Male
+      - name: SeniorCitizen
+        dtype: numeric
+      - name: Partner
+        dtype: categorical
+        allowed_values:
+        - 'Yes'
+        - 'No'
+      - name: Dependents
+        dtype: categorical
+        allowed_values:
+        - 'Yes'
+        - 'No'
+      - name: tenure
+        dtype: numeric
+      - name: Contract
+        dtype: categorical
+        allowed_values:
+        - Month-to-month
+        - One year
+        - Two year
+        encoding: one_hot
+      - name: PaperlessBilling
+        dtype: categorical
+        allowed_values:
+        - 'Yes'
+        - 'No'
+      - name: PaymentMethod
+        dtype: categorical
+      - name: MonthlyCharges
+        dtype: numeric
+      - name: TotalCharges
+        dtype: numeric
+      - name: Churn
+        dtype: categorical
+        allowed_values:
+        - 'Yes'
+        - 'No'
     products:
-      # Telco's product table isn't a flat column in the raw CSV — it's derived from
-      # service_columns via interaction_source rules (Step 2.1). Note this explicitly:
       derived_from: interaction_source
       category_column: category
     interactions:
-      source: interaction_source     # references the block built in Step 2.1
+      source: interaction_source
     segmentation:
       field: tenure
       split: median
-
   fixture_ecommerce:
     data_source:
       type: csv
@@ -128,26 +141,33 @@ tenants:
     customers:
       id_column: user_id
       features:
-        - name: signup_days
-          dtype: numeric
-        - name: monthly_spend
-          dtype: numeric
-        - name: plan_type
-          dtype: categorical
-          allowed_values: ["Basic", "Pro", "Enterprise"]
-          encoding: one_hot
+      - name: signup_days
+        dtype: numeric
+      - name: monthly_spend
+        dtype: numeric
+      - name: plan_type
+        dtype: categorical
+        allowed_values:
+        - Basic
+        - Pro
+        - Enterprise
+        encoding: one_hot
     products:
       derived_from: interaction_source
       category_column: category
     interactions:
       source: custom_services
-      service_columns: ["electronics", "fashion", "home_decor"]
-      positive_values: ["Yes"]
-      negative_values: ["No"]
+      service_columns:
+      - electronics
+      - fashion
+      - home_decor
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
     segmentation:
       field: signup_days
       split: median
-
   movielens_demo:
     data_source:
       type: csv
@@ -155,26 +175,60 @@ tenants:
     customers:
       id_column: user_id
       features:
-        - name: rating_count
-          dtype: numeric
-        - name: avg_rating
-          dtype: numeric
-        - name: favorite_genre
-          dtype: categorical
-          allowed_values: ["Action", "Adventure", "Animation", "Children", "Comedy", "Crime", "Documentary", "Drama", "Fantasy", "Film-Noir", "Horror", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller", "War", "Western", "Other"]
-          encoding: one_hot
+      - name: rating_count
+        dtype: numeric
+      - name: avg_rating
+        dtype: numeric
+      - name: favorite_genre
+        dtype: categorical
+        allowed_values:
+        - Action
+        - Adventure
+        - Animation
+        - Children
+        - Comedy
+        - Crime
+        - Documentary
+        - Drama
+        - Fantasy
+        - Film-Noir
+        - Horror
+        - Musical
+        - Mystery
+        - Romance
+        - Sci-Fi
+        - Thriller
+        - War
+        - Western
+        - Other
+        encoding: one_hot
     products:
       derived_from: interaction_source
       category_column: category
     interactions:
       source: custom_services
-      service_columns: ["action", "adventure", "animation", "children", "comedy", "crime", "documentary", "drama", "fantasy", "horror", "mystery", "romance", "sci_fi", "thriller"]
-      positive_values: ["Yes"]
-      negative_values: ["No"]
+      service_columns:
+      - action
+      - adventure
+      - animation
+      - children
+      - comedy
+      - crime
+      - documentary
+      - drama
+      - fantasy
+      - horror
+      - mystery
+      - romance
+      - sci_fi
+      - thriller
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
     segmentation:
       field: rating_count
       split: median
-
   movielens_small:
     data_source:
       type: csv
@@ -182,46 +236,162 @@ tenants:
     customers:
       id_column: user_id
       features:
-        - name: rating_count
-          dtype: numeric
-        - name: avg_rating
-          dtype: numeric
-        - name: favorite_genre
-          dtype: categorical
-          allowed_values: ["Action", "Adventure", "Animation", "Children", "Comedy", "Crime", "Documentary", "Drama", "Fantasy", "Film-Noir", "Horror", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller", "War", "Western", "Other"]
-          encoding: one_hot
+      - name: rating_count
+        dtype: numeric
+      - name: avg_rating
+        dtype: numeric
+      - name: favorite_genre
+        dtype: categorical
+        allowed_values:
+        - Action
+        - Adventure
+        - Animation
+        - Children
+        - Comedy
+        - Crime
+        - Documentary
+        - Drama
+        - Fantasy
+        - Film-Noir
+        - Horror
+        - Musical
+        - Mystery
+        - Romance
+        - Sci-Fi
+        - Thriller
+        - War
+        - Western
+        - Other
+        encoding: one_hot
     products:
       derived_from: interaction_source
       category_column: category
     interactions:
       source: custom_services
-      service_columns: ["action", "adventure", "animation", "children", "comedy", "crime", "documentary", "drama", "fantasy", "horror", "mystery", "romance", "sci_fi", "thriller"]
-      positive_values: ["Yes"]
-      negative_values: ["No"]
+      service_columns:
+      - action
+      - adventure
+      - animation
+      - children
+      - comedy
+      - crime
+      - documentary
+      - drama
+      - fantasy
+      - horror
+      - mystery
+      - romance
+      - sci_fi
+      - thriller
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
     segmentation:
       field: rating_count
       split: median
-
-# Lightweight tenant authentication mapping (API Key -> tenant_id)
+  auto_demo:
+    data_source:
+      type: csv
+      path: data/raw/saas_subscription_churn.csv
+    customers:
+      id_column: account_id
+      features:
+      - name: company_age_months
+        dtype: numeric
+      - name: monthly_recurring_revenue
+        dtype: numeric
+      - name: active_users_count
+        dtype: numeric
+      - name: industry
+        dtype: categorical
+        allowed_values:
+        - Education
+        - Finance
+        - Healthcare
+        - Retail
+        - Tech
+        encoding: one_hot
+      - name: company_size
+        dtype: categorical
+        allowed_values:
+        - Enterprise
+        - Mid-market
+        - Startup
+        encoding: one_hot
+      - name: security_tier_code
+        dtype: numeric
+      - name: has_api_access
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_sso_integration
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_audit_logs
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_dedicated_support
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_custom_domain
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_advanced_analytics
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns:
+      - security_tier_code
+      - has_api_access
+      - has_sso_integration
+      - has_audit_logs
+      - has_dedicated_support
+      - has_custom_domain
+      - has_advanced_analytics
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
+    segmentation:
+      field: company_age_months
+      split: median
 tenants_auth:
-  "sk-telco-xxxx": telco_default
-  "sk-ecommerce-xxxx": fixture_ecommerce
-  "sk-movielens-xxxx": movielens_demo
-  "sk-movielens-small-xxxx": movielens_small
-
-
+  sk-telco-xxxx: telco_default
+  sk-ecommerce-xxxx: fixture_ecommerce
+  sk-movielens-xxxx: movielens_demo
+  sk-movielens-small-xxxx: movielens_small
 model:
   content_based:
-    similarity_metric: "cosine"
-    # Names of customer features used when building content-based profiles.
-    # Must be a subset of data.customer_features[*].name.
+    similarity_metric: cosine
     features:
-      - tenure
-      - MonthlyCharges
-      - SeniorCitizen
-      - Contract
-      - PaperlessBilling
-      - PaymentMethod
+    - tenure
+    - MonthlyCharges
+    - SeniorCitizen
+    - Contract
+    - PaperlessBilling
+    - PaymentMethod
   collaborative_filtering:
     n_factors: 20
     random_state: 42
@@ -229,30 +399,24 @@ model:
     content_weight: 0.5
     collaborative_weight: 0.5
   ranking:
-    # Customer-side feature names fed into the ranking model.
-    # Must be a subset of data.customer_features[*].name.
     customer_features:
-      - tenure
-      - MonthlyCharges
-      - SeniorCitizen
-      - Contract
-    # Product-side feature names fed into the ranking model.
-    # Must match data.product_category.name or data.product_features[*].name.
+    - tenure
+    - MonthlyCharges
+    - SeniorCitizen
+    - Contract
     product_features:
-      - category
+    - category
   evaluation:
     k: 5
     test_size: 0.2
     random_state: 42
-
 integrations:
   company_api:
-    enabled: false        # flip to true once access is confirmed
+    enabled: false
     timeout_seconds: 15
   agent:
-    enabled: false         # flip to true once integration scope is confirmed
+    enabled: false
     timeout_seconds: 15
-
 dummyjson:
   enabled_for_practice_only: true
   page_size: 30

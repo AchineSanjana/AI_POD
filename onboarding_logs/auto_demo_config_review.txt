@@ -1,0 +1,7 @@
+Detected 50 rows across 13 columns.
+Customer ID column: 'account_id' (100.0% unique values) — high confidence.
+Found 4 numeric customer fields: company_age_months, monthly_recurring_revenue, active_users_count, security_tier_code.
+Found 2 categorical fields: industry (5 values: Education, Finance, Healthcare, Retail, Tech); company_size (3 values: Enterprise, Mid-market, Startup).
+Found 7 binary service-style columns that will be treated as products: security_tier_code, has_api_access, has_sso_integration, has_audit_logs, has_dedicated_support, has_custom_domain, has_advanced_analytics.
+1 column needs your review before we proceed:
+  - 'security_tier_code': Only 3 distinct numeric values found — this might be a category coded as numbers, not a true numeric feature.

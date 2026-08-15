@@ -1,15 +1,17 @@
-# Domain-agnostic recommendations API endpoints driven by CustomerSchema, ProductSchema, and tenant config.
-from pathlib import Path
+"""Domain-agnostic recommendations API endpoints.
+
+Driven by CustomerSchema, ProductSchema, and tenant configuration.
+"""
+
 import sys
+from pathlib import Path
 from typing import Any
 
 import joblib
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
-# pyrefly: ignore [missing-import]
 from src.utils.config import get_tenant_auth_mapping, load_config
-
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
@@ -29,21 +31,19 @@ def clear_model_cache() -> None:
 
 def resolve_tenant_id(
     x_api_key: str | None = Header(None, alias="X-API-Key"),
-    tenant_id: str | None = Query(None, description="Optional tenant ID fallback if X-API-Key is not set"),
+    tenant_id: str | None = Query(
+        None, description="Optional tenant ID fallback if X-API-Key is not set"
+    ),
 ) -> str:
-    """Resolve API key to tenant_id server-side from tenants_auth mapping.
-
-    NOTE: Starter implementation for developer evaluation & onboarding.
-    Not production-grade (lacks rate limiting, key rotation, distributed token cache).
-    A production deployment should use a dedicated Identity Provider (e.g. OAuth2/OIDC,
-    AWS Cognito, Auth0, or an API gateway with mTLS/HMAC).
-    """
+    """Resolve API key to tenant_id server-side from tenants_auth mapping."""
     config = load_config()
     auth_mapping = get_tenant_auth_mapping(config)
 
     if x_api_key is not None:
         if x_api_key not in auth_mapping:
-            raise HTTPException(status_code=401, detail=f"Invalid API Key: '{x_api_key}'")
+            raise HTTPException(
+                status_code=401, detail=f"Invalid API Key: '{x_api_key}'"
+            )
         return auth_mapping[x_api_key]
 
     # Fallback to query parameter or default for developer UI / local testing
@@ -64,7 +64,10 @@ def get_model_for_tenant(tenant_id: str) -> Any:
     if not model_path.exists():
         raise HTTPException(
             status_code=404,
-            detail=f"No trained model found for tenant '{tenant_id}'. Run the pipeline for this tenant first.",
+            detail=(
+                f"No trained model found for tenant '{tenant_id}'. "
+                "Run the pipeline for this tenant first."
+            ),
         )
 
     model = joblib.load(model_path)
@@ -85,7 +88,10 @@ def _get_model_tables(tenant_id: str) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     if customers is None or products is None:
         proc_dir = PROJECT_ROOT / "data" / "processed" / tenant_id
-        if (proc_dir / "customers.csv").exists() and (proc_dir / "products.csv").exists():
+        if (
+            (proc_dir / "customers.csv").exists()
+            and (proc_dir / "products.csv").exists()
+        ):
             if customers is None:
                 customers = pd.read_csv(proc_dir / "customers.csv")
             if products is None:
@@ -93,7 +99,10 @@ def _get_model_tables(tenant_id: str) -> tuple[pd.DataFrame, pd.DataFrame]:
         else:
             raise HTTPException(
                 status_code=500,
-                detail=f"Trained model for tenant '{tenant_id}' is missing embedded customer/product tables",
+                detail=(
+                    f"Trained model for tenant '{tenant_id}' is missing "
+                    "embedded customer/product tables"
+                ),
             )
 
     if "customerID" in customers.columns:
@@ -102,7 +111,9 @@ def _get_model_tables(tenant_id: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return customers.copy(), products.copy()
 
 
-def _recommend_for_customer(tenant_id: str, customer_id: str, top_n: int) -> list[dict[str, Any]]:
+def _recommend_for_customer(
+    tenant_id: str, customer_id: str, top_n: int
+) -> list[dict[str, Any]]:
     customers, products = _get_model_tables(tenant_id)
     customer_ids = set(customers["customer_id"].astype(str))
 
@@ -112,8 +123,21 @@ def _recommend_for_customer(tenant_id: str, customer_id: str, top_n: int) -> lis
             detail=f"Customer '{customer_id}' not found for tenant '{tenant_id}'",
         )
 
+    customer_lookup = customers.set_index("customer_id")
+    customer_row = (
+        customer_lookup.loc[customer_id]
+        if customer_id in customer_lookup.index
+        else None
+    )
+
     model = get_model_for_tenant(tenant_id)
-    recommended_ids = model.recommend(customer_id, top_k=top_n)
+    try:
+        recommended_ids = model.recommend(customer_id, top_k=top_n)
+    except TypeError:
+        try:
+            recommended_ids = model.recommend(customer_id, customer_row, top_k=top_n)
+        except TypeError:
+            recommended_ids = model.recommend(customer_row, top_k=top_n)
 
     if not recommended_ids:
         return []
@@ -122,13 +146,21 @@ def _recommend_for_customer(tenant_id: str, customer_id: str, top_n: int) -> lis
     recommendations: list[dict[str, Any]] = []
 
     for rank, product_id in enumerate(recommended_ids, start=1):
-        product_row = product_lookup.loc[product_id] if product_id in product_lookup.index else None
+        product_row = (
+            product_lookup.loc[product_id]
+            if product_id in product_lookup.index
+            else None
+        )
         recommendations.append(
             {
                 "rank": rank,
                 "product_id": product_id,
-                "product_name": None if product_row is None else product_row["product_name"],
-                "category": None if product_row is None else product_row.get("category"),
+                "product_name": (
+                    None if product_row is None else product_row["product_name"]
+                ),
+                "category": (
+                    None if product_row is None else product_row.get("category")
+                ),
             }
         )
 
