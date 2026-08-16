@@ -25,8 +25,6 @@ from xgboost import XGBClassifier
 from src.core.encoding import encode_features
 # pyrefly: ignore [missing-import]
 from src.core.schema import FeatureSpec
-from src.models.collaborative_filtering import CollaborativeFilteringRecommender
-from src.models.content_based import ContentBasedRecommender
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -118,20 +116,14 @@ def _ensure_one_hot_specs(specs: list[FeatureSpec], df: pd.DataFrame) -> list[Fe
 class LearnedRankingRecommender:
     """Gradient-boosted ranking recommender driven by ``FeatureSpec`` definitions.
 
-    Optionally accepts pre-fitted ``ContentBasedRecommender`` and
-    ``CollaborativeFilteringRecommender`` instances to stack their candidate scores
-    into the feature set.
-
     Args:
         n_estimators: Number of XGBoost trees.
         max_depth: Maximum tree depth.
-        customer_specs: Feature specs for the customer table. When ``None``
+        customer_specs: Feature specs for the customer table.  When ``None``
             (default) the model infers minimal specs from the DataFrame at
             ``fit()`` time for backward compatibility.
-        product_specs: Feature specs for the product table. When ``None``
+        product_specs: Feature specs for the product table.  When ``None``
             the model infers minimal specs from the DataFrame at ``fit()`` time.
-        content_model: Optional pre-fitted ContentBasedRecommender instance.
-        cf_model: Optional pre-fitted CollaborativeFilteringRecommender instance.
     """
 
     def __init__(
@@ -140,15 +132,11 @@ class LearnedRankingRecommender:
         max_depth: int = 4,
         customer_specs: list[FeatureSpec] | None = None,
         product_specs: list[FeatureSpec] | None = None,
-        content_model: ContentBasedRecommender | None = None,
-        cf_model: CollaborativeFilteringRecommender | None = None,
     ) -> None:
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.customer_specs: list[FeatureSpec] | None = customer_specs
         self.product_specs: list[FeatureSpec] | None = product_specs
-        self.content_model = content_model
-        self.cf_model = cf_model
 
         self.model_ = XGBClassifier(
             n_estimators=n_estimators,
@@ -171,11 +159,6 @@ class LearnedRankingRecommender:
         interactions: pd.DataFrame,
         products: pd.DataFrame,
     ) -> LearnedRankingRecommender:
-        if self.content_model is not None and self.content_model.product_profiles_ is None:
-            raise ValueError("content_model passed to LearnedRankingRecommender must be fitted before fit().")
-        if self.cf_model is not None and self.cf_model.interaction_matrix_ is None:
-            raise ValueError("cf_model passed to LearnedRankingRecommender must be fitted before fit().")
-
         self.customers_ = customers.copy()
         self.interactions_ = interactions.copy()
         self.products_ = products.copy()
@@ -211,23 +194,18 @@ class LearnedRankingRecommender:
             interactions.loc[interactions["customer_id"].astype(str) == str(customer_id), "product_id"].astype(str)
         )
 
-        candidate_pids: list[str] = []
-        candidate_products: list[pd.Series] = []
+        candidate_rows = []
         for _, product in products.iterrows():
             product_id = str(product["product_id"])
             if product_id in known_products:
                 continue
-            candidate_pids.append(product_id)
-            candidate_products.append(product)
-
-        if not candidate_products:
-            return []
-
-        candidate_rows = []
-        for product in candidate_products:
             candidate_rows.append(self._build_candidate_row(customer_row, product))
 
+        if not candidate_rows:
+            return []
+
         candidate_frame = pd.DataFrame(candidate_rows)
+        candidate_pids = [str(pid) for pid in candidate_frame["product_id"]]
         feature_frame = (
             candidate_frame.reindex(columns=self.feature_columns_, fill_value=0)
             .drop(columns=["product_id", "customer_id"], errors="ignore")
@@ -320,14 +298,10 @@ class LearnedRankingRecommender:
             known_products = set(
                 interactions.loc[interactions["customer_id"].astype(str) == customer_id, "product_id"].astype(str)
             )
-
             for _, product in products.iterrows():
-                pid = str(product["product_id"])
                 rows.append(
                     self._build_candidate_row(
-                        customer,
-                        product,
-                        target=(pid in known_products),
+                        customer, product, target=(str(product["product_id"]) in known_products)
                     )
                 )
 
@@ -345,8 +319,6 @@ class LearnedRankingRecommender:
 
         Feature names and encoding rules come entirely from ``_customer_specs``
         and ``_product_specs`` — no hardcoded column names.
-        When sub-models are provided, appends ``content_based_score`` and
-        ``collaborative_score``.
         """
         row: dict[str, object] = {}
 
@@ -357,17 +329,6 @@ class LearnedRankingRecommender:
         # Product features — driven by specs, prefixed with "product_"
         product_encoded = encode_features(product_row, self._product_specs, prefix="product_")
         row.update(product_encoded)
-
-        # Stacking features from sub-models (if both sub-models are provided)
-        content_model = getattr(self, "content_model", None)
-        cf_model = getattr(self, "cf_model", None)
-        if content_model is not None and cf_model is not None:
-            cid = str(customer_row["customer_id"]) if "customer_id" in customer_row.index else ""
-            pid = str(product_row["product_id"]) if "product_id" in product_row.index else ""
-            cb_scores = content_model.score_candidates(cid, [pid], customer_features=customer_row)
-            cf_scores = cf_model.score_candidates(cid, [pid])
-            row["content_based_score"] = float(cb_scores.get(pid, 0.0))
-            row["collaborative_score"] = float(cf_scores.get(pid, 0.0))
 
         # Pass-through primary keys (dropped from X before training/scoring,
         # kept here so feature_columns_ alignment works correctly).

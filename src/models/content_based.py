@@ -6,6 +6,7 @@ This is the primary approach for cold-start customers (little/no
 interaction history), since it doesn't require prior interactions to work.
 """
 
+from numpy.typing import NDArray
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
@@ -28,6 +29,7 @@ class ContentBasedRecommender:
         self.categorical_columns_: list[str] = []
         self.categorical_feature_columns_: list[str] = []
         self.transformed_feature_columns_: list[str] = []
+        self.customers_: pd.DataFrame | None = None
 
     def fit(
         self,
@@ -47,6 +49,7 @@ class ContentBasedRecommender:
                 z-score scaled.
         """
         self.feature_columns_ = feature_columns
+        self.customers_ = customers.copy()
 
         feature_frame = customers[feature_columns].copy()
         self.numeric_columns_ = [
@@ -81,14 +84,15 @@ class ContentBasedRecommender:
 
         customer_feature_matrix = customers[["customer_id"]].copy().join(transformed)
         merged = interactions.merge(customer_feature_matrix, on="customer_id", how="left")
-        self.product_profiles_ = merged.groupby("product_id")[self.transformed_feature_columns_].mean()
+        profiles = merged.groupby("product_id")[self.transformed_feature_columns_].mean()
+        self.product_profiles_ = pd.DataFrame(profiles)
         logger.info(f"Fit content-based profiles for {len(self.product_profiles_)} products")
         return self
 
-    def recommend(self, customer_features: pd.Series, top_k: int = 5) -> list[str]:
-        """Return top_k product_ids most similar to a given customer's features."""
-        if self.product_profiles_ is None:
-            raise RuntimeError("Call fit() before recommend().")
+    def _transform_customer_features(self, customer_features: pd.Series) -> NDArray:
+        """Transform a customer's feature Series into the scaled and one-hot encoded feature vector."""
+        if self.feature_columns_ is None:
+            raise RuntimeError("Call fit() before transforming customer features.")
 
         row = pd.DataFrame([customer_features[self.feature_columns_].tolist()], columns=self.feature_columns_)
 
@@ -116,11 +120,79 @@ class ContentBasedRecommender:
         transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float)
         transformed = transformed.reindex(columns=self.transformed_feature_columns_, fill_value=0)
 
-        customer_vec = transformed.to_numpy().reshape(1, -1)
-        similarities = cosine_similarity(customer_vec, self.product_profiles_.values)[0]
+        return transformed.to_numpy().reshape(1, -1)
 
-        ranked = (
-            pd.Series(similarities, index=self.product_profiles_.index)
-            .sort_values(ascending=False)
-        )
-        return ranked.head(top_k).index.tolist()
+    def _compute_cosine_similarities(self, customer_vec: NDArray) -> pd.Series:
+        """Compute cosine similarity between customer vector and all product profiles."""
+        if self.product_profiles_ is None:
+            raise RuntimeError("Call fit() before computing similarities.")
+        similarities = cosine_similarity(customer_vec, self.product_profiles_.values)[0]
+        return pd.Series(similarities, index=self.product_profiles_.index)
+
+    def _get_customer_features(self, customer_id: str) -> pd.Series | None:
+        """Retrieve customer feature Series by customer_id from fitted customer DataFrame."""
+        if self.customers_ is None:
+            return None
+        if "customer_id" in self.customers_.columns:
+            matching = self.customers_.loc[self.customers_["customer_id"].astype(str) == str(customer_id)]
+            if not matching.empty:
+                return matching.iloc[0]
+        if customer_id in self.customers_.index:
+            return self.customers_.loc[customer_id]
+        if str(customer_id) in self.customers_.index:
+            return self.customers_.loc[str(customer_id)]
+        return None
+
+    def recommend(self, customer_features: pd.Series, top_k: int = 5) -> list[str]:
+        """Return top_k product_ids most similar to a given customer's features."""
+        if self.product_profiles_ is None:
+            raise RuntimeError("Call fit() before recommend().")
+
+        customer_vec = self._transform_customer_features(customer_features)
+        sim_series = self._compute_cosine_similarities(customer_vec)
+        ranked = sim_series.sort_values(ascending=False)
+        return [str(idx) for idx in ranked.head(top_k).index]
+
+    def score_candidates(
+        self,
+        customer_id: str,
+        candidate_product_ids: list[str],
+        customer_features: pd.Series | None = None,
+    ) -> dict[str, float]:
+        """Return content-based (cosine similarity) relevance scores for candidate products.
+
+        Args:
+            customer_id: Target customer ID.
+            candidate_product_ids: List of product IDs to score.
+            customer_features: Optional customer feature Series. If None, looked up
+                from fitted customer records.
+
+        Returns:
+            Dictionary mapping each candidate product_id to its cosine similarity score.
+            Returns 0.0 for unknown customers or unprofiled products.
+        """
+        if self.product_profiles_ is None:
+            raise RuntimeError("Call fit() before score_candidates().")
+
+        if customer_features is None:
+            customer_features = self._get_customer_features(customer_id)
+
+        if customer_features is None:
+            logger.warning(
+                "customer_id %s not found in fitted customers for content-based scoring", customer_id
+            )
+            return {str(pid): 0.0 for pid in candidate_product_ids}
+
+        customer_vec = self._transform_customer_features(customer_features)
+        sim_series = self._compute_cosine_similarities(customer_vec)
+
+        scores: dict[str, float] = {}
+        for pid in candidate_product_ids:
+            pid_str = str(pid)
+            if pid_str in sim_series.index:
+                scores[pid_str] = float(sim_series.loc[pid_str])
+            elif pid in sim_series.index:
+                scores[pid_str] = float(sim_series.loc[pid])
+            else:
+                scores[pid_str] = 0.0
+        return scores

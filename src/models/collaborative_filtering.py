@@ -51,18 +51,37 @@ class CollaborativeFilteringRecommender:
         )
         return self
 
+    def _compute_scores(self, customer_id: str) -> pd.Series | None:
+        """Compute raw SVD dot product scores for all products for a given customer."""
+        if self.interaction_matrix_ is None or self.customer_factors_ is None or self.product_factors_ is None:
+            raise RuntimeError("Call fit() before scoring.")
+
+        if customer_id in self.interaction_matrix_.index:
+            idx = self.interaction_matrix_.index.get_loc(customer_id)
+        elif str(customer_id) in self.interaction_matrix_.index:
+            idx = self.interaction_matrix_.index.get_loc(str(customer_id))
+        else:
+            return None
+
+        scores = self.customer_factors_[idx] @ self.product_factors_.T
+        return pd.Series(scores, index=self.interaction_matrix_.columns)
+
     def recommend(self, customer_id: str, top_k: int = 5) -> list[str]:
         if self.interaction_matrix_ is None:
             raise RuntimeError("Call fit() before recommend().")
-        if customer_id not in self.interaction_matrix_.index:
+
+        score_series = self._compute_scores(customer_id)
+        if score_series is None:
             logger.warning(
                 f"customer_id {customer_id} has no interaction history "
                 "(cold start) -- use ContentBasedRecommender instead."
             )
             return []
 
-        idx = self.interaction_matrix_.index.get_loc(customer_id)
-        scores = self.customer_factors_[idx] @ self.product_factors_.T
+        if customer_id in self.interaction_matrix_.index:
+            idx = self.interaction_matrix_.index.get_loc(customer_id)
+        else:
+            idx = self.interaction_matrix_.index.get_loc(str(customer_id))
 
         already_has = set(
             self.interaction_matrix_.columns[
@@ -71,8 +90,39 @@ class CollaborativeFilteringRecommender:
         )
 
         ranked = (
-            pd.Series(scores, index=self.interaction_matrix_.columns)
+            score_series
             .drop(labels=already_has, errors="ignore")
             .sort_values(ascending=False)
         )
         return ranked.head(top_k).index.tolist()
+
+    def score_candidates(
+        self, customer_id: str, candidate_product_ids: list[str]
+    ) -> dict[str, float]:
+        """Return collaborative-filtering (SVD) relevance scores for candidate products.
+
+        Args:
+            customer_id: Target customer ID.
+            candidate_product_ids: List of product IDs to score.
+
+        Returns:
+            Dictionary mapping each candidate product_id to its predicted score.
+            For cold-start customers or unknown products, returns 0.0.
+        """
+        if self.interaction_matrix_ is None:
+            raise RuntimeError("Call fit() before score_candidates().")
+
+        score_series = self._compute_scores(customer_id)
+        if score_series is None:
+            return {str(pid): 0.0 for pid in candidate_product_ids}
+
+        scores: dict[str, float] = {}
+        for pid in candidate_product_ids:
+            pid_str = str(pid)
+            if pid_str in score_series.index:
+                scores[pid_str] = float(score_series.loc[pid_str])
+            elif pid in score_series.index:
+                scores[pid_str] = float(score_series.loc[pid])
+            else:
+                scores[pid_str] = 0.0
+        return scores
