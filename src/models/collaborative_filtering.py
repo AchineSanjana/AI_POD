@@ -6,8 +6,10 @@ history, so it complements (rather than replaces) the content-based
 recommender for cold-start customers.
 """
 
-import numpy as np
+from typing import Any
+
 import pandas as pd
+from numpy.typing import NDArray
 from sklearn.decomposition import TruncatedSVD
 
 from src.utils.logger import get_logger
@@ -21,16 +23,20 @@ class CollaborativeFilteringRecommender:
         self.random_state = random_state
         self.model_ = TruncatedSVD(n_components=n_factors, random_state=random_state)
         self.interaction_matrix_: pd.DataFrame | None = None
-        self.customer_factors_: np.ndarray | None = None
-        self.product_factors_: np.ndarray | None = None
+        self.customer_factors_: NDArray[Any] | None = None
+        self.product_factors_: NDArray[Any] | None = None
 
     def fit(self, interactions: pd.DataFrame) -> "CollaborativeFilteringRecommender":
         """Args:
             interactions: long-format (customer_id, product_id) table.
         """
         matrix = (
-            interactions.assign(value=1)
-            .pivot_table(index="customer_id", columns="product_id", values="value", fill_value=0)
+            interactions.assign(value=1).pivot_table(
+                index="customer_id",
+                columns="product_id",
+                values="value",
+                fill_value=0,
+            )
         )
         self.interaction_matrix_ = matrix
 
@@ -38,11 +44,15 @@ class CollaborativeFilteringRecommender:
         n_components = min(self.n_factors, max(n_products - 1, 1))
         if n_components != self.n_factors:
             logger.warning(
-                f"Reducing n_factors to {n_components} (only {n_products} products available)"
+                f"Reducing n_factors to {n_components} "
+                f"(only {n_products} products available)"
             )
-        self.model_ = TruncatedSVD(n_components=n_components, random_state=self.random_state)
+        self.model_ = TruncatedSVD(
+            n_components=n_components, random_state=self.random_state
+        )
 
         self.customer_factors_ = self.model_.fit_transform(matrix.values)
+        assert self.model_.components_ is not None
         self.product_factors_ = self.model_.components_.T
 
         logger.info(
@@ -52,7 +62,11 @@ class CollaborativeFilteringRecommender:
         return self
 
     def recommend(self, customer_id: str, top_k: int = 5) -> list[str]:
-        if self.interaction_matrix_ is None:
+        if (
+            self.interaction_matrix_ is None
+            or self.customer_factors_ is None
+            or self.product_factors_ is None
+        ):
             raise RuntimeError("Call fit() before recommend().")
         if customer_id not in self.interaction_matrix_.index:
             logger.warning(
@@ -64,15 +78,12 @@ class CollaborativeFilteringRecommender:
         idx = self.interaction_matrix_.index.get_loc(customer_id)
         scores = self.customer_factors_[idx] @ self.product_factors_.T
 
-        already_has = set(
-            self.interaction_matrix_.columns[
-                self.interaction_matrix_.iloc[idx] > 0
-            ]
-        )
+        user_row = self.interaction_matrix_.loc[customer_id]
+        already_has = list(user_row[user_row > 0].index)
 
         ranked = (
             pd.Series(scores, index=self.interaction_matrix_.columns)
             .drop(labels=already_has, errors="ignore")
             .sort_values(ascending=False)
         )
-        return ranked.head(top_k).index.tolist()
+        return [str(x) for x in ranked.head(top_k).index]

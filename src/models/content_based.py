@@ -87,7 +87,7 @@ class ContentBasedRecommender:
 
     def recommend(self, customer_features: pd.Series, top_k: int = 5) -> list[str]:
         """Return top_k product_ids most similar to a given customer's features."""
-        if self.product_profiles_ is None:
+        if self.product_profiles_ is None or self.feature_columns_ is None:
             raise RuntimeError("Call fit() before recommend().")
 
         row = pd.DataFrame([customer_features[self.feature_columns_].tolist()], columns=self.feature_columns_)
