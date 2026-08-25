@@ -6,10 +6,9 @@ history, so it complements (rather than replaces) the content-based
 recommender for cold-start customers.
 """
 
-from typing import Any
-
-import pandas as pd
+import numpy as np
 from numpy.typing import NDArray
+import pandas as pd
 from sklearn.decomposition import TruncatedSVD
 
 from src.utils.logger import get_logger
@@ -23,8 +22,8 @@ class CollaborativeFilteringRecommender:
         self.random_state = random_state
         self.model_ = TruncatedSVD(n_components=n_factors, random_state=random_state)
         self.interaction_matrix_: pd.DataFrame | None = None
-        self.customer_factors_: NDArray[Any] | None = None
-        self.product_factors_: NDArray[Any] | None = None
+        self.customer_factors_: NDArray | None = None
+        self.product_factors_: NDArray | None = None
 
     def fit(self, interactions: pd.DataFrame) -> "CollaborativeFilteringRecommender":
         """Args:
