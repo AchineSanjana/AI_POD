@@ -1,0 +1,41 @@
+# Dependencies and virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+
+# Git and IDE metadata
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+
+# Tests, notebooks, and documentation
+tests/
+notebooks/
+docs/
+onboarding_logs/
+
+# Raw and processed datasets (loaded from storage backend or volume mounted)
+data/
+
+# Model artifacts (loaded from storage backend or volume mounted)
+models/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Miscellaneous
+my-api-app/
+*.md
+!README.md

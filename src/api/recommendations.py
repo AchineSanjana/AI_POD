@@ -3,15 +3,18 @@
 Driven by CustomerSchema, ProductSchema, and tenant configuration.
 """
 
+import io
 import sys
 from pathlib import Path
 from typing import Any
 
-import joblib
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
+from src.storage import get_storage_backend
+from src.storage.base_storage import StorageBackend
 from src.utils.config import get_tenant_auth_mapping, load_config
+from src.utils.persistence import load_model as persistence_load_model
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
@@ -50,18 +53,24 @@ def resolve_tenant_id(
     return tenant_id or "telco_default"
 
 
-def get_model_for_tenant(tenant_id: str) -> Any:
-    """Retrieve tenant model from cache or load lazily from disk."""
+def get_model_for_tenant(
+    tenant_id: str, storage: StorageBackend | None = None
+) -> Any:
+    """Retrieve tenant model from cache or load lazily from storage backend."""
     if tenant_id in MODEL_CACHE:
         return MODEL_CACHE[tenant_id]
 
-    model_path = PROJECT_ROOT / "models" / tenant_id / "final_model.joblib"
-    if not model_path.exists() and tenant_id == "telco_default":
-        legacy_path = PROJECT_ROOT / "models" / "final_model.joblib"
-        if legacy_path.exists():
+    if storage is None:
+        config = load_config()
+        storage = get_storage_backend(config)
+
+    model_path = f"models/{tenant_id}/final_model.joblib"
+    if not storage.exists(model_path) and tenant_id == "telco_default":
+        legacy_path = "models/final_model.joblib"
+        if storage.exists(legacy_path):
             model_path = legacy_path
 
-    if not model_path.exists():
+    if not storage.exists(model_path):
         raise HTTPException(
             status_code=404,
             detail=(
@@ -70,7 +79,7 @@ def get_model_for_tenant(tenant_id: str) -> Any:
             ),
         )
 
-    model = joblib.load(model_path)
+    model = persistence_load_model(model_path, storage=storage)
     MODEL_CACHE[tenant_id] = model
     return model
 
@@ -80,22 +89,26 @@ def load_model(tenant_id: str = "telco_default") -> Any:
     return get_model_for_tenant(tenant_id)
 
 
-def _get_model_tables(tenant_id: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    model = get_model_for_tenant(tenant_id)
+def _get_model_tables(
+    tenant_id: str, storage: StorageBackend | None = None
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if storage is None:
+        config = load_config()
+        storage = get_storage_backend(config)
+
+    model = get_model_for_tenant(tenant_id, storage=storage)
 
     customers = getattr(model, "customers_", None)
     products = getattr(model, "products_", None)
 
     if customers is None or products is None:
-        proc_dir = PROJECT_ROOT / "data" / "processed" / tenant_id
-        if (
-            (proc_dir / "customers.csv").exists()
-            and (proc_dir / "products.csv").exists()
-        ):
+        cust_path = f"data/processed/{tenant_id}/customers.csv"
+        prod_path = f"data/processed/{tenant_id}/products.csv"
+        if storage.exists(cust_path) and storage.exists(prod_path):
             if customers is None:
-                customers = pd.read_csv(proc_dir / "customers.csv")
+                customers = pd.read_csv(io.BytesIO(storage.read_file(cust_path)))
             if products is None:
-                products = pd.read_csv(proc_dir / "products.csv")
+                products = pd.read_csv(io.BytesIO(storage.read_file(prod_path)))
         else:
             raise HTTPException(
                 status_code=500,

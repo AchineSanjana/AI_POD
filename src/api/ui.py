@@ -41,11 +41,13 @@ def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 25) -
         pass
 
     try:
-        proc_path = resolve_path(Path("data") / "processed" / tenant_id / "customers.csv")
-        if not proc_path.exists():
-            proc_path = Path("data") / "processed" / tenant_id / "customers.csv"
-        if proc_path.exists():
-            df = pd.read_csv(proc_path)
+        from src.storage import get_storage_backend
+        import io
+
+        storage = get_storage_backend()
+        cust_key = f"data/processed/{tenant_id}/customers.csv"
+        if storage.exists(cust_key):
+            df = pd.read_csv(io.BytesIO(storage.read_file(cust_key)))
             if "customerID" in df.columns:
                 df = df.rename(columns={"customerID": "customer_id"})
             if "customer_id" in df.columns:

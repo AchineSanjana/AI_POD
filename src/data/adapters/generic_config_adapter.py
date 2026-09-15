@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 import pandas as pd
 
@@ -14,6 +15,8 @@ from src.data.interaction_extraction import (
     derive_products_from_interaction_source,
     extract_interactions_from_interaction_source,
 )
+from src.storage import get_storage_backend
+from src.storage.base_storage import StorageBackend
 # pyrefly: ignore [missing-import]
 from src.utils.config import TenantConfig, resolve_path
 # pyrefly: ignore [missing-import]
@@ -26,11 +29,12 @@ class GenericConfigAdapter(DataAdapter):
     """Config-driven data adapter that configures data pipeline steps via TenantConfig.
 
     Args:
-        tenant_config: Parsed TenantConfig defining data source, customer schema, product rules,
-            and interaction rules.
-        customer_schema: Optional CustomerSchema override. Defaults to schema built from tenant_config.
+        tenant_config: Parsed TenantConfig defining data source, customer schema,
+            product rules, and interaction rules.
+        customer_schema: Optional CustomerSchema override. Defaults to schema from tenant_config.
         product_schema: Optional ProductSchema override.
         interaction_schema: Optional InteractionSchema override.
+        storage: Optional StorageBackend instance. Defaults to configured backend.
     """
 
     def __init__(
@@ -39,8 +43,10 @@ class GenericConfigAdapter(DataAdapter):
         customer_schema: CustomerSchema | None = None,
         product_schema: ProductSchema | None = None,
         interaction_schema: InteractionSchema | None = None,
+        storage: StorageBackend | None = None,
     ) -> None:
         self.tenant_config = tenant_config
+        self.storage = storage or get_storage_backend()
 
         resolved_customer_schema = customer_schema or CustomerSchema(
             features=tenant_config.customers.features
@@ -68,14 +74,27 @@ class GenericConfigAdapter(DataAdapter):
     def load_raw(self) -> pd.DataFrame:
         """Load raw dataset file based on tenant_config.data_source."""
         ds_type = self.tenant_config.data_source.type.lower()
-        file_path = resolve_path(self.tenant_config.data_source.path)
-        if not file_path.exists():
-            file_path = Path(self.tenant_config.data_source.path)
+        raw_path = self.tenant_config.data_source.path
+
+        content: bytes | None = None
+        if self.storage is not None and self.storage.exists(raw_path):
+            content = self.storage.read_file(raw_path)
+        else:
+            file_path = resolve_path(raw_path)
+            if not file_path.exists():
+                file_path = Path(raw_path)
+            if file_path.exists():
+                content = file_path.read_bytes()
+
+        if content is None:
+            raise FileNotFoundError(
+                f"Raw data file not found at '{raw_path}' via storage or local filesystem."
+            )
 
         if ds_type == "csv":
-            df = pd.read_csv(file_path)
+            df = pd.read_csv(io.BytesIO(content))
         elif ds_type == "json":
-            df = pd.read_json(file_path)
+            df = pd.read_json(io.BytesIO(content))
         else:
             raise ValueError(f"Unsupported data_source type '{ds_type}'")
 

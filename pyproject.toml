@@ -7,6 +7,9 @@ exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]
+
 [tool.pytest.ini_options]
 # Add the project root to sys.path so `from src.utils.config import ...` works
 pythonpath = ["."]

@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import pandas as pd
 
+from typing import TYPE_CHECKING, Any
+
 # pyrefly: ignore [missing-import]
 from src.core.schema import CustomerSchema, ProductSchema
 # pyrefly: ignore [missing-import]
 from src.data.adapters.generic_config_adapter import GenericConfigAdapter
+if TYPE_CHECKING:
+    from src.storage.base_storage import StorageBackend
 # pyrefly: ignore [missing-import]
 from src.data.interaction_extraction import (
     _INTERNET_PRODUCTS,
@@ -63,6 +67,7 @@ class TelcoAdapter(GenericConfigAdapter):
         config: dict | None = None,
         customer_schema: CustomerSchema | None = None,
         product_schema: ProductSchema | None = None,
+        storage: Any = None,
     ) -> None:
         cfg = config or load_config()
         tenant_config = get_tenant_config(cfg, "telco_default")
@@ -71,6 +76,7 @@ class TelcoAdapter(GenericConfigAdapter):
             tenant_config=tenant_config,
             customer_schema=customer_schema,
             product_schema=product_schema,
+            storage=storage,
         )
         self._config: dict = cfg
         self._isc: InteractionSourceConfig = get_interaction_source_config(cfg)

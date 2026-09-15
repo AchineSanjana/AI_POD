@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -22,22 +23,32 @@ if str(ROOT) not in sys.path:
 
 # pyrefly: ignore [missing-import]
 from src.data.adapters.generic_config_adapter import GenericConfigAdapter
+
 # pyrefly: ignore [missing-import]
 from src.evaluation.metrics import evaluate_all
+
 # pyrefly: ignore [missing-import]
 from src.evaluation.split import create_train_test_split
+
 # pyrefly: ignore [missing-import]
 from src.models.collaborative_filtering import CollaborativeFilteringRecommender
+
 # pyrefly: ignore [missing-import]
 from src.models.content_based import ContentBasedRecommender
+
 # pyrefly: ignore [missing-import]
 from src.models.hybrid import HybridRecommender
+
 # pyrefly: ignore [missing-import]
 from src.models.ranking_model import LearnedRankingRecommender
+from src.storage import get_storage_backend
+
 # pyrefly: ignore [missing-import]
-from src.utils.config import TenantConfig, get_tenant_config, load_config, resolve_path
+from src.utils.config import TenantConfig, get_tenant_config, load_config
+
 # pyrefly: ignore [missing-import]
 from src.utils.logger import get_logger
+
 # pyrefly: ignore [missing-import]
 from src.utils.persistence import save_model
 
@@ -50,7 +61,7 @@ def evaluate_models(
     interactions: pd.DataFrame,
     tenant_cfg: TenantConfig,
 ) -> tuple[dict[str, dict[str, float]], str, Any]:
-    """Train and evaluate content-based, collaborative, hybrid, and ranking models on tenant data."""
+    """Train and evaluate candidate recommender models on tenant data."""
     feature_columns = [f.name for f in tenant_cfg.customers.features]
     train_interactions, test_interactions = create_train_test_split(
         interactions, max_test_items_per_customer=2, random_state=42
@@ -61,12 +72,16 @@ def evaluate_models(
     if len(customer_ids) > 100:
         customer_ids = customer_ids[:100]
 
-    content_model = ContentBasedRecommender().fit(customers, train_interactions, feature_columns)
-    cf_model = CollaborativeFilteringRecommender(n_factors=5).fit(train_interactions)
-    hybrid_model = HybridRecommender().fit(customers, train_interactions, feature_columns)
-    ranking_model = LearnedRankingRecommender(customer_specs=tenant_cfg.customers.features).fit(
-        customers, train_interactions, products
+    content_model = ContentBasedRecommender().fit(
+        customers, train_interactions, feature_columns
     )
+    cf_model = CollaborativeFilteringRecommender(n_factors=5).fit(train_interactions)
+    hybrid_model = HybridRecommender().fit(
+        customers, train_interactions, feature_columns
+    )
+    ranking_model = LearnedRankingRecommender(
+        customer_specs=tenant_cfg.customers.features
+    ).fit(customers, train_interactions, products)
 
     metrics_by_model: dict[str, list[dict[str, float]]] = {
         "content_based": [],
@@ -77,7 +92,9 @@ def evaluate_models(
 
     for customer_id in customer_ids:
         relevant = set(
-            test_interactions.loc[test_interactions["customer_id"] == customer_id, "product_id"]
+            test_interactions.loc[
+                test_interactions["customer_id"] == customer_id, "product_id"
+            ]
         )
         if not relevant:
             continue
@@ -108,13 +125,21 @@ def evaluate_models(
 
     # Fit winning model on full tenant dataset
     if winning_name == "content_based":
-        winning_model = ContentBasedRecommender().fit(customers, interactions, feature_columns)
+        winning_model = ContentBasedRecommender().fit(
+            customers, interactions, feature_columns
+        )
     elif winning_name == "collaborative":
-        winning_model = CollaborativeFilteringRecommender(n_factors=5).fit(interactions)
+        winning_model = CollaborativeFilteringRecommender(n_factors=5).fit(
+            interactions
+        )
     elif winning_name == "hybrid":
-        winning_model = HybridRecommender().fit(customers, interactions, feature_columns)
+        winning_model = HybridRecommender().fit(
+            customers, interactions, feature_columns
+        )
     else:
-        winning_model = LearnedRankingRecommender(customer_specs=tenant_cfg.customers.features).fit(
+        winning_model = LearnedRankingRecommender(
+            customer_specs=tenant_cfg.customers.features
+        ).fit(
             customers, interactions, products
         )
 
@@ -125,41 +150,55 @@ def evaluate_models(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Recommendation Pipeline for a specific tenant.")
+    parser = argparse.ArgumentParser(
+        description="Run Recommendation Pipeline for a specific tenant."
+    )
     parser.add_argument(
         "--tenant_id",
         type=str,
-        default="telco_default",
-        help="Tenant ID to run pipeline for (default: telco_default)",
+        default=os.environ.get("TENANT_ID", "telco_default"),
+        help="Tenant ID to run pipeline for (default: $TENANT_ID or telco_default)",
     )
     args = parser.parse_args()
 
     config = load_config()
+    storage = get_storage_backend(config)
     tenant_cfg = get_tenant_config(config, args.tenant_id)
-    adapter = GenericConfigAdapter(tenant_cfg)
+    adapter = GenericConfigAdapter(tenant_cfg, storage=storage)
 
     logger.info(f"Starting data pipeline for tenant '{args.tenant_id}'...")
     customers, products, interactions = adapter.run()
 
     # Write processed data to tenant-isolated directory: data/processed/{tenant_id}/
-    out_dir = resolve_path(Path("data") / "processed" / args.tenant_id)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    prefix_data = f"data/processed/{args.tenant_id}"
+    storage.write_file(
+        f"{prefix_data}/customers.csv",
+        customers.to_csv(index=False).encode("utf-8"),
+    )
+    storage.write_file(
+        f"{prefix_data}/products.csv",
+        products.to_csv(index=False).encode("utf-8"),
+    )
+    storage.write_file(
+        f"{prefix_data}/interactions.csv",
+        interactions.to_csv(index=False).encode("utf-8"),
+    )
 
-    customers.to_csv(out_dir / "customers.csv", index=False)
-    products.to_csv(out_dir / "products.csv", index=False)
-    interactions.to_csv(out_dir / "interactions.csv", index=False)
-
-    logger.info(f"Wrote tenant '{args.tenant_id}' tables to {out_dir}")
+    logger.info(
+        f"Wrote tenant '{args.tenant_id}' tables via "
+        f"{type(storage).__name__} to {prefix_data}"
+    )
 
     # Evaluate models and select winning model
-    scores, winning_name, winning_model = evaluate_models(customers, products, interactions, tenant_cfg)
+    scores, winning_name, winning_model = evaluate_models(
+        customers, products, interactions, tenant_cfg
+    )
     logger.info(f"Tenant '{args.tenant_id}' evaluation complete. Scores: {scores}")
     logger.info(f"Winning model for tenant '{args.tenant_id}': {winning_name}")
 
     # Save winning model to models/{tenant_id}/final_model.joblib
-    model_dir = resolve_path(Path("models") / args.tenant_id)
-    model_dir.mkdir(parents=True, exist_ok=True)
-    saved_path = save_model(winning_model, model_dir / "final_model.joblib")
+    model_path = f"models/{args.tenant_id}/final_model.joblib"
+    saved_path = save_model(winning_model, model_path, storage=storage)
     logger.info(f"Saved winning model for tenant '{args.tenant_id}' to {saved_path}")
 
 

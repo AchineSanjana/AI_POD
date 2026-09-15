@@ -359,3 +359,14 @@ def get_tenant_auth_mapping(config: dict) -> dict[str, str]:
     """Return dictionary mapping api_key -> tenant_id from config['tenants_auth']."""
     return dict(config.get("tenants_auth", {}))
 
+
+def get_storage_backend(config: dict | None = None):
+    """Convenience accessor to instantiate the configured storage backend.
+
+    See :func:`src.storage.get_storage_backend`.
+    """
+    from src.storage import get_storage_backend as _get_backend
+
+    return _get_backend(config)
+
+

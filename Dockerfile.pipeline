@@ -1,0 +1,27 @@
+# Dedicated training and pipeline orchestration image
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    TENANT_ID=telco_default \
+    STORAGE_BACKEND=s3
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy pipeline source, configuration, scripts, and local raw data seeds
+COPY src/ ./src/
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+COPY data/raw/ ./data/raw/
+
+# Default entrypoint runs the full multi-tenant pipeline
+ENTRYPOINT ["python", "scripts/run_pipeline.py"]
+CMD []
