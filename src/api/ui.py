@@ -3,7 +3,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys
 from typing import Any
+
+# Ensure project root is in sys.path for direct script execution
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 from fastapi import APIRouter, Query
@@ -513,3 +519,9 @@ def home(
     customer_id: str | None = Query(None, description="Default Customer ID"),
 ) -> HTMLResponse:
     return HTMLResponse(build_home_page(tenant_id=tenant_id, default_customer_id=customer_id))
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("src.api.app:app", host="127.0.0.1", port=8000, reload=True)
