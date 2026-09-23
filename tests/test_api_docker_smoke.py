@@ -59,7 +59,8 @@ def test_api_recommendations_smoke():
     # Query telco_default recommendations
     response = client.get(
         "/recommendations",
-        params={"customer_id": "7590-VHVEG", "top_n": 5, "tenant_id": "telco_default"},
+        params={"customer_id": "7590-VHVEG", "top_n": 5},
+        headers={"X-API-Key": "sk-telco-xxxx"},
     )
     assert response.status_code == 200
     data = response.json()

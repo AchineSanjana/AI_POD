@@ -1,11 +1,20 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
+from src.api.auth import load_tenant_auth
 from src.api.recommendations import router as recommendations_router
 from src.api.ui import build_home_page, router as ui_router
 
 
-app = FastAPI(title="Recommendations API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    load_tenant_auth()
+    yield
+
+
+app = FastAPI(title="Recommendations API", lifespan=lifespan)
 
 app.include_router(ui_router)
 app.include_router(recommendations_router)

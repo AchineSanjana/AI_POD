@@ -20,7 +20,8 @@ def test_get_recommendations_for_known_customer():
 
     response = client.get(
         "/recommendations",
-        params={"customer_id": customer_id, "tenant_id": "telco_default", "top_n": 3},
+        params={"customer_id": customer_id, "top_n": 3},
+        headers={"X-API-Key": "sk-telco-xxxx"},
     )
     assert response.status_code == 200
 
@@ -34,21 +35,29 @@ def test_get_recommendations_for_known_customer():
 
 
 def test_get_recommendations_missing_tenant_model():
-    response = client.get(
-        "/recommendations",
-        params={"customer_id": "cust_1", "tenant_id": "non_existent_tenant"},
-    )
-    assert response.status_code == 404
-    assert response.json()["detail"] == (
-        "No trained model found for tenant 'non_existent_tenant'. "
-        "Run the pipeline for this tenant first."
-    )
+    from src.api.auth import TENANT_AUTH_MAPPING
+
+    TENANT_AUTH_MAPPING["sk-dummy-uninitialized"] = "non_existent_tenant"
+    try:
+        response = client.get(
+            "/recommendations",
+            params={"customer_id": "cust_1"},
+            headers={"X-API-Key": "sk-dummy-uninitialized"},
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == (
+            "No trained model found for tenant 'non_existent_tenant'. "
+            "Run the pipeline for this tenant first."
+        )
+    finally:
+        TENANT_AUTH_MAPPING.pop("sk-dummy-uninitialized", None)
 
 
 def test_get_recommendations_unknown_customer_validation():
     response = client.get(
         "/recommendations/99999",
-        params={"tenant_id": "telco_default", "top_n": 3},
+        params={"top_n": 3},
+        headers={"X-API-Key": "sk-telco-xxxx"},
     )
     assert response.status_code == 404
     assert response.json()["detail"] == "Customer '99999' not found for tenant 'telco_default'"
@@ -64,7 +73,7 @@ def test_model_caching_behavior():
     # Request populates cache
     response = client.get(
         f"/recommendations/{customer_id}",
-        params={"tenant_id": "telco_default"},
+        headers={"X-API-Key": "sk-telco-xxxx"},
     )
     assert response.status_code == 200
     assert "telco_default" in MODEL_CACHE
@@ -124,3 +133,50 @@ def test_api_key_overrides_client_tenant_id():
     payload = response.json()
     assert payload["tenant_id"] == "telco_default"
     assert payload["customer_id"] == customer_id
+
+
+def test_recommendations_missing_api_key():
+    response = client.get(
+        "/recommendations",
+        params={"customer_id": "any_customer"},
+    )
+    assert response.status_code == 401
+    assert "API key is missing" in response.json()["detail"]
+
+
+def test_post_recommendations_with_valid_api_key():
+    model = get_model_for_tenant("telco_default")
+    customer_id = model.customers_.iloc[0]["customer_id"]
+
+    response = client.post(
+        "/recommendations",
+        json={"customer_id": customer_id, "top_n": 3},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["tenant_id"] == "telco_default"
+    assert payload["customer_id"] == customer_id
+    assert len(payload["recommendations"]) <= 3
+
+
+def test_post_recommendations_tenant_isolation_against_body_spoofing():
+    """Ensure a request with key for Tenant A cannot access Tenant B's data via request body."""
+    model = get_model_for_tenant("telco_default")
+    customer_id = model.customers_.iloc[0]["customer_id"]
+
+    response = client.post(
+        "/recommendations",
+        json={"customer_id": customer_id, "top_n": 3, "tenant_id": "fixture_ecommerce"},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    # Must remain scoped to telco_default, completely ignoring fixture_ecommerce
+    assert payload["tenant_id"] == "telco_default"
+    assert payload["customer_id"] == customer_id
+    # Products returned must belong to telco catalog, not ecommerce
+    telco_products = get_model_for_tenant("telco_default").products_
+    telco_pids = set(telco_products["product_id"].astype(str))
+    for rec in payload["recommendations"]:
+        assert str(rec["product_id"]) in telco_pids

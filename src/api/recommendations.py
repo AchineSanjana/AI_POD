@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
+from src.api.auth import get_current_tenant
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.utils.config import get_tenant_auth_mapping, load_config
@@ -32,25 +34,17 @@ def clear_model_cache() -> None:
     MODEL_CACHE.clear()
 
 
-def resolve_tenant_id(
-    x_api_key: str | None = Header(None, alias="X-API-Key"),
-    tenant_id: str | None = Query(
-        None, description="Optional tenant ID fallback if X-API-Key is not set"
-    ),
-) -> str:
-    """Resolve API key to tenant_id server-side from tenants_auth mapping."""
-    config = load_config()
-    auth_mapping = get_tenant_auth_mapping(config)
+# Alias for backward compatibility
+resolve_tenant_id = get_current_tenant
 
-    if x_api_key is not None:
-        if x_api_key not in auth_mapping:
-            raise HTTPException(
-                status_code=401, detail=f"Invalid API Key: '{x_api_key}'"
-            )
-        return auth_mapping[x_api_key]
 
-    # Fallback to query parameter or default for developer UI / local testing
-    return tenant_id or "telco_default"
+class RecommendationRequest(BaseModel):
+    customer_id: str
+    top_n: int = Field(5, ge=1, le=50)
+    tenant_id: str | None = Field(
+        None,
+        description="Ignored. The tenant identity is always derived from the X-API-Key header.",
+    )
 
 
 def get_model_for_tenant(
@@ -184,7 +178,7 @@ def _recommend_for_customer(
 def get_recommendations(
     customer_id: str = Query(..., description="Customer ID to score"),
     top_n: int = Query(5, ge=1, le=50),
-    tenant_id: str = Depends(resolve_tenant_id),
+    tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     return {
         "tenant_id": tenant_id,
@@ -193,11 +187,23 @@ def get_recommendations(
     }
 
 
+@router.post("")
+def create_recommendations(
+    payload: RecommendationRequest,
+    tenant_id: str = Depends(get_current_tenant),
+) -> dict[str, Any]:
+    return {
+        "tenant_id": tenant_id,
+        "customer_id": payload.customer_id,
+        "recommendations": _recommend_for_customer(tenant_id, payload.customer_id, payload.top_n),
+    }
+
+
 @router.get("/{customer_id}")
 def get_recommendations_for_customer(
     customer_id: str,
     top_n: int = Query(5, ge=1, le=50),
-    tenant_id: str = Depends(resolve_tenant_id),
+    tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     return {
         "tenant_id": tenant_id,

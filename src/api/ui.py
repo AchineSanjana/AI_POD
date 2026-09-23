@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from src.api.recommendations import get_model_for_tenant
-from src.utils.config import load_config, resolve_path
+from src.utils.config import get_tenant_auth_mapping, load_config, resolve_path
 
 
 router = APIRouter(tags=["ui"])
@@ -76,12 +76,20 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
     current_samples = tenant_samples_map.get(selected_tenant, [])
     effective_customer_id = default_customer_id or (current_samples[0] if current_samples else "")
 
+    try:
+        cfg = load_config()
+        auth_mapping = get_tenant_auth_mapping(cfg)
+        tenant_keys_map = {t: key for key, t in auth_mapping.items()}
+    except Exception:
+        tenant_keys_map = {}
+
     tenant_options_html = "\n".join(
         f'<option value="{t}" {"selected" if t == selected_tenant else ""}>{t}</option>'
         for t in available_tenants
     )
     customer_options_html = "".join(f'<option value="{cid}"></option>' for cid in current_samples)
     tenant_samples_json = json.dumps(tenant_samples_map)
+    tenant_keys_json = json.dumps(tenant_keys_map)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -390,6 +398,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
 
   <script>
     const tenantSamplesMap = {tenant_samples_json};
+    const tenantKeysMap = {tenant_keys_json};
     const tenantSelect = document.getElementById('tenant_id');
     const customerInput = document.getElementById('customer_id');
     const customerSuggestions = document.getElementById('customer-suggestions');
@@ -476,7 +485,11 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
       resultsMetaEl.textContent = 'Fetching fresh recommendations...';
 
       try {{
-        const response = await fetch(`/recommendations/${{encodeURIComponent(customerId)}}?tenant_id=${{encodeURIComponent(tenantId)}}&top_n=${{topN}}`);
+        const apiKey = tenantKeysMap[tenantId] || '';
+        const headers = apiKey ? {{ 'X-API-Key': apiKey }} : {{}};
+        const response = await fetch(`/recommendations/${{encodeURIComponent(customerId)}}?top_n=${{topN}}`, {{
+          headers: headers
+        }});
         const payload = await response.json();
 
         if (!response.ok) {{
