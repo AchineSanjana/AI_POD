@@ -13,12 +13,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.api.auth import get_current_tenant
+from src.api.rate_limiter import check_rate_limit
+from src.api.schemas import RecommendationItem, RecommendationRequest, RecommendationsResponse
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.utils.config import get_tenant_auth_mapping, load_config
 from src.utils.persistence import load_model as persistence_load_model
 
-router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+router = APIRouter(
+    prefix="/recommendations",
+    tags=["recommendations"],
+    dependencies=[Depends(check_rate_limit(scope="recommendations"))],
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -36,15 +42,6 @@ def clear_model_cache() -> None:
 
 # Alias for backward compatibility
 resolve_tenant_id = get_current_tenant
-
-
-class RecommendationRequest(BaseModel):
-    customer_id: str
-    top_n: int = Field(5, ge=1, le=50)
-    tenant_id: str | None = Field(
-        None,
-        description="Ignored. The tenant identity is always derived from the X-API-Key header.",
-    )
 
 
 def get_model_for_tenant(
@@ -174,39 +171,66 @@ def _recommend_for_customer(
     return recommendations
 
 
-@router.get("")
+@router.get(
+    "",
+    response_model=RecommendationsResponse,
+    summary="Get customer recommendations",
+    description="Retrieve personalized top-N product recommendations for a customer. The tenant is resolved from the X-API-Key header.",
+)
 def get_recommendations(
     customer_id: str = Query(..., description="Customer ID to score"),
-    top_n: int = Query(5, ge=1, le=50),
+    top_n: int = Query(5, ge=1, le=50, description="Number of recommendations to return (1-50)"),
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
+    """Retrieve personalized product recommendations for a customer."""
+    if not customer_id or not customer_id.strip():
+        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
+
     return {
         "tenant_id": tenant_id,
-        "customer_id": customer_id,
-        "recommendations": _recommend_for_customer(tenant_id, customer_id, top_n),
+        "customer_id": customer_id.strip(),
+        "recommendations": _recommend_for_customer(tenant_id, customer_id.strip(), top_n),
     }
 
 
-@router.post("")
+@router.post(
+    "",
+    response_model=RecommendationsResponse,
+    summary="Create customer recommendations",
+    description="Retrieve personalized top-N product recommendations for a customer using a JSON request payload.",
+)
 def create_recommendations(
     payload: RecommendationRequest,
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
+    """Retrieve recommendations using a JSON request body."""
+    if not payload.customer_id or not payload.customer_id.strip():
+        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
+
     return {
         "tenant_id": tenant_id,
-        "customer_id": payload.customer_id,
-        "recommendations": _recommend_for_customer(tenant_id, payload.customer_id, payload.top_n),
+        "customer_id": payload.customer_id.strip(),
+        "recommendations": _recommend_for_customer(tenant_id, payload.customer_id.strip(), payload.top_n),
     }
 
 
-@router.get("/{customer_id}")
+@router.get(
+    "/{customer_id}",
+    response_model=RecommendationsResponse,
+    summary="Get recommendations by customer ID path",
+    description="Retrieve personalized top-N product recommendations for a specific customer ID passed in the URL path.",
+)
 def get_recommendations_for_customer(
     customer_id: str,
-    top_n: int = Query(5, ge=1, le=50),
+    top_n: int = Query(5, ge=1, le=50, description="Number of recommendations to return (1-50)"),
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
+    """Retrieve personalized product recommendations for a customer specified by path."""
+    if not customer_id or not customer_id.strip():
+        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
+
     return {
         "tenant_id": tenant_id,
-        "customer_id": customer_id,
-        "recommendations": _recommend_for_customer(tenant_id, customer_id, top_n),
+        "customer_id": customer_id.strip(),
+        "recommendations": _recommend_for_customer(tenant_id, customer_id.strip(), top_n),
     }

@@ -1,8 +1,7 @@
 storage:
   backend: local
   s3_bucket: null
-  s3_prefix: ""
-
+  s3_prefix: ''
 paths:
   raw_dir: data/raw
   processed_dir: data/processed
@@ -139,6 +138,9 @@ tenants:
     segmentation:
       field: tenure
       split: median
+    rate_limit:
+      recommendations: 60
+      onboarding: 5
   fixture_ecommerce:
     data_source:
       type: csv
@@ -173,6 +175,9 @@ tenants:
     segmentation:
       field: signup_days
       split: median
+    rate_limit:
+      recommendations: 60
+      onboarding: 5
   movielens_demo:
     data_source:
       type: csv
@@ -382,11 +387,6 @@ tenants:
     segmentation:
       field: company_age_months
       split: median
-tenants_auth:
-  sk-telco-xxxx: telco_default
-  sk-ecommerce-xxxx: fixture_ecommerce
-  sk-movielens-xxxx: movielens_demo
-  sk-movielens-small-xxxx: movielens_small
 model:
   content_based:
     similarity_metric: cosine

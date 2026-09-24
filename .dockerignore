@@ -34,6 +34,7 @@ models/
 .env
 .env.*
 !.env.example
+config/tenants_auth.local.yaml
 
 # Miscellaneous
 my-api-app/

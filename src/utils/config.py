@@ -8,6 +8,8 @@ Usage:
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -355,9 +357,90 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
     )
 
 
-def get_tenant_auth_mapping(config: dict) -> dict[str, str]:
-    """Return dictionary mapping api_key -> tenant_id from config['tenants_auth']."""
-    return dict(config.get("tenants_auth", {}))
+def get_tenant_auth_mapping(config: dict | None = None) -> dict[str, str]:
+    """Retrieve tenant API key to tenant_id mapping.
+
+    - In local/dev mode (STORAGE_BACKEND != 's3'), reads from `config/tenants_auth.local.yaml`.
+    - In AWS mode (STORAGE_BACKEND == 's3'), reads from SSM Parameter Store (or Secrets Manager if specified).
+
+    Args:
+        config: Loaded config dictionary. If None, loaded via `load_config()`.
+
+    Returns:
+        Dictionary mapping api_key -> tenant_id.
+    """
+    if config is None:
+        try:
+            config = load_config()
+        except Exception:
+            config = {}
+
+    storage_cfg = config.get("storage", {})
+    backend = os.environ.get(
+        "STORAGE_BACKEND", storage_cfg.get("backend", "local")
+    ).strip().lower()
+
+    if backend == "s3":
+        import boto3
+
+        region = (
+            os.environ.get("AWS_REGION")
+            or os.environ.get("AWS_DEFAULT_REGION")
+            or storage_cfg.get("region")
+            or "us-east-1"
+        )
+
+        secret_name = (
+            os.environ.get("TENANTS_AUTH_SECRET_NAME")
+            or storage_cfg.get("tenants_auth_secret_name")
+        )
+        if secret_name:
+            sm = boto3.client("secretsmanager", region_name=region)
+            resp = sm.get_secret_value(SecretId=secret_name)
+            val = resp.get("SecretString", "")
+            data = json.loads(val)
+        else:
+            param_name = (
+                os.environ.get("TENANTS_AUTH_SSM_PARAM")
+                or os.environ.get("TENANTS_AUTH_PARAM")
+                or storage_cfg.get("tenants_auth_ssm_param")
+                or "/ai_pod/tenants_auth"
+            )
+            ssm = boto3.client("ssm", region_name=region)
+            resp = ssm.get_parameter(Name=param_name, WithDecryption=True)
+            val = resp["Parameter"]["Value"]
+            data = json.loads(val)
+
+        if isinstance(data, dict):
+            mapping = data.get("tenants_auth", data)
+            return {str(k): str(v) for k, v in mapping.items()}
+        raise ValueError(
+            f"Invalid tenant auth data loaded from AWS: expected JSON object, got {type(data)}"
+        )
+
+    # Local / dev mode: Read from config/tenants_auth.local.yaml
+    local_path = resolve_path("config/tenants_auth.local.yaml")
+    if local_path.exists():
+        with open(local_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        if isinstance(data, dict):
+            mapping = data.get("tenants_auth", data)
+            return {str(k): str(v) for k, v in mapping.items()}
+
+    # Fallback to config['tenants_auth'] if present (legacy support)
+    if "tenants_auth" in config and isinstance(config["tenants_auth"], dict):
+        return {str(k): str(v) for k, v in config["tenants_auth"].items()}
+
+    # Fallback to example file if local file does not exist
+    example_path = resolve_path("config/tenants_auth.example.yaml")
+    if example_path.exists():
+        with open(example_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        if isinstance(data, dict):
+            mapping = data.get("tenants_auth", data)
+            return {str(k): str(v) for k, v in mapping.items()}
+
+    return {}
 
 
 def get_storage_backend(config: dict | None = None):
@@ -368,5 +451,49 @@ def get_storage_backend(config: dict | None = None):
     from src.storage import get_storage_backend as _get_backend
 
     return _get_backend(config)
+
+
+def get_tenant_rate_limit(
+    tenant_id: str,
+    scope: str = "recommendations",
+    config: dict | None = None,
+) -> int:
+    """Return configured requests-per-minute rate limit for tenant and scope.
+
+    Reads from `config['tenants'][tenant_id]['rate_limit']`.
+    Defaults to 60 for recommendations and 5 for onboarding if unspecified.
+    """
+    if config is None:
+        try:
+            config = load_config()
+        except Exception:
+            config = {}
+
+    default_limits = {
+        "recommendations": 60,
+        "onboarding": 5,
+    }
+    fallback_limit = default_limits.get(scope, 60)
+
+    tenants = config.get("tenants", {})
+    tenant_block = tenants.get(tenant_id, {})
+    rl_block = tenant_block.get("rate_limit")
+
+    if isinstance(rl_block, int):
+        return rl_block
+    elif isinstance(rl_block, dict):
+        if scope in rl_block and isinstance(rl_block[scope], int):
+            return rl_block[scope]
+        if "requests_per_minute" in rl_block and isinstance(rl_block["requests_per_minute"], int):
+            return rl_block["requests_per_minute"]
+        if "default" in rl_block and isinstance(rl_block["default"], int):
+            return rl_block["default"]
+    elif isinstance(rl_block, str):
+        parts = rl_block.split("/")[0].strip()
+        if parts.isdigit():
+            return int(parts)
+
+    return fallback_limit
+
 
 

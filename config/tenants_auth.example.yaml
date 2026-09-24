@@ -1,0 +1,12 @@
+# Example tenant API key authentication mapping.
+# Copy this file to `config/tenants_auth.local.yaml` for local development.
+# In production (with STORAGE_BACKEND=s3), store this JSON mapping in AWS SSM Parameter Store
+# (default parameter: /ai_pod/tenants_auth) or AWS Secrets Manager.
+#
+# Format: <api_key>: <tenant_id>
+
+tenants_auth:
+  sk-telco-placeholder: telco_default
+  sk-ecommerce-placeholder: fixture_ecommerce
+  sk-movielens-placeholder: movielens_demo
+  sk-movielens-small-placeholder: movielens_small

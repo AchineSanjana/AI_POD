@@ -147,3 +147,74 @@ def test_cross_tenant_spoofing_prevented_in_body_and_query(client: TestClient):
     )
     assert cross_resp.status_code == 404
     assert f"Customer '{ecom_cust}' not found for tenant 'telco_default'" in cross_resp.json()["detail"]
+
+
+def test_get_tenant_auth_mapping_local_file():
+    """Verify get_tenant_auth_mapping loads from config/tenants_auth.local.yaml in local mode."""
+    from src.utils.config import get_tenant_auth_mapping
+
+    mapping = get_tenant_auth_mapping({"storage": {"backend": "local"}})
+    assert isinstance(mapping, dict)
+    assert "sk-telco-xxxx" in mapping
+    assert mapping["sk-telco-xxxx"] == "telco_default"
+
+
+def test_get_tenant_auth_mapping_aws_ssm(monkeypatch):
+    """Verify get_tenant_auth_mapping loads from SSM Parameter Store when STORAGE_BACKEND=s3."""
+    import json
+    import boto3
+    from moto import mock_aws
+    from src.utils.config import get_tenant_auth_mapping
+
+    with mock_aws():
+        ssm = boto3.client("ssm", region_name="us-east-1")
+        ssm.put_parameter(
+            Name="/ai_pod/tenants_auth",
+            Value=json.dumps({"sk-aws-ssm-key": "tenant_ssm_prod"}),
+            Type="SecureString",
+        )
+
+        monkeypatch.setenv("STORAGE_BACKEND", "s3")
+        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+        monkeypatch.delenv("TENANTS_AUTH_SECRET_NAME", raising=False)
+
+        mapping = get_tenant_auth_mapping()
+        assert mapping == {"sk-aws-ssm-key": "tenant_ssm_prod"}
+
+
+def test_get_tenant_auth_mapping_aws_secrets_manager(monkeypatch):
+    """Verify get_tenant_auth_mapping loads from Secrets Manager when secret name is configured."""
+    import json
+    import boto3
+    from moto import mock_aws
+    from src.utils.config import get_tenant_auth_mapping
+
+    with mock_aws():
+        sm = boto3.client("secretsmanager", region_name="us-east-1")
+        sm.create_secret(
+            Name="prod/ai_pod/tenants_auth",
+            SecretString=json.dumps({"sk-aws-sm-key": "tenant_sm_prod"}),
+        )
+
+        monkeypatch.setenv("STORAGE_BACKEND", "s3")
+        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+        monkeypatch.setenv("TENANTS_AUTH_SECRET_NAME", "prod/ai_pod/tenants_auth")
+
+        mapping = get_tenant_auth_mapping()
+        assert mapping == {"sk-aws-sm-key": "tenant_sm_prod"}
+
+
+def test_get_tenant_auth_mapping_local_fallback(monkeypatch, tmp_path):
+    """Verify fallback when config/tenants_auth.local.yaml does not exist."""
+    from src.utils.config import get_tenant_auth_mapping
+
+    monkeypatch.setenv("STORAGE_BACKEND", "local")
+    monkeypatch.setattr(
+        "src.utils.config.resolve_path",
+        lambda rel: tmp_path / "non_existent.yaml",
+    )
+
+    # Fallback to config dict if present
+    cfg = {"tenants_auth": {"sk-custom-key": "custom_tenant"}}
+    assert get_tenant_auth_mapping(cfg) == {"sk-custom-key": "custom_tenant"}
+

@@ -1,0 +1,818 @@
+<!--
+========================================================================================
+DEMO ARTIFACT: EXTERNAL ORGANIZATION WEBSITE INTEGRATION MOCKUP (PATTERN A)
+========================================================================================
+
+NOTE FOR DEVELOPERS & PRESENTERS:
+In a real production integration, this API call would happen from the
+ORGANIZATION'S OWN BACKEND (to keep their API key secret and secure),
+NOT directly from the client's browser like this demo does for simplicity.
+
+This file exists purely to visually demonstrate Pattern A (an external platform
+embedding personalized recommendations into their product page) for presentations
+and interactive demos. It is NOT intended as production client-side integration guidance.
+========================================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Cloud Solutions - Fiber 1Gbps Plan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-elevated: #1e293b;
+      --border: #334155;
+      --border-focus: #6366f1;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-glow: rgba(99, 102, 241, 0.25);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.2);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Notice Banner */
+    .integration-banner {
+      background: linear-gradient(90deg, #1e1b4b 0%, #172554 100%);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 10px 24px;
+      font-size: 0.85rem;
+      color: #c7d2fe;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .integration-banner strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .banner-badge {
+      background: rgba(99, 102, 241, 0.3);
+      border: 1px solid rgba(99, 102, 241, 0.5);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Header & Navigation */
+    header {
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: #ffffff;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .brand-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-sub {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-left: 4px;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+    }
+
+    .user-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+      width: 100%;
+    }
+
+    /* Product Showcase Hero */
+    .product-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: center;
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 50px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .product-hero::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .product-visual {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      aspect-ratio: 4 / 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .visual-badge {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .visual-icon {
+      font-size: 4rem;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 4px 12px var(--primary-glow));
+    }
+
+    .visual-caption {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .product-details {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .category-tag {
+      color: #818cf8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .product-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+    }
+
+    .product-desc {
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .product-price {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .product-price span {
+      font-size: 1rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 14px 28px;
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px var(--primary-glow);
+      align-self: flex-start;
+      margin-top: 10px;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    /* Recommendations Section */
+    .recommendations-section {
+      margin-top: 40px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ai-badge {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #c084fc;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    /* Recommendation Grid */
+    .rec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .rec-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .rec-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+      box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.5), 0 0 16px var(--primary-glow);
+    }
+
+    .rec-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .rank-pill {
+      background: var(--surface-elevated);
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .confidence-pill {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .rec-card-icon {
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+    }
+
+    .rec-item-id {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+      text-transform: capitalize;
+    }
+
+    .rec-item-desc {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      flex-grow: 1;
+    }
+
+    .btn-secondary {
+      background: var(--surface-elevated);
+      color: #f1f5f9;
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    /* States: Loading & Error */
+    .state-box {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+      padding: 48px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-title {
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .error-msg {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      max-width: 600px;
+    }
+
+    .btn-retry {
+      margin-top: 10px;
+      background: var(--surface-elevated);
+      color: #ffffff;
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    /* Live Debug Inspector Drawer */
+    .debug-drawer {
+      margin-top: 60px;
+      background: #06090e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+    }
+
+    .debug-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .debug-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .debug-body {
+      margin-top: 16px;
+      border-top: 1px solid rgba(51, 65, 85, 0.6);
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .debug-row {
+      display: flex;
+      gap: 16px;
+      font-size: 0.85rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .debug-label {
+      color: var(--text-muted);
+      min-width: 140px;
+    }
+
+    .debug-value {
+      color: #818cf8;
+      word-break: break-all;
+    }
+
+    pre.json-dump {
+      background: #0d1117;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.8rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      max-height: 250px;
+    }
+
+    @media (max-width: 768px) {
+      .product-hero {
+        grid-template-columns: 1fr;
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Demo Notice Banner -->
+  <div class="integration-banner">
+    <div>
+      <span class="banner-badge">Demo Artifact</span>
+      <strong>Pattern A Integration Demo:</strong> This page simulates an external organization's product catalog embedding recommendations.
+    </div>
+    <div style="font-size: 0.8rem; color: #94a3b8;">
+      API: <code>GET /v1/recommendations</code>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-logo">A</div>
+        <div>
+          <span class="brand-name">Apex Cloud</span>
+          <span class="brand-sub">Marketplace</span>
+        </div>
+      </a>
+      <div class="user-pill">
+        <div class="user-dot"></div>
+        <span>Signed in: <strong id="header-customer-id">7590-VHVEG</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+
+    <!-- Product Showcase (Current Viewed Item) -->
+    <section class="product-hero">
+      <div class="product-visual">
+        <div class="visual-badge">Active Product</div>
+        <div class="visual-icon">⚡</div>
+        <div class="visual-caption">Enterprise Dedicated Tier</div>
+      </div>
+      <div class="product-details">
+        <div class="category-tag">Broadband & Cloud Infrastructure</div>
+        <h1 class="product-title">Fiber Ultra 1Gbps Dedicated</h1>
+        <p class="product-desc">
+          Symmetrical gigabit fiber with enterprise SLA guarantees, unmetered bandwidth, and sub-5ms low-latency routing for business workloads.
+        </p>
+        <div class="product-price">
+          $89.99 <span>/ month</span>
+        </div>
+        <button class="btn-primary" onclick="alert('Demo: Current plan selected.')">
+          <span>Add to Active Plan</span> &rarr;
+        </button>
+      </div>
+    </section>
+
+    <!-- Recommended Add-ons Section (Populated via /v1/recommendations) -->
+    <section class="recommendations-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">
+            Recommended Add-ons for Your Account
+            <span class="ai-badge">✦ AI Personalized</span>
+          </h2>
+          <p class="section-subtitle">
+            Tailored suggestions driven by your usage patterns, tenant subscriptions, and machine-learning propensity scores.
+          </p>
+        </div>
+      </div>
+
+      <!-- Recommendation Grid Container -->
+      <div id="recommendations-container" class="rec-grid">
+        <div class="state-box">
+          <div class="spinner"></div>
+          <div>Loading personalized recommendations...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Debug Inspector (Presentation Aid) -->
+    <section class="debug-drawer">
+      <div class="debug-header" onclick="toggleDebug()">
+        <div class="debug-title">
+          <span>⚙️ API Request Inspector (Pattern A Details)</span>
+        </div>
+        <span id="debug-toggle-arrow" style="color: var(--text-muted); font-size: 0.8rem;">▼ Hide Details</span>
+      </div>
+      <div id="debug-content" class="debug-body">
+        <div class="debug-row">
+          <div class="debug-label">Target Endpoint:</div>
+          <div class="debug-value" id="dbg-url">—</div>
+        </div>
+        <div class="debug-row">
+          <div class="debug-label">Auth Header:</div>
+          <div class="debug-value" id="dbg-key">—</div>
+        </div>
+        <div class="debug-row">
+          <div class="debug-label">Customer ID:</div>
+          <div class="debug-value" id="dbg-customer">—</div>
+        </div>
+        <div class="debug-row">
+          <div class="debug-label">Raw API Response:</div>
+          <div style="flex-grow: 1;">
+            <pre class="json-dump" id="dbg-json">Awaiting response...</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // -------------------------------------------------------------------------
+    // DEMO CONFIGURATION
+    // -------------------------------------------------------------------------
+    // In production, this call is made from YOUR BACKEND SERVER to protect the key.
+    // Here we call the local FastAPI backend directly to showcase the visual UI.
+    const CONFIG = {
+      apiBaseUrl: window.location.origin.includes('localhost') ? window.location.origin : 'http://localhost:8000',
+      apiKey: 'sk-telco-xxxx',       // Demo key mapping to telco_default
+      customerId: '7590-VHVEG',      // Known demo customer in telco dataset
+      topN: 4,
+    };
+
+    // Item display metadata helper (maps raw service names to nice icons/descriptions)
+    const ITEM_METADATA = {
+      'OnlineSecurity': { icon: '🛡️', title: 'Managed Threat Shield', desc: 'Zero-day protection and endpoint anti-phishing monitor.' },
+      'OnlineBackup': { icon: '☁️', title: 'Automated Cloud Vault', desc: 'Continuous encrypted cloud backups for all user machines.' },
+      'DeviceProtection': { icon: '💻', title: 'Hardware Care Plan', desc: 'Next-business-day hardware replacement and damage warranty.' },
+      'TechSupport': { icon: '🎧', title: '24/7 Dedicated Support', desc: 'Priority escalation path with direct engineering access.' },
+      'StreamingTV': { icon: '📺', title: 'Enterprise Streaming Pack', desc: '4K live workplace feeds, conferencing, and news channels.' },
+      'StreamingMovies': { icon: '🎬', title: 'Executive Media Hub', desc: 'On-demand training, webinars, and streaming catalog.' },
+      'MultipleLines': { icon: '📞', title: 'Multi-Line VoIP Trunk', desc: 'HD voice channels with automated routing and caller queueing.' },
+      'FiberOptic': { icon: '🌐', title: 'Fiber Dedicated Add-on', desc: 'Redundant backup link with automatic failover fail-safe.' },
+      'DSL': { icon: '🔌', title: 'DSL Redundancy Line', desc: 'Secondary wired fallback connection for remote uptime.' },
+    };
+
+    function getMetaForItem(itemId) {
+      if (ITEM_METADATA[itemId]) {
+        return ITEM_METADATA[itemId];
+      }
+      return {
+        icon: '📦',
+        title: itemId.replace(/([A-Z])/g, ' $1').trim(),
+        desc: 'Personalized service upgrade recommended for your account profile.'
+      };
+    }
+
+    async function fetchRecommendations() {
+      const container = document.getElementById('recommendations-container');
+      const url = `${CONFIG.apiBaseUrl}/v1/recommendations?customer_id=${encodeURIComponent(CONFIG.customerId)}&top_n=${CONFIG.topN}`;
+
+      // Update Debug inspector
+      document.getElementById('dbg-url').textContent = `GET ${url}`;
+      document.getElementById('dbg-key').textContent = `X-API-Key: ${CONFIG.apiKey}`;
+      document.getElementById('dbg-customer').textContent = CONFIG.customerId;
+      document.getElementById('header-customer-id').textContent = CONFIG.customerId;
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'X-API-Key': CONFIG.apiKey,
+            'Accept': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+        document.getElementById('dbg-json').textContent = JSON.stringify(data, null, 2);
+
+        if (!response.ok) {
+          throw new Error(data.detail || `Server returned status ${response.status}`);
+        }
+
+        renderRecommendations(data.recommendations || []);
+      } catch (err) {
+        console.error('Failed to load recommendations:', err);
+        document.getElementById('dbg-json').textContent = JSON.stringify({ error: err.message }, null, 2);
+        renderErrorState(err.message);
+      }
+    }
+
+    function renderRecommendations(items) {
+      const container = document.getElementById('recommendations-container');
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="state-box">
+            <div style="font-size: 2rem;">📭</div>
+            <div style="font-weight: 700;">No Recommendations Returned</div>
+            <div class="error-msg">The model did not return any recommended add-ons for this customer.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map((rec) => {
+        const meta = getMetaForItem(rec.item_id);
+        const confidencePct = Math.round((rec.score || 0) * 100);
+        return `
+          <article class="rec-card">
+            <div>
+              <div class="rec-card-top">
+                <span class="rank-pill">#${rec.rank} Recommended</span>
+                <span class="confidence-pill">${confidencePct}% Match</span>
+              </div>
+              <div class="rec-card-icon">${meta.icon}</div>
+              <h3 class="rec-item-id">${meta.title}</h3>
+              <p class="rec-item-desc">${meta.desc}</p>
+            </div>
+            <button class="btn-secondary" onclick="alert('Demo: Added ${meta.title} to subscription.')">
+              Add to Plan
+            </button>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderErrorState(errorMessage) {
+      const container = document.getElementById('recommendations-container');
+      container.innerHTML = `
+        <div class="state-box">
+          <div style="font-size: 2.2rem;">⚠️</div>
+          <div class="error-title">Unable to Connect to Recommendations API</div>
+          <div class="error-msg">
+            ${errorMessage}
+          </div>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 8px;">
+            Ensure the API server is running locally on <code>${CONFIG.apiBaseUrl}</code>:<br>
+            <code>.\\venv\\Scripts\\uvicorn src.api.app:app --port 8000 --reload</code>
+          </div>
+          <button class="btn-retry" onclick="fetchRecommendations()">
+            ↻ Retry Request
+          </button>
+        </div>
+      `;
+    }
+
+    function toggleDebug() {
+      const content = document.getElementById('debug-content');
+      const arrow = document.getElementById('debug-toggle-arrow');
+      if (content.style.display === 'none') {
+        content.style.display = 'flex';
+        arrow.textContent = '▼ Hide Details';
+      } else {
+        content.style.display = 'none';
+        arrow.textContent = '▶ Show Details';
+      }
+    }
+
+    // Auto-fetch recommendations on page load
+    window.addEventListener('DOMContentLoaded', fetchRecommendations);
+  </script>
+</body>
+</html>

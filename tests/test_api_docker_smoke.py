@@ -66,3 +66,21 @@ def test_api_recommendations_smoke():
     data = response.json()
     assert data["tenant_id"] == "telco_default"
     assert len(data["recommendations"]) == 5
+
+
+def test_api_v1_recommendations_smoke():
+    """Verify new /v1/recommendations endpoint responds for telco_default with API key."""
+    client = TestClient(app)
+    clear_model_cache()
+
+    response = client.get(
+        "/v1/recommendations",
+        params={"customer_id": "7590-VHVEG", "top_n": 5},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tenant_id"] == "telco_default"
+    assert data["customer_id"] == "7590-VHVEG"
+    assert len(data["recommendations"]) == 5
+    assert all("rank" in item and "product_id" in item for item in data["recommendations"])
