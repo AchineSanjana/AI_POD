@@ -204,6 +204,27 @@ Long Format Output:
    * String tokens representing non-engagement, absence of service, or explicit opt-out (e.g. `["No"]`, `["No internet service"]`).
    * These are excluded from positive training interactions.
 
+### 3.2 Transactional Interaction Source (`source: transactional`)
+
+For datasets where each row is an individual transaction or order record (e.g. retail, e-commerce order lines):
+
+```yaml
+interactions:
+  source: transactional
+  customer_id_column: CustomerID
+  product_id_column: StockCode
+  product_name_column: Description      # used for display, not modeling
+  quantity_column: Quantity              # optional, used as interaction "weight"
+  transaction_id_column: InvoiceNo       # optional, used to dedupe/group
+  exclude_invoice_prefix: "C"            # optional cleaning rule for cancelled orders
+```
+
+The [`build_transactional_interactions`](file:///d:/Projects/AI_POD/src/data/interaction_extraction.py) function groups rows by `(customer_id, product_id)`:
+- Emits exactly **ONE** interaction row per unique customer–product pair.
+- Aggregates `quantity_column` into `weight` (sum of quantities across orders) if specified.
+- Automatically removes invalid/missing customer, product, and invoice records.
+- Filters out cancelled transactions matching `exclude_invoice_prefix` (e.g. "C" for cancellations in online retail).
+
 ---
 
 ## 4. Tenant Onboarding Checklist & Troubleshooting

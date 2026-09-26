@@ -292,18 +292,59 @@ class LearnedRankingRecommender:
         products = self.products_
         interactions = self.interactions_
 
-        rows = []
-        for _, customer in customers.iterrows():
-            customer_id = str(customer["customer_id"])
-            known_products = set(
-                interactions.loc[interactions["customer_id"].astype(str) == customer_id, "product_id"].astype(str)
-            )
-            for _, product in products.iterrows():
-                rows.append(
-                    self._build_candidate_row(
-                        customer, product, target=(str(product["product_id"]) in known_products)
+        cust_known = (
+            interactions.groupby(interactions["customer_id"].astype(str))["product_id"]
+            .apply(lambda s: set(s.astype(str)))
+            .to_dict()
+        )
+
+        total_pairs = len(customers) * len(products)
+        rows: list[dict[str, object]] = []
+
+        if total_pairs <= 100_000:
+            for _, customer in customers.iterrows():
+                customer_id = str(customer["customer_id"])
+                known_products = cust_known.get(customer_id, set())
+                for _, product in products.iterrows():
+                    rows.append(
+                        self._build_candidate_row(
+                            customer, product, target=(str(product["product_id"]) in known_products)
+                        )
                     )
-                )
+        else:
+            import numpy as np
+
+            rng = np.random.default_rng(42)
+            cust_lookup = customers.set_index(customers["customer_id"].astype(str))
+            prod_lookup = products.set_index(products["product_id"].astype(str))
+            all_pids = np.array(list(prod_lookup.index))
+
+            pos_df = interactions[["customer_id", "product_id"]].drop_duplicates()
+            if len(pos_df) > 50_000:
+                pos_df = pos_df.sample(n=50_000, random_state=42)
+
+            for cid_raw, pid_raw in zip(pos_df["customer_id"], pos_df["product_id"]):
+                cid = str(cid_raw)
+                pid = str(pid_raw)
+                if cid in cust_lookup.index and pid in prod_lookup.index:
+                    cust_row = cust_lookup.loc[cid]
+                    if isinstance(cust_row, pd.DataFrame):
+                        cust_row = cust_row.iloc[0]
+                    prod_row = prod_lookup.loc[pid]
+                    if isinstance(prod_row, pd.DataFrame):
+                        prod_row = prod_row.iloc[0]
+
+                    rows.append(self._build_candidate_row(cust_row, prod_row, target=True))
+
+                    known = cust_known.get(cid, set())
+                    for _ in range(5):
+                        neg_pid = str(rng.choice(all_pids))
+                        if neg_pid not in known and neg_pid in prod_lookup.index:
+                            neg_prod_row = prod_lookup.loc[neg_pid]
+                            if isinstance(neg_prod_row, pd.DataFrame):
+                                neg_prod_row = neg_prod_row.iloc[0]
+                            rows.append(self._build_candidate_row(cust_row, neg_prod_row, target=False))
+                            break
 
         frame = pd.DataFrame(rows)
         frame = frame.fillna(0)

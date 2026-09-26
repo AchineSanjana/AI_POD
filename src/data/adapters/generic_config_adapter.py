@@ -12,7 +12,9 @@ from src.core.schema import CustomerSchema, FeatureSpec, InteractionSchema, Prod
 from src.data.base_adapter import DataAdapter
 # pyrefly: ignore [missing-import]
 from src.data.interaction_extraction import (
+    build_transactional_interactions,
     derive_products_from_interaction_source,
+    derive_products_from_transactional,
     extract_interactions_from_interaction_source,
 )
 from src.storage import get_storage_backend
@@ -55,12 +57,14 @@ class GenericConfigAdapter(DataAdapter):
             resolved_product_schema = product_schema
         else:
             cat_col = tenant_config.products.category_column
-            category_spec = FeatureSpec(
-                name=cat_col,
-                dtype="categorical",
-                allowed_values=["Core", "Add-on"] if cat_col == "category" else None,
-                encoding="one_hot",
-            )
+            category_spec = None
+            if cat_col:
+                category_spec = FeatureSpec(
+                    name=cat_col,
+                    dtype="categorical",
+                    allowed_values=["Core", "Add-on"] if cat_col == "category" else None,
+                    encoding="one_hot",
+                )
             resolved_product_schema = ProductSchema(category=category_spec)
 
         super().__init__(
@@ -126,6 +130,7 @@ class GenericConfigAdapter(DataAdapter):
             df = df.rename(columns={id_col: "customer_id"})
         if "customer_id" in df.columns:
             df["customer_id"] = df["customer_id"].astype(str)
+            df = df.drop_duplicates(subset=["customer_id"], keep="first")
 
         for spec in feature_specs:
             if spec.name not in df.columns:
@@ -150,7 +155,26 @@ class GenericConfigAdapter(DataAdapter):
     def to_products(self) -> pd.DataFrame:
         """Build and validate product table using tenant_config product rules."""
         isc = self.tenant_config.interactions.interaction_source
-        if self.tenant_config.products.derived_from == "interaction_source" or isc is not None:
+        derived_from = self.tenant_config.products.derived_from
+        if derived_from == "transactional":
+            raw = self._ensure_raw()
+            id_col = self.tenant_config.products.id_column or (
+                self.tenant_config.interactions.product_id_column
+            )
+            name_col = self.tenant_config.products.name_column or (
+                self.tenant_config.interactions.product_name_column
+            )
+            if not id_col:
+                raise ValueError(
+                    f"Tenant '{self.tenant_config.tenant_id}' requires products.id_column "
+                    f"when products.derived_from == 'transactional'"
+                )
+            df = derive_products_from_transactional(
+                raw_df=raw,
+                id_column=id_col,
+                name_column=name_col,
+            )
+        elif derived_from == "interaction_source" or isc is not None:
             if isc is None:
                 raise ValueError(
                     f"Tenant '{self.tenant_config.tenant_id}' requires InteractionSourceConfig for products"
@@ -167,11 +191,16 @@ class GenericConfigAdapter(DataAdapter):
     def to_interactions(self) -> pd.DataFrame:
         """Build and validate interaction table using tenant_config interaction rules."""
         raw = self._ensure_raw()
-        isc = self.tenant_config.interactions.interaction_source
-        if isc is not None:
+        interaction_cfg = self.tenant_config.interactions
+        if interaction_cfg.source == "transactional":
+            df = build_transactional_interactions(
+                raw_df=raw,
+                config=interaction_cfg,
+            )
+        elif interaction_cfg.interaction_source is not None:
             df = extract_interactions_from_interaction_source(
                 raw=raw,
-                isc=isc,
+                isc=interaction_cfg.interaction_source,
                 id_column=self.tenant_config.customers.id_column,
             )
         else:
@@ -179,6 +208,8 @@ class GenericConfigAdapter(DataAdapter):
 
         logger.info(f"Built interactions table for tenant '{self.tenant_config.tenant_id}': {len(df):,} rows")
         self.interaction_schema.validate(df)
+        if hasattr(self.interaction_schema, "validate_values"):
+            self.interaction_schema.validate_values(df)
         return df
 
     def _ensure_raw(self) -> pd.DataFrame:

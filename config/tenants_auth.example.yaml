@@ -10,3 +10,4 @@ tenants_auth:
   sk-ecommerce-placeholder: fixture_ecommerce
   sk-movielens-placeholder: movielens_demo
   sk-movielens-small-placeholder: movielens_small
+  sk-online-retail-placeholder: online_retail

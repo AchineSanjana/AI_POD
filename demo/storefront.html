@@ -1,0 +1,1339 @@
+<!-- 
+  Gift & Home Co. - Interactive Recommendation Storefront Demo
+  
+  NOTE: This demo calls the recommendation API directly from the browser for 
+  simplicity; a real integration would proxy this call through the organization's 
+  own backend, per the integration guide's stated best practice (Step 15.7).
+
+  This file is a demo artifact only, not part of the deployed application - 
+  it can be opened directly in any web browser and pointed at either a local 
+  development API (http://localhost:8000) or the live AWS API endpoint.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gift & Home Co. | Personalized Homeware & Gifts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1e293b;
+      --primary-hover: #0f172a;
+      --accent: #d97706;
+      --accent-light: #fef3c7;
+      --accent-hover: #b45309;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Announcement / Config Bar */
+    .top-announcement {
+      background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+      color: #f8fafc;
+      font-size: 0.825rem;
+      padding: 8px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .top-announcement .badge-pill {
+      background: rgba(217, 119, 6, 0.25);
+      border: 1px solid rgba(217, 119, 6, 0.4);
+      color: #fde68a;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .api-config-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: all 0.2s ease;
+    }
+
+    .api-config-toggle:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+
+    /* Settings Panel */
+    .config-drawer {
+      display: none;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px 24px;
+      border-bottom: 1px solid #334155;
+      font-size: 0.85rem;
+    }
+
+    .config-drawer.open {
+      display: block;
+      animation: slideDown 0.25s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) auto;
+      gap: 16px;
+      align-items: end;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .config-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #94a3b8;
+    }
+
+    .config-field input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f8fafc;
+      font-family: monospace;
+      font-size: 0.825rem;
+    }
+
+    .config-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn-save-config {
+      background: var(--accent);
+      color: #ffffff;
+      padding: 8px 18px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    .btn-save-config:hover {
+      background: var(--accent-hover);
+    }
+
+    /* Main Navigation Header */
+    header.site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--primary);
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 1.25rem;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(217, 119, 6, 0.3);
+    }
+
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--primary);
+      line-height: 1.1;
+    }
+
+    .brand-tagline {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.925rem;
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .cart-btn {
+      position: relative;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      padding: 9px 16px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cart-btn:hover {
+      background: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .cart-badge {
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      min-width: 18px;
+      text-align: center;
+    }
+
+    /* Customer Switcher Strip */
+    .persona-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+    }
+
+    .persona-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .persona-select-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .persona-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .persona-select {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+      min-width: 290px;
+    }
+
+    .persona-select:hover, .persona-select:focus {
+      border-color: var(--accent);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+    }
+
+    .persona-chip {
+      background: var(--accent-light);
+      color: var(--accent-hover);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .api-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .status-dot.online {
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+
+    .status-dot.offline {
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+    }
+
+    /* Main Container */
+    main.main-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px 64px 24px;
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #ffffff;
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .hero-banner::after {
+      content: '';
+      position: absolute;
+      right: -60px;
+      top: -60px;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(217, 119, 6, 0.25) 0%, rgba(217, 119, 6, 0) 70%);
+      pointer-events: none;
+    }
+
+    .hero-text {
+      max-width: 640px;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(217, 119, 6, 0.2);
+      border: 1px solid rgba(217, 119, 6, 0.5);
+      color: #fde68a;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      margin-bottom: 12px;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-desc {
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    /* Section Styling */
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.01em;
+    }
+
+    .section-pill {
+      background: var(--accent-light);
+      color: var(--accent-hover);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .section-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Product Grid */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 56px;
+    }
+
+    /* Product Card */
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: #cbd5e1;
+    }
+
+    .card-image-box {
+      width: 100%;
+      height: 180px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-subtle);
+    }
+
+    .card-placeholder-graphic {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      text-align: center;
+      color: #475569;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      transition: transform 0.3s ease;
+    }
+
+    .product-card:hover .card-placeholder-graphic {
+      transform: scale(1.05);
+    }
+
+    .card-initials-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: #ffffff;
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 8px;
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      z-index: 2;
+    }
+
+    .card-badge.rec-badge {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .card-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .card-code {
+      font-size: 0.72rem;
+      font-family: monospace;
+      color: var(--text-subtle);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 8px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 2.7em;
+    }
+
+    .card-rating {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      color: #f59e0b;
+      margin-bottom: 12px;
+    }
+
+    .card-rating span.rating-count {
+      color: var(--text-subtle);
+      margin-left: 2px;
+    }
+
+    .card-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-price {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .btn-add-cart {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-add-cart:hover {
+      background: var(--primary-hover);
+      transform: scale(1.02);
+    }
+
+    /* Loading Skeleton */
+    .skeleton-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      height: 310px;
+      position: relative;
+    }
+
+    .skeleton-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    /* Error & Empty States */
+    .state-banner {
+      background: #ffffff;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px 24px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .state-banner.error {
+      border-color: #fca5a5;
+      background: #fff5f5;
+    }
+
+    .state-icon {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .state-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .state-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      max-width: 520px;
+      margin: 0 auto 16px auto;
+    }
+
+    .btn-retry {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xl);
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.3s ease-out;
+      pointer-events: auto;
+      border-left: 4px solid var(--accent);
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Site Footer */
+    footer.site-footer {
+      background: #0f172a;
+      color: #94a3b8;
+      border-top: 1px solid #1e293b;
+      padding: 48px 24px 32px 24px;
+      font-size: 0.875rem;
+    }
+
+    .footer-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    .footer-col h4 {
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      margin-bottom: 14px;
+    }
+
+    .footer-col ul {
+      list-style: none;
+    }
+
+    .footer-col li {
+      margin-bottom: 8px;
+    }
+
+    .footer-col a {
+      color: #94a3b8;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .footer-col a:hover {
+      color: #f8fafc;
+    }
+
+    .footer-bottom {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding-top: 24px;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .header-container { flex-direction: column; align-items: flex-start; }
+      .nav-links { display: none; }
+      .hero-banner { padding: 24px; flex-direction: column; align-items: flex-start; }
+      .hero-title { font-size: 1.75rem; }
+      .persona-container { flex-direction: column; align-items: flex-start; }
+      .persona-select { width: 100%; min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Announcement / Settings Bar -->
+  <div class="top-announcement">
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <span class="badge-pill">AI POWERED</span>
+      <span>Gift & Home Co. Storefront &mdash; Real-Time Multi-Tenant Recommendation Engine</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <button id="configToggleBtn" class="api-config-toggle">
+        ⚙️ API Connection Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- Collapsible API Configuration Drawer -->
+  <div id="configDrawer" class="config-drawer">
+    <div class="config-grid">
+      <div class="config-field">
+        <label for="apiBaseUrl">API Base URL (Local or AWS EC2)</label>
+        <input type="text" id="apiBaseUrl" value="http://localhost:8000" placeholder="e.g. http://localhost:8000 or http://<EC2_PUBLIC_IP>:8000">
+      </div>
+      <div class="config-field">
+        <label for="apiKey">Demo API Key (Header: X-API-Key)</label>
+        <input type="text" id="apiKey" value="sk-online-retail-xxxx" placeholder="sk-online-retail-xxxx">
+      </div>
+      <div>
+        <button id="saveConfigBtn" class="btn-save-config">Apply & Re-Fetch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="#" class="brand-logo">
+        <div class="brand-icon">🎁</div>
+        <div>
+          <div class="brand-name">Gift &amp; Home Co.</div>
+          <div class="brand-tagline">Curated British Homeware &amp; Gifts</div>
+        </div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#" class="active">Storefront</a></li>
+        <li><a href="#recommendedSection">For You</a></li>
+        <li><a href="#catalogSection">Full Catalog</a></li>
+        <li><a href="#">New Arrivals</a></li>
+        <li><a href="#">Clearance</a></li>
+      </ul>
+
+      <div class="header-actions">
+        <button class="cart-btn" id="cartBtn" title="View Cart">
+          <span>🛒</span>
+          <span>Cart</span>
+          <span class="cart-badge" id="cartCount">3</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Persona / Customer Switcher Bar -->
+  <section class="persona-bar">
+    <div class="persona-container">
+      <div class="persona-select-group">
+        <span class="persona-label">
+          <span>👤</span>
+          <span>Browsing as:</span>
+        </span>
+        <select id="customerSelect" class="persona-select">
+          <option value="14911" selected>Customer 14911 (EIRE &bull; 1,746 purchases)</option>
+          <option value="12748">Customer 12748 (United Kingdom &bull; 1,602 purchases)</option>
+          <option value="17841">Customer 17841 (United Kingdom &bull; 1,293 purchases)</option>
+          <option value="14096">Customer 14096 (United Kingdom &bull; 1,119 purchases)</option>
+          <option value="14298">Customer 14298 (United Kingdom &bull; 847 purchases)</option>
+          <option value="14606">Customer 14606 (United Kingdom &bull; 773 purchases)</option>
+          <option value="14646">Customer 14646 (Netherlands &bull; 688 purchases)</option>
+          <option value="13089">Customer 13089 (United Kingdom &bull; 623 purchases)</option>
+        </select>
+        <span class="persona-chip" id="personaBadge">
+          <span>✨</span>
+          <span id="personaBadgeText">Loyalty Tier: Diamond VIP</span>
+        </span>
+      </div>
+
+      <div class="api-status-indicator">
+        <div class="status-dot online" id="statusDot"></div>
+        <span id="statusText">Connected: GET /v1/recommendations</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Storefront Page -->
+  <main class="main-content">
+
+    <!-- Hero Promotional Banner -->
+    <section class="hero-banner">
+      <div class="hero-text">
+        <span class="hero-badge">Curated Seasonal Collection</span>
+        <h1 class="hero-title">Delightful Home Decor &amp; Memorable Gifts</h1>
+        <p class="hero-desc">
+          Welcome to Gift &amp; Home Co. Explore our bespoke catalog of decorative accents, vintage kitchenware, 
+          and charming keepsakes &mdash; personalized in real time based on your past favorites.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 1: Recommended for You (API Driven) -->
+    <section id="recommendedSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">✨ Recommended for You</h2>
+            <span class="section-pill">Live API</span>
+          </div>
+          <p class="section-subtitle">
+            Personalized top picks computed via model matrix factorization for customer <strong id="currentCustIdLabel">14911</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Recommendation Cards Container -->
+      <div id="recommendationsGrid" class="products-grid">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+
+      <!-- Fallback Error / Offline State -->
+      <div id="errorState" class="state-banner error" style="display: none;">
+        <div class="state-icon">⚠️</div>
+        <h3 class="state-title">Unable to reach the Recommendation API</h3>
+        <p class="state-desc" id="errorMessage">
+          Make sure your local API server is running on <code style="background:#fee2e2; padding:2px 6px; border-radius:4px;">http://localhost:8000</code> 
+          (or update the API Base URL in Settings above).
+        </p>
+        <button id="retryBtn" class="btn-retry">Retry Connection</button>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Full Catalog (Static Context Grid) -->
+    <section id="catalogSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">Browse Full Catalog</h2>
+            <span class="section-pill" style="background:#e2e8f0; color:#475569;">Static Sample</span>
+          </div>
+          <p class="section-subtitle">
+            A small glimpse of our 3,600+ product catalog &mdash; recommendations above are tailored from across the entire store
+          </p>
+        </div>
+      </div>
+
+      <!-- Static 12-Product Catalog Grid -->
+      <div id="catalogGrid" class="products-grid">
+        <!-- Injected via JavaScript for clean maintainability -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-col" style="max-width: 320px;">
+        <h4>Gift &amp; Home Co.</h4>
+        <p style="color:#64748b; font-size:0.825rem; line-height:1.6;">
+          A demonstration e-commerce storefront simulating real-world consumption of 
+          the AI_POD recommendation engine API. Designed for screen-shares, client presentations, 
+          and integration walkthroughs.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Curated Categories</h4>
+        <ul>
+          <li><a href="#">Vintage Kitchenware</a></li>
+          <li><a href="#">Paper Stationery &amp; Wrap</a></li>
+          <li><a href="#">Festive &amp; Seasonal Decor</a></li>
+          <li><a href="#">Home Fragrance &amp; Candles</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Integration Architecture</h4>
+        <ul>
+          <li><a href="#">Endpoint: <code>/v1/recommendations</code></a></li>
+          <li><a href="#">Auth: <code>X-API-Key</code> Header</a></li>
+          <li><a href="#">Tenant: <code>online_retail</code></a></li>
+          <li><a href="#">Model: Matrix Factorization</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>&copy; 2026 Gift &amp; Home Co. &bull; Powered by AI_POD Recommendation Platform.</div>
+      <div style="color: #64748b;">Demo Artifact Only &bull; Step 15 Integration Preview</div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Client-side Logic (Vanilla JS, Zero Dependencies) -->
+  <script>
+    // ---------------------------------------------------------------------------
+    // Configuration & State
+    // ---------------------------------------------------------------------------
+    const CONFIG = {
+      baseUrl: localStorage.getItem('storefront_api_base') || 'http://localhost:8000',
+      apiKey: localStorage.getItem('storefront_api_key') || 'sk-online-retail-xxxx',
+      topN: 5
+    };
+
+    let cartCount = 3;
+
+    // Palette of pleasing pastel gradients for product card image placeholders
+    const GRADIENTS = [
+      'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+      'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+      'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
+      'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+      'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)',
+      'linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%)',
+      'linear-gradient(135deg, #fae8ff 0%, #f5d0fe 100%)',
+      'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)'
+    ];
+
+    // Static 12-Product Full Catalog sample hardcoded from dataset
+    const STATIC_CATALOG = [
+      { id: '21890', name: 'S/6 WOODEN SKITTLES IN COTTON BAG', price: '£18.50', rating: '4.9', reviews: 42 },
+      { id: '72133', name: 'COLUMBIAN CANDLE RECTANGLE', price: '£6.99', rating: '4.7', reviews: 18 },
+      { id: '16020C', name: 'CLEAR STATIONERY BOX SET', price: '£9.25', rating: '4.6', reviews: 29 },
+      { id: '35607B', name: 'BLACK FEATHER CHRISTMAS DECORATION', price: '£4.50', rating: '4.8', reviews: 54 },
+      { id: '21211', name: 'SET OF 72 SKULL PAPER DOILIES', price: '£3.95', rating: '4.5', reviews: 13 },
+      { id: '84754', name: 'S/15 SILVER GLASS BAUBLES IN BAG', price: '£15.00', rating: '4.9', reviews: 88 },
+      { id: '21807', name: 'WHITE CHRISTMAS STAR DECORATION', price: '£5.50', rating: '4.6', reviews: 31 },
+      { id: '21650', name: 'ASSORTED TUTTI FRUTTI BRACELET', price: '£7.80', rating: '4.4', reviews: 22 },
+      { id: '90074', name: 'BLACK DIAMOND CLUSTER NECKLACE', price: '£34.00', rating: '5.0', reviews: 9 },
+      { id: '85188B', name: 'PINK METAL SWINGING BUNNY', price: '£12.95', rating: '4.8', reviews: 37 },
+      { id: '79000', name: 'MOROCCAN TEA GLASS', price: '£8.50', rating: '4.7', reviews: 65 },
+      { id: '21709', name: 'FOLDING UMBRELLA CHOCOLATE POLKADOT', price: '£11.99', rating: '4.8', reviews: 46 }
+    ];
+
+    // ---------------------------------------------------------------------------
+    // Helper Functions
+    // ---------------------------------------------------------------------------
+    function getInitials(title) {
+      if (!title) return 'GH';
+      const words = title.trim().split(/\s+/).filter(w => w.length > 0);
+      if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+
+    // Deterministic pseudo-price generator from product ID string
+    function generateConsistentPrice(productId) {
+      let hash = 0;
+      for (let i = 0; i < productId.length; i++) {
+        hash = (hash << 5) - hash + productId.charCodeAt(i);
+        hash |= 0;
+      }
+      const pounds = Math.abs(hash % 38) + 4; // £4 - £42
+      const cents = [99, 50, 25, 0][Math.abs(hash % 4)];
+      return `£${pounds}.${cents === 0 ? '00' : cents}`;
+    }
+
+    function getGradientForId(productId) {
+      let hash = 0;
+      for (let i = 0; i < productId.length; i++) {
+        hash += productId.charCodeAt(i);
+      }
+      return GRADIENTS[Math.abs(hash % GRADIENTS.length)];
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>🛍️</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 400);
+      }, 2600);
+    }
+
+    function updateCartCount(count) {
+      cartCount = count;
+      document.getElementById('cartCount').textContent = cartCount;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Recommendations Fetcher
+    // ---------------------------------------------------------------------------
+    async function fetchRecommendations(customerId) {
+      const grid = document.getElementById('recommendationsGrid');
+      const errorState = document.getElementById('errorState');
+      const statusDot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      const currentCustIdLabel = document.getElementById('currentCustIdLabel');
+
+      currentCustIdLabel.textContent = customerId;
+
+      // Show skeleton cards during fetch
+      errorState.style.display = 'none';
+      grid.style.display = 'grid';
+      grid.innerHTML = Array(CONFIG.topN).fill(0).map(() => '<div class="skeleton-card"></div>').join('');
+
+      statusDot.className = 'status-dot';
+      statusText.textContent = `Fetching recommendations for ${customerId}...`;
+
+      const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
+      const url = `${cleanBase}/v1/recommendations?customer_id=${encodeURIComponent(customerId)}&top_n=${CONFIG.topN}`;
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-API-Key': CONFIG.apiKey
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `HTTP Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const recommendations = data.recommendations || [];
+
+        statusDot.className = 'status-dot online';
+        statusText.textContent = `Connected: GET /v1/recommendations (200 OK &bull; ${recommendations.length} items)`;
+
+        renderRecommendations(recommendations);
+      } catch (err) {
+        console.error('Failed to fetch recommendations:', err);
+        grid.style.display = 'none';
+        errorState.style.display = 'block';
+        document.getElementById('errorMessage').innerHTML = `
+          <strong>Connection Failed:</strong> ${err.message}<br>
+          Target URL: <code style="background:#fee2e2; padding:2px 6px; border-radius:4px;">${url}</code><br>
+          Ensure the AI_POD API service is running and the API key is valid for tenant <code>online_retail</code>.
+        `;
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = `API Error: ${err.message}`;
+      }
+    }
+
+    function renderRecommendations(items) {
+      const grid = document.getElementById('recommendationsGrid');
+
+      if (!items || items.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
+            No recommendations currently found for this profile.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = items.map((item, index) => {
+        const pName = item.product_name || `Product ${item.product_id}`;
+        const pPrice = generateConsistentPrice(item.product_id);
+        const initials = getInitials(pName);
+        const bgGrad = getGradientForId(item.product_id);
+
+        return `
+          <article class="product-card">
+            <span class="card-badge rec-badge">Top Pick #${item.rank || (index + 1)}</span>
+            <div class="card-image-box">
+              <div class="card-placeholder-graphic" style="background: ${bgGrad}">
+                <div class="card-initials-badge">${initials}</div>
+                <div style="font-size:0.7rem; font-weight:600; color:#334155; text-transform:uppercase; letter-spacing:0.04em;">
+                  StockCode ${item.product_id}
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="card-code">SKU: ${item.product_id}</div>
+              <h3 class="card-title" title="${pName}">${pName}</h3>
+              <div class="card-rating">
+                ★★★★★ <span class="rating-count">(4.9)</span>
+              </div>
+              <div class="card-footer">
+                <div class="card-price">${pPrice}</div>
+                <button class="btn-add-cart" onclick="addToCart('${item.product_id}', '${pName.replace(/'/g, "\\'")}')">
+                  <span>+</span> Add
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // ---------------------------------------------------------------------------
+    // Render Static Full Catalog Section
+    // ---------------------------------------------------------------------------
+    function renderStaticCatalog() {
+      const grid = document.getElementById('catalogGrid');
+      grid.innerHTML = STATIC_CATALOG.map((item) => {
+        const initials = getInitials(item.name);
+        const bgGrad = getGradientForId(item.id);
+
+        return `
+          <article class="product-card">
+            <span class="card-badge">Catalog Item</span>
+            <div class="card-image-box">
+              <div class="card-placeholder-graphic" style="background: ${bgGrad}">
+                <div class="card-initials-badge">${initials}</div>
+                <div style="font-size:0.7rem; font-weight:600; color:#334155; text-transform:uppercase; letter-spacing:0.04em;">
+                  StockCode ${item.id}
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="card-code">SKU: ${item.id}</div>
+              <h3 class="card-title" title="${item.name}">${item.name}</h3>
+              <div class="card-rating">
+                ★★★★★ <span class="rating-count">(${item.rating})</span>
+              </div>
+              <div class="card-footer">
+                <div class="card-price">${item.price}</div>
+                <button class="btn-add-cart" onclick="addToCart('${item.id}', '${item.name.replace(/'/g, "\\'")}')">
+                  <span>+</span> Add
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function addToCart(productId, productName) {
+      updateCartCount(cartCount + 1);
+      showToast(`Added "${productName}" to cart!`);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Event Listeners & Initialization
+    // ---------------------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize inputs from CONFIG
+      const apiBaseInput = document.getElementById('apiBaseUrl');
+      const apiKeyInput = document.getElementById('apiKey');
+      const customerSelect = document.getElementById('customerSelect');
+      const configToggleBtn = document.getElementById('configToggleBtn');
+      const configDrawer = document.getElementById('configDrawer');
+      const saveConfigBtn = document.getElementById('saveConfigBtn');
+      const retryBtn = document.getElementById('retryBtn');
+      const cartBtn = document.getElementById('cartBtn');
+
+      apiBaseInput.value = CONFIG.baseUrl;
+      apiKeyInput.value = CONFIG.apiKey;
+
+      // Toggle configuration drawer
+      configToggleBtn.addEventListener('click', () => {
+        configDrawer.classList.toggle('open');
+      });
+
+      // Save config button
+      saveConfigBtn.addEventListener('click', () => {
+        CONFIG.baseUrl = apiBaseInput.value.trim() || 'http://localhost:8000';
+        CONFIG.apiKey = apiKeyInput.value.trim() || 'sk-online-retail-xxxx';
+        localStorage.setItem('storefront_api_base', CONFIG.baseUrl);
+        localStorage.setItem('storefront_api_key', CONFIG.apiKey);
+        configDrawer.classList.remove('open');
+        showToast('API Configuration updated!');
+        fetchRecommendations(customerSelect.value);
+      });
+
+      // Retry button in error state
+      retryBtn.addEventListener('click', () => {
+        fetchRecommendations(customerSelect.value);
+      });
+
+      // Customer change trigger
+      customerSelect.addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+        
+        // Update VIP / Loyalty chip
+        const badge = document.getElementById('personaBadgeText');
+        if (selectedId === '14911' || selectedId === '12748') {
+          badge.textContent = 'Loyalty Tier: Diamond VIP (Top 1%)';
+        } else if (selectedId === '17841' || selectedId === '14096') {
+          badge.textContent = 'Loyalty Tier: Platinum Member';
+        } else {
+          badge.textContent = 'Loyalty Tier: Gold Member';
+        }
+
+        showToast(`Switched customer context to #${selectedId}`);
+        fetchRecommendations(selectedId);
+      });
+
+      cartBtn.addEventListener('click', () => {
+        showToast(`Cart has ${cartCount} items ready for checkout.`);
+      });
+
+      // Render static catalog
+      renderStaticCatalog();
+
+      // Initial recommendations load
+      fetchRecommendations(customerSelect.value);
+    });
+  </script>
+</body>
+</html>

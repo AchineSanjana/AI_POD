@@ -217,13 +217,56 @@ class TenantCustomersConfig:
 @dataclass
 class TenantProductsConfig:
     derived_from: str
-    category_column: str
+    category_column: str | None = None
+    id_column: str | None = None
+    name_column: str | None = None
+
+
+@dataclass
+class TransactionalInteractionsConfig:
+    customer_id_column: str
+    product_id_column: str
+    product_name_column: str | None = None
+    quantity_column: str | None = None
+    transaction_id_column: str | None = None
+    exclude_invoice_prefix: str | None = None
 
 
 @dataclass
 class TenantInteractionsConfig:
     source: str
     interaction_source: InteractionSourceConfig | None = None
+    transactional: TransactionalInteractionsConfig | None = None
+    customer_id_column: str | None = None
+    product_id_column: str | None = None
+    product_name_column: str | None = None
+    quantity_column: str | None = None
+    transaction_id_column: str | None = None
+    exclude_invoice_prefix: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.transactional is not None:
+            if self.customer_id_column is None:
+                self.customer_id_column = self.transactional.customer_id_column
+            if self.product_id_column is None:
+                self.product_id_column = self.transactional.product_id_column
+            if self.product_name_column is None:
+                self.product_name_column = self.transactional.product_name_column
+            if self.quantity_column is None:
+                self.quantity_column = self.transactional.quantity_column
+            if self.transaction_id_column is None:
+                self.transaction_id_column = self.transactional.transaction_id_column
+            if self.exclude_invoice_prefix is None:
+                self.exclude_invoice_prefix = self.transactional.exclude_invoice_prefix
+        elif self.customer_id_column and self.product_id_column:
+            self.transactional = TransactionalInteractionsConfig(
+                customer_id_column=self.customer_id_column,
+                product_id_column=self.product_id_column,
+                product_name_column=self.product_name_column,
+                quantity_column=self.quantity_column,
+                transaction_id_column=self.transaction_id_column,
+                exclude_invoice_prefix=self.exclude_invoice_prefix,
+            )
 
 
 @dataclass
@@ -233,6 +276,7 @@ class TenantSegmentationConfig:
     threshold: float | None = None
     lower_label: str = "newer"
     upper_label: str = "established"
+    category_value: str | None = None
 
 
 @dataclass
@@ -300,11 +344,26 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
     prod = block["products"]
     if not isinstance(prod, dict) or "derived_from" not in prod:
         raise KeyError(f"Tenant '{tenant_id}' products missing required field 'derived_from'")
-    if "category_column" not in prod:
+    derived_from = str(prod["derived_from"])
+    cat_col = str(prod["category_column"]) if prod.get("category_column") is not None else None
+    if derived_from != "transactional" and cat_col is None:
         raise KeyError(f"Tenant '{tenant_id}' products missing required field 'category_column'")
+    id_col = str(prod["id_column"]) if prod.get("id_column") is not None else None
+    name_col = str(prod["name_column"]) if prod.get("name_column") is not None else None
+    if derived_from == "transactional" and id_col is None:
+        inter_block = block.get("interactions", {})
+        if isinstance(inter_block, dict) and "product_id_column" in inter_block:
+            id_col = str(inter_block["product_id_column"])
+        if name_col is None and isinstance(inter_block, dict) and "product_name_column" in inter_block:
+            name_col = str(inter_block["product_name_column"])
+        if id_col is None:
+            raise KeyError(f"Tenant '{tenant_id}' products missing required field 'id_column'")
+
     products = TenantProductsConfig(
-        derived_from=str(prod["derived_from"]),
-        category_column=str(prod["category_column"]),
+        derived_from=derived_from,
+        category_column=cat_col,
+        id_column=id_col,
+        name_column=name_col,
     )
 
     # 4. interactions
@@ -315,8 +374,22 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
         raise KeyError(f"Tenant '{tenant_id}' interactions missing required field 'source'")
     source_name = str(inter["source"])
     isc: InteractionSourceConfig | None = None
+    transactional_cfg: TransactionalInteractionsConfig | None = None
     if source_name == "interaction_source":
         isc = get_interaction_source_config(config)
+    elif source_name == "transactional":
+        if "customer_id_column" not in inter:
+            raise KeyError(f"Tenant '{tenant_id}' interactions missing required field 'customer_id_column'")
+        if "product_id_column" not in inter:
+            raise KeyError(f"Tenant '{tenant_id}' interactions missing required field 'product_id_column'")
+        transactional_cfg = TransactionalInteractionsConfig(
+            customer_id_column=str(inter["customer_id_column"]),
+            product_id_column=str(inter["product_id_column"]),
+            product_name_column=str(inter["product_name_column"]) if inter.get("product_name_column") is not None else None,
+            quantity_column=str(inter["quantity_column"]) if inter.get("quantity_column") is not None else None,
+            transaction_id_column=str(inter["transaction_id_column"]) if inter.get("transaction_id_column") is not None else None,
+            exclude_invoice_prefix=str(inter["exclude_invoice_prefix"]) if inter.get("exclude_invoice_prefix") is not None else None,
+        )
     elif "service_columns" in inter:
         isc = InteractionSourceConfig(
             service_columns=list(inter["service_columns"]),
@@ -327,6 +400,7 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
     interactions = TenantInteractionsConfig(
         source=source_name,
         interaction_source=isc,
+        transactional=transactional_cfg,
     )
 
     # 5. optional segmentation
@@ -339,12 +413,25 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
                 thresh = float(seg["threshold"])
             elif str(seg.get("split", "")).replace(".", "", 1).isdigit():
                 thresh = float(seg["split"])
+            split_type = str(seg.get("split", "median"))
+            lower_lbl = str(
+                seg.get("lower_label", "United Kingdom" if split_type == "categorical" else "newer")
+            )
+            upper_lbl = str(
+                seg.get("upper_label", "Other" if split_type == "categorical" else "established")
+            )
+            cat_val = (
+                str(seg.get("category_value", "United Kingdom"))
+                if split_type == "categorical"
+                else None
+            )
             segmentation = TenantSegmentationConfig(
                 field=str(seg["field"]),
-                split=str(seg.get("split", "median")),
+                split=split_type,
                 threshold=thresh,
-                lower_label=str(seg.get("lower_label", "newer")),
-                upper_label=str(seg.get("upper_label", "established")),
+                lower_label=lower_lbl,
+                upper_label=upper_lbl,
+                category_value=cat_val,
             )
 
     return TenantConfig(

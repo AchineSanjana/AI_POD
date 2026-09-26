@@ -72,16 +72,21 @@ def evaluate_models(
     if len(customer_ids) > 100:
         customer_ids = customer_ids[:100]
 
+    logger.info("Training 1/4: ContentBasedRecommender...")
     content_model = ContentBasedRecommender().fit(
         customers, train_interactions, feature_columns
     )
+    logger.info("Training 2/4: CollaborativeFilteringRecommender...")
     cf_model = CollaborativeFilteringRecommender(n_factors=5).fit(train_interactions)
+    logger.info("Training 3/4: HybridRecommender...")
     hybrid_model = HybridRecommender().fit(
         customers, train_interactions, feature_columns
     )
+    logger.info("Training 4/4: LearnedRankingRecommender...")
     ranking_model = LearnedRankingRecommender(
         customer_specs=tenant_cfg.customers.features
     ).fit(customers, train_interactions, products)
+    logger.info("All candidate models trained successfully.")
 
     metrics_by_model: dict[str, list[dict[str, float]]] = {
         "content_based": [],
@@ -168,6 +173,16 @@ def main() -> None:
 
     logger.info(f"Starting data pipeline for tenant '{args.tenant_id}'...")
     customers, products, interactions = adapter.run()
+    logger.info(
+        f"Built tables successfully for '{args.tenant_id}': "
+        f"customers={len(customers):,} rows, "
+        f"products={len(products):,} rows, "
+        f"interactions={len(interactions):,} rows"
+    )
+
+    # Spot check a handful of products in the logs
+    sample_products = products[["product_id", "product_name"]].head(8).to_dict(orient="records")
+    logger.info(f"Spot-checking products for '{args.tenant_id}': {sample_products}")
 
     # Write processed data to tenant-isolated directory: data/processed/{tenant_id}/
     prefix_data = f"data/processed/{args.tenant_id}"

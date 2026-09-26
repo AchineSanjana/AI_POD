@@ -387,6 +387,31 @@ tenants:
     segmentation:
       field: company_age_months
       split: median
+  online_retail:
+    data_source:
+      type: csv
+      path: data/raw/online_retail.csv
+    customers:
+      id_column: CustomerID
+      features:
+      - name: Country
+        dtype: categorical
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: StockCode
+      name_column: Description
+    interactions:
+      source: transactional
+      customer_id_column: CustomerID
+      product_id_column: StockCode
+      product_name_column: Description
+      quantity_column: Quantity
+      transaction_id_column: InvoiceNo
+      exclude_invoice_prefix: C
+    segmentation:
+      field: Country
+      split: categorical
 model:
   content_based:
     similarity_metric: cosine

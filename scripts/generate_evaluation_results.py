@@ -135,12 +135,21 @@ def evaluate_tenant_models(
         seg_field_name = seg_cfg.field
 
         if seg_field_name in customers.columns:
-            vals = pd.to_numeric(customer_lookup[seg_field_name], errors="coerce")
-            threshold = seg_cfg.threshold if seg_cfg.threshold is not None else float(vals.median())
+            if seg_cfg.split == "categorical":
+                target_val = seg_cfg.category_value or "United Kingdom"
+                seg_label_1 = seg_cfg.lower_label
+                seg_label_2 = seg_cfg.upper_label
+                vals = None
+                threshold = None
+            else:
+                vals = pd.to_numeric(customer_lookup[seg_field_name], errors="coerce")
+                threshold = seg_cfg.threshold if seg_cfg.threshold is not None else float(vals.median())
+                seg_label_1 = seg_cfg.lower_label
+                seg_label_2 = seg_cfg.upper_label
 
             seg_metrics_by_model: dict[str, dict[str, list[dict[str, float]]]] = {
-                seg_cfg.lower_label: {name: [] for name in models},
-                seg_cfg.upper_label: {name: [] for name in models},
+                seg_label_1: {name: [] for name in models},
+                seg_label_2: {name: [] for name in models},
             }
 
             for cid in customer_ids:
@@ -149,11 +158,15 @@ def evaluate_tenant_models(
                     continue
 
                 customer_row = customer_lookup.loc[cid]
-                raw_val = vals.loc[cid] if cid in vals.index else None
-                if raw_val is not None and not pd.isna(raw_val):
-                    seg = seg_cfg.lower_label if float(raw_val) <= threshold else seg_cfg.upper_label
+                if seg_cfg.split == "categorical":
+                    raw_str = str(customer_row.get(seg_field_name, "")).strip()
+                    seg = seg_label_1 if raw_str.lower() == target_val.lower() else seg_label_2
                 else:
-                    seg = seg_cfg.lower_label
+                    raw_val = vals.loc[cid] if vals is not None and cid in vals.index else None
+                    if raw_val is not None and not pd.isna(raw_val):
+                        seg = seg_label_1 if threshold is not None and float(raw_val) <= threshold else seg_label_2
+                    else:
+                        seg = seg_label_1
 
                 cb_recs = content_model.recommend(customer_row, top_k=TOP_K)
                 cf_recs = cf_model.recommend(cid, top_k=TOP_K)
