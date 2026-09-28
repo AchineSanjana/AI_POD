@@ -70,11 +70,21 @@ def read_root():
 
 
 @app.get("/onboarding", response_class=HTMLResponse)
+@app.get("/onboarding.html", response_class=HTMLResponse)
 def onboarding_portal():
     portal_file = PROJECT_ROOT / "demo" / "onboarding.html"
     if portal_file.exists():
         return HTMLResponse(portal_file.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>Onboarding Portal Not Found</h1>", status_code=404)
+
+
+@app.get("/storefront", response_class=HTMLResponse)
+@app.get("/storefront.html", response_class=HTMLResponse)
+def storefront_portal():
+    storefront_file = PROJECT_ROOT / "demo" / "storefront.html"
+    if storefront_file.exists():
+        return HTMLResponse(storefront_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Storefront Not Found</h1>", status_code=404)
 
 
 @app.get("/", response_class=HTMLResponse)

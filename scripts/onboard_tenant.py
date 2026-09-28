@@ -172,7 +172,7 @@ def _apply_overrides(
     """Apply manual field-level overrides to the generated config block."""
     col_map = {c.name: c for c in report}
     customer_features = config_block["customers"]["features"]
-    service_cols = config_block["interactions"]["service_columns"]
+    service_cols = config_block.get("interactions", {}).get("service_columns")
 
     for col_name, action in overrides.items():
         col = col_map.get(col_name)
@@ -192,20 +192,31 @@ def _apply_overrides(
                 if len(col.distinct_values) <= 10:
                     feat["encoding"] = "one_hot"
             customer_features.append(feat)
-            if col_name in service_cols:
+            if service_cols is not None and col_name in service_cols:
                 service_cols.remove(col_name)
 
         elif action_lower in ("numeric", "num"):
             customer_features.append({"name": col_name, "dtype": "numeric"})
-            if col_name in service_cols:
+            if service_cols is not None and col_name in service_cols:
                 service_cols.remove(col_name)
 
         elif action_lower in ("service", "product"):
-            if col_name not in service_cols:
-                service_cols.append(col_name)
+            if service_cols is not None:
+                if col_name not in service_cols:
+                    service_cols.append(col_name)
+
+        elif action_lower == "product_id":
+            if config_block.get("products", {}).get("derived_from") == "transactional":
+                config_block["products"]["id_column"] = col_name
+                config_block["interactions"]["product_id_column"] = col_name
+
+        elif action_lower == "customer_id":
+            config_block["customers"]["id_column"] = col_name
+            if "customer_id_column" in config_block.get("interactions", {}):
+                config_block["interactions"]["customer_id_column"] = col_name
 
         elif action_lower in ("skip", "exclude", "drop"):
-            if col_name in service_cols:
+            if service_cols is not None and col_name in service_cols:
                 service_cols.remove(col_name)
 
 

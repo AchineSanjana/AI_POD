@@ -1495,6 +1495,36 @@
       const cand = STATE.validationResponse ? STATE.validationResponse.candidate_config : {};
       document.getElementById('cfgTenantIdLabel').textContent = STATE.tenantId;
 
+      STATE.overrides = {};
+      const lines = STATE.rawCsvContent.trim().split(/\r?\n/);
+      const headers = lines[0].split(',').map(h => h.trim());
+      headers.forEach(h => {
+        const el = document.getElementById(`override_${h}`);
+        if (el && el.value !== 'auto') {
+          STATE.overrides[h] = el.value;
+        }
+      });
+
+      let productsYaml = '';
+      let interactionsYaml = '';
+
+      if (cand?.products?.derived_from === 'transactional') {
+        productsYaml = `    products:
+      derived_from: transactional
+      id_column: ${cand?.products?.id_column || 'StockCode'}${cand?.products?.name_column ? `\n      name_column: ${cand.products.name_column}` : ''}`;
+        interactionsYaml = `    interactions:
+      source: transactional
+      customer_id_column: ${cand?.interactions?.customer_id_column || cand?.customers?.id_column || 'CustomerID'}
+      product_id_column: ${cand?.interactions?.product_id_column || cand?.products?.id_column || 'StockCode'}${cand?.interactions?.product_name_column ? `\n      product_name_column: ${cand.interactions.product_name_column}` : ''}${cand?.interactions?.quantity_column ? `\n      quantity_column: ${cand.interactions.quantity_column}` : ''}${cand?.interactions?.transaction_id_column ? `\n      transaction_id_column: ${cand.interactions.transaction_id_column}` : ''}${cand?.interactions?.exclude_invoice_prefix ? `\n      exclude_invoice_prefix: ${cand.interactions.exclude_invoice_prefix}` : ''}`;
+      } else {
+        productsYaml = `    products:
+      derived_from: ${cand?.products?.derived_from || 'interaction_source'}
+      category_column: ${cand?.products?.category_column || 'category'}`;
+        interactionsYaml = `    interactions:
+      source: ${cand?.interactions?.source || 'custom_services'}
+      service_columns: ${JSON.stringify(cand?.interactions?.service_columns || ['Quantity'])}`;
+      }
+
       // Format YAML Preview
       const formattedYaml = `tenants:
   ${STATE.tenantId}:
@@ -1504,19 +1534,12 @@
     customers:
       id_column: ${cand?.customers?.id_column || 'CustomerID'}
       features:
-${(cand?.customers?.features || [
-  { name: 'Country', dtype: 'categorical', encoding: 'one_hot' },
-  { name: 'Quantity', dtype: 'numeric' }
-]).map(f => `        - name: ${f.name}\n          dtype: ${f.dtype}${f.encoding ? `\n          encoding: ${f.encoding}` : ''}`).join('\n')}
-    products:
-      derived_from: ${cand?.products?.derived_from || 'interaction_source'}
-      category_column: ${cand?.products?.category_column || 'category'}
-    interactions:
-      source: ${cand?.interactions?.source || 'custom_services'}
-      service_columns: ${JSON.stringify(cand?.interactions?.service_columns || ['Quantity'])}
+${(cand?.customers?.features && cand.customers.features.length > 0) ? cand.customers.features.map(f => `        - name: ${f.name}\n          dtype: ${f.dtype}${f.encoding ? `\n          encoding: ${f.encoding}` : ''}`).join('\n') : '        []'}
+${productsYaml}
+${interactionsYaml}
     segmentation:
-      field: ${cand?.customers?.id_column || 'CustomerID'}
-      split: median`;
+      field: ${cand?.segmentation?.field || cand?.customers?.id_column || 'CustomerID'}
+      split: ${cand?.segmentation?.split || 'median'}`;
 
       document.getElementById('yamlConfigBox').textContent = formattedYaml;
       goToStep(3);
@@ -1540,7 +1563,7 @@ ${(cand?.customers?.features || [
           },
           body: JSON.stringify({
             candidate_config: STATE.validationResponse.candidate_config,
-            overrides: {}
+            overrides: STATE.overrides || {}
           })
         });
 

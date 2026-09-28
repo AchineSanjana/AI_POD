@@ -83,75 +83,164 @@ def generate_tenant_config(
             )
             id_column = sorted_by_uniqueness[0].name
 
-    # 3. Customer Features block
-    customer_features: list[dict[str, Any]] = []
-    segmentation_candidate: str | None = None
-
-    for col in profile_report:
-        if col.name == id_column:
-            continue
-
-        dtype = "numeric" if col.suggested_dtype == "numeric" else "categorical"
-        feature_entry: dict[str, Any] = {
-            "name": col.name,
-            "dtype": dtype,
-        }
-
-        if dtype == "categorical" and col.distinct_values:
-            feature_entry["allowed_values"] = [str(v) for v in col.distinct_values]
-            if len(col.distinct_values) <= 10:
-                feature_entry["encoding"] = "one_hot"
-        elif dtype == "numeric" and segmentation_candidate is None:
-            # Candidate for segmentation (e.g. tenure, signup_days, age)
-            if col.unique_count > 5:
-                segmentation_candidate = col.name
-
-        customer_features.append(feature_entry)
-
-    # 4. Interaction Source & Service Columns
+    # 3. Check for Transactional Schema vs. Subscription/Custom Services
+    # Service columns (binary flags like PhoneService, StreamingTV)
     service_cols = [
         col for col in profile_report if col.is_binary_service and col.name != id_column
     ]
     service_column_names = [col.name for col in service_cols]
 
-    # Detect positive and negative values observed across service columns
-    positive_vals: list[str] = []
-    negative_vals: list[str] = []
+    # Detect transactional column candidates
+    product_id_candidates = [
+        c.name for c in profile_report
+        if any(tok in c.name.lower() for tok in ("stock", "product", "item", "sku", "asin"))
+        and c.name != id_column
+    ]
+    invoice_candidates = [
+        c.name for c in profile_report
+        if any(tok in c.name.lower() for tok in ("invoice", "transaction", "order", "receipt"))
+        and c.name != id_column
+    ]
+    desc_candidates = [
+        c.name for c in profile_report
+        if any(tok in c.name.lower() for tok in ("description", "product_name", "productname", "title"))
+        and c.name != id_column
+    ]
+    qty_candidates = [
+        c.name for c in profile_report
+        if any(tok in c.name.lower() for tok in ("quantity", "qty", "units", "count"))
+        and c.name != id_column
+    ]
 
-    for col in service_cols:
-        if not col.distinct_values:
-            continue
-        for val in col.distinct_values:
-            val_str = str(val).strip()
-            val_lower = val_str.lower()
-            if val_lower in POSITIVE_TOKENS:
-                if val_str not in positive_vals:
-                    positive_vals.append(val_str)
-            elif any(
-                val_lower == prefix or val_lower.startswith(prefix + " ")
-                for prefix in NEGATIVE_PREFIXES
-            ):
-                if val_str not in negative_vals:
-                    negative_vals.append(val_str)
+    is_transactional = bool(
+        product_id_candidates and (invoice_candidates or qty_candidates or not service_cols)
+    )
 
-    # Defaults if none explicitly detected
-    if not positive_vals:
-        positive_vals = ["Yes"]
-    if not negative_vals:
-        negative_vals = ["No"]
+    customer_features: list[dict[str, Any]] = []
+    segmentation_candidate: str | None = None
+    segmentation_split: str = "median"
 
-    interactions = {
-        "source": "custom_services",
-        "service_columns": service_column_names,
-        "positive_values": positive_vals,
-        "negative_values": negative_vals,
-    }
+    if is_transactional:
+        prod_id_col = product_id_candidates[0]
+        desc_col = desc_candidates[0] if desc_candidates else None
+        invoice_col = invoice_candidates[0] if invoice_candidates else None
+        qty_col = qty_candidates[0] if qty_candidates else None
 
-    # 5. Products block
-    products = {
-        "derived_from": "interaction_source",
-        "category_column": "category",
-    }
+        # Exclude line-item transaction columns from customer features
+        excluded_from_cust = {id_column, prod_id_col}
+        if desc_col:
+            excluded_from_cust.add(desc_col)
+        if invoice_col:
+            excluded_from_cust.add(invoice_col)
+        if qty_col:
+            excluded_from_cust.add(qty_col)
+        for col in profile_report:
+            c_low = col.name.lower()
+            if any(tok in c_low for tok in ("date", "time", "price", "unitprice", "cost", "total")):
+                excluded_from_cust.add(col.name)
+
+        for col in profile_report:
+            if col.name in excluded_from_cust:
+                continue
+
+            dtype = "numeric" if col.suggested_dtype == "numeric" else "categorical"
+            feature_entry = {
+                "name": col.name,
+                "dtype": dtype,
+            }
+            if dtype == "categorical":
+                if col.distinct_values:
+                    feature_entry["allowed_values"] = [str(v) for v in col.distinct_values]
+                feature_entry["encoding"] = "one_hot"
+                if segmentation_candidate is None:
+                    segmentation_candidate = col.name
+                    segmentation_split = "categorical"
+            elif dtype == "numeric" and segmentation_candidate is None:
+                if col.unique_count > 5:
+                    segmentation_candidate = col.name
+                    segmentation_split = "median"
+
+            customer_features.append(feature_entry)
+
+        products = {
+            "derived_from": "transactional",
+            "id_column": prod_id_col,
+        }
+        if desc_col:
+            products["name_column"] = desc_col
+
+        interactions = {
+            "source": "transactional",
+            "customer_id_column": id_column,
+            "product_id_column": prod_id_col,
+        }
+        if desc_col:
+            interactions["product_name_column"] = desc_col
+        if qty_col:
+            interactions["quantity_column"] = qty_col
+        if invoice_col:
+            interactions["transaction_id_column"] = invoice_col
+            interactions["exclude_invoice_prefix"] = "C"
+
+    else:
+        # Standard subscription / custom services
+        for col in profile_report:
+            if col.name == id_column:
+                continue
+
+            dtype = "numeric" if col.suggested_dtype == "numeric" else "categorical"
+            feature_entry = {
+                "name": col.name,
+                "dtype": dtype,
+            }
+
+            if dtype == "categorical" and col.distinct_values:
+                feature_entry["allowed_values"] = [str(v) for v in col.distinct_values]
+                if len(col.distinct_values) <= 10:
+                    feature_entry["encoding"] = "one_hot"
+            elif dtype == "numeric" and segmentation_candidate is None:
+                if col.unique_count > 5:
+                    segmentation_candidate = col.name
+                    segmentation_split = "median"
+
+            customer_features.append(feature_entry)
+
+        # Detect positive and negative values observed across service columns
+        positive_vals: list[str] = []
+        negative_vals: list[str] = []
+
+        for col in service_cols:
+            if not col.distinct_values:
+                continue
+            for val in col.distinct_values:
+                val_str = str(val).strip()
+                val_lower = val_str.lower()
+                if val_lower in POSITIVE_TOKENS:
+                    if val_str not in positive_vals:
+                        positive_vals.append(val_str)
+                elif any(
+                    val_lower == prefix or val_lower.startswith(prefix + " ")
+                    for prefix in NEGATIVE_PREFIXES
+                ):
+                    if val_str not in negative_vals:
+                        negative_vals.append(val_str)
+
+        if not positive_vals:
+            positive_vals = ["Yes"]
+        if not negative_vals:
+            negative_vals = ["No"]
+
+        interactions = {
+            "source": "custom_services",
+            "service_columns": service_column_names,
+            "positive_values": positive_vals,
+            "negative_values": negative_vals,
+        }
+
+        products = {
+            "derived_from": "interaction_source",
+            "category_column": "category",
+        }
 
     # 6. Assemble configuration dictionary
     tenant_config: dict[str, Any] = {
@@ -167,7 +256,7 @@ def generate_tenant_config(
     if segmentation_candidate is not None:
         tenant_config["segmentation"] = {
             "field": segmentation_candidate,
-            "split": "median",
+            "split": segmentation_split,
         }
 
     # 7. Immediate validation against schemas and TenantConfig parser
@@ -306,10 +395,6 @@ def _validate_tenant_config(config: dict[str, Any], tenant_id: str) -> None:
     customer_block = config["customers"]
     if not customer_block.get("id_column"):
         raise ValueError("Generated config missing 'customers.id_column'")
-    if not customer_block.get("features"):
-        raise ValueError(
-            "Generated config must have at least one feature in 'customers.features'"
-        )
 
     try:
         feature_specs = [
@@ -319,7 +404,7 @@ def _validate_tenant_config(config: dict[str, Any], tenant_id: str) -> None:
                 allowed_values=f.get("allowed_values"),
                 encoding=f.get("encoding", "passthrough"),
             )
-            for f in customer_block["features"]
+            for f in customer_block.get("features", [])
         ]
         CustomerSchema(features=feature_specs)
     except Exception as e:
@@ -327,15 +412,20 @@ def _validate_tenant_config(config: dict[str, Any], tenant_id: str) -> None:
 
     # 3. ProductSchema validation
     prod_block = config["products"]
-    cat_col = prod_block.get("category_column", "category")
+    derived_from = prod_block.get("derived_from")
+    cat_col = prod_block.get("category_column")
     try:
-        category_spec = FeatureSpec(
-            name=cat_col,
-            dtype="categorical",
-            allowed_values=["Core", "Add-on"] if cat_col == "category" else None,
-            encoding="one_hot",
-        )
-        ProductSchema(category=category_spec)
+        if derived_from == "transactional":
+            ProductSchema(category=None)
+        else:
+            cat_col = cat_col or "category"
+            category_spec = FeatureSpec(
+                name=cat_col,
+                dtype="categorical",
+                allowed_values=["Core", "Add-on"] if cat_col == "category" else None,
+                encoding="one_hot",
+            )
+            ProductSchema(category=category_spec)
     except Exception as e:
         raise ValueError(f"Invalid ProductSchema generated: {e}") from e
 

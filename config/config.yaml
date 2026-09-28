@@ -412,6 +412,31 @@ tenants:
     segmentation:
       field: Country
       split: categorical
+  carrie_eccomerce:
+    data_source:
+      type: csv
+      path: data/raw/carrie_eccomerce_raw.csv
+    customers:
+      id_column: CustomerID
+      features:
+      - name: Country
+        dtype: categorical
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: StockCode
+      name_column: Description
+    interactions:
+      source: transactional
+      customer_id_column: CustomerID
+      product_id_column: StockCode
+      product_name_column: Description
+      quantity_column: Quantity
+      transaction_id_column: InvoiceNo
+      exclude_invoice_prefix: C
+    segmentation:
+      field: Country
+      split: categorical
 model:
   content_based:
     similarity_metric: cosine
