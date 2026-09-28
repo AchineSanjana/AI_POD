@@ -813,14 +813,17 @@
 
           <!-- Existing Tenant Dropdown -->
           <div class="form-group" id="existingTenantGroup">
-            <label class="form-label" for="existingTenantSelect">Select Tenant &amp; Key</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" for="existingTenantSelect" style="margin-bottom: 0;">Select Tenant &amp; Key</label>
+              <button type="button" onclick="loadConfiguredKeys(true)" style="background: none; border: none; color: #818cf8; font-size: 0.78rem; cursor: pointer; text-decoration: underline; padding: 0;">↻ Reload Keys</button>
+            </div>
             <select id="existingTenantSelect" class="form-select" onchange="onExistingTenantSelected()">
               <option value="online_retail|sk-online-retail-xxxx">online_retail (Gift &amp; Home Co. &bull; sk-online-retail-xxxx)</option>
               <option value="telco_default|sk-telco-xxxx">telco_default (Apex Telecom &bull; sk-telco-xxxx)</option>
               <option value="movielens_demo|sk-movielens-xxxx">movielens_demo (CineVerse &bull; sk-movielens-xxxx)</option>
               <option value="fixture_ecommerce|sk-ecommerce-xxxx">fixture_ecommerce (sk-ecommerce-xxxx)</option>
             </select>
-            <div class="form-hint">Requests are authenticated via header <code>X-API-Key</code>.</div>
+            <div class="form-hint">Requests are authenticated via header <code>X-API-Key</code>. Loaded dynamically from <code>/v1/onboard/keys</code>.</div>
           </div>
 
           <!-- New Company Inputs -->
@@ -1099,8 +1102,12 @@
     // -------------------------------------------------------------------------
     // State & Config
     // -------------------------------------------------------------------------
+    const defaultApiBase = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http'))
+      ? window.location.origin
+      : 'http://localhost:8000';
+
     const STATE = {
-      apiBaseUrl: 'http://localhost:8000',
+      apiBaseUrl: defaultApiBase,
       currentStep: 1,
       tenantId: 'online_retail',
       apiKey: 'sk-online-retail-xxxx',
@@ -1112,6 +1119,62 @@
       elapsedSeconds: 0,
       elapsedTimer: null
     };
+
+    const TENANT_DISPLAY_NAMES = {
+      online_retail: 'Gift & Home Co.',
+      telco_default: 'Apex Telecom',
+      movielens_demo: 'CineVerse',
+      carrie_eccomerce: 'Carrie Ecommerce',
+      movielens_small: 'MovieLens Small',
+      fixture_ecommerce: 'Fixture Ecommerce'
+    };
+
+    async function loadConfiguredKeys(showNotification = false) {
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/onboard/keys`);
+        if (!resp.ok) {
+          console.warn('Failed to fetch /v1/onboard/keys, status:', resp.status);
+          return;
+        }
+        const keys = await resp.json();
+        if (Array.isArray(keys) && keys.length > 0) {
+          const select = document.getElementById('existingTenantSelect');
+          if (!select) return;
+
+          const currentVal = select.value;
+          select.innerHTML = '';
+
+          keys.forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = `${k.tenant_id}|${k.api_key}`;
+            const friendly = TENANT_DISPLAY_NAMES[k.tenant_id];
+            opt.textContent = friendly 
+              ? `${k.tenant_id} (${friendly} • ${k.api_key})`
+              : `${k.tenant_id} (${k.api_key})`;
+            select.appendChild(opt);
+          });
+
+          // Check if previous value or current state matches
+          const matched = keys.find(k => `${k.tenant_id}|${k.api_key}` === currentVal);
+          if (matched) {
+            select.value = currentVal;
+          } else {
+            const stateMatch = keys.find(k => k.tenant_id === STATE.tenantId);
+            if (stateMatch) {
+              select.value = `${stateMatch.tenant_id}|${stateMatch.api_key}`;
+            } else {
+              select.selectedIndex = 0;
+            }
+          }
+          onExistingTenantSelected();
+          if (showNotification) {
+            showToast(`Loaded ${keys.length} tenant API keys!`, '🔑');
+          }
+        }
+      } catch (e) {
+        console.warn('Error loading configured keys:', e);
+      }
+    }
 
     // Preset Sample Datasets for 1-Click Demos
     const SAMPLES = {

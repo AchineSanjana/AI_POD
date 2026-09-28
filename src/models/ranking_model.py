@@ -166,6 +166,11 @@ class LearnedRankingRecommender:
         self._resolve_specs()
         self._prepare_data()
         training_frame = self._build_training_frame()
+        if training_frame.empty or "target" not in training_frame.columns:
+            raise ValueError(
+                "Training frame is empty or missing 'target' column. "
+                "Ensure that customer and product IDs in interactions match those in customers and products tables."
+            )
         self.feature_columns_ = [c for c in training_frame.columns if c != "target"]
 
         X = training_frame[self.feature_columns_].drop(columns=["product_id", "customer_id"], errors="ignore")
@@ -278,6 +283,14 @@ class LearnedRankingRecommender:
             raise ValueError("customers must contain customer_id")
         if "product_id" not in self.products_.columns:
             raise ValueError("products must contain product_id")
+
+        # Standardize ID column formatting across tables to prevent float string mismatches (e.g. '123.0' vs '123')
+        from src.data.interaction_extraction import _format_identifier_series
+
+        self.customers_["customer_id"] = _format_identifier_series(self.customers_["customer_id"])
+        self.products_["product_id"] = _format_identifier_series(self.products_["product_id"])
+        self.interactions_["customer_id"] = _format_identifier_series(self.interactions_["customer_id"])
+        self.interactions_["product_id"] = _format_identifier_series(self.interactions_["product_id"])
 
         # Coerce dtypes driven by specs — no hardcoded column names.
         self.customers_ = _coerce_dtypes(self.customers_, self._customer_specs)

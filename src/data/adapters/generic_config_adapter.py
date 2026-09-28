@@ -12,6 +12,7 @@ from src.core.schema import CustomerSchema, FeatureSpec, InteractionSchema, Prod
 from src.data.base_adapter import DataAdapter
 # pyrefly: ignore [missing-import]
 from src.data.interaction_extraction import (
+    _format_identifier_series,
     build_transactional_interactions,
     derive_products_from_interaction_source,
     derive_products_from_transactional,
@@ -129,7 +130,11 @@ class GenericConfigAdapter(DataAdapter):
         if id_col in df.columns:
             df = df.rename(columns={id_col: "customer_id"})
         if "customer_id" in df.columns:
-            df["customer_id"] = df["customer_id"].astype(str)
+            df["customer_id"] = _format_identifier_series(df["customer_id"])
+            df = df[
+                df["customer_id"].notna()
+                & ~df["customer_id"].str.strip().str.lower().isin(["", "nan", "none", "null"])
+            ]
             df = df.drop_duplicates(subset=["customer_id"], keep="first")
 
         for spec in feature_specs:

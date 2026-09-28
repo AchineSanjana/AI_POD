@@ -52,6 +52,18 @@ def get_current_tenant(
         load_tenant_auth()
 
     if x_api_key not in TENANT_AUTH_MAPPING:
+        try:
+            cfg = load_config()
+            tenants = cfg.get("tenants", {})
+            if isinstance(tenants, dict):
+                for t in tenants.keys():
+                    if x_api_key == f"sk-{t}-xxxx":
+                        TENANT_AUTH_MAPPING[x_api_key] = t
+                        return t
+        except Exception:
+            pass
+
+    if x_api_key not in TENANT_AUTH_MAPPING:
         raise HTTPException(
             status_code=401,
             detail=f"Invalid API Key: '{x_api_key}'",

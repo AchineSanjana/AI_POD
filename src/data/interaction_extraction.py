@@ -88,8 +88,10 @@ def extract_interactions_from_interaction_source(
     negative: set[str] = set(isc.negative_values)
 
     rows: list[dict[str, str]] = []
-    for _, row in raw.iterrows():
-        customer_id: str = str(row[id_column])
+    formatted_ids = _format_identifier_series(raw[id_column])
+    for (_, row), customer_id in zip(raw.iterrows(), formatted_ids):
+        if not customer_id or str(customer_id).lower() in ("nan", "none", "null"):
+            continue
 
         # Binary Yes/No columns
         for col in binary_cols:

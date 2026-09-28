@@ -554,3 +554,58 @@ def test_prepare_online_retail_script(tmp_path: pytest.TempPathFactory) -> None:
     assert output_sample_csv.exists()
 
 
+def test_customer_id_float_formatting_compatibility(tmp_path: Path) -> None:
+    """Verify raw float customer IDs (e.g. 17850.0) format consistently across customers and interactions."""
+    raw_df = pd.DataFrame(
+        [
+            {"CustomerID": 17850.0, "Country": "United Kingdom", "StockCode": "P1", "Description": "Item 1", "Quantity": 2, "InvoiceNo": "INV1"},
+            {"CustomerID": 13047.0, "Country": "Germany", "StockCode": "P2", "Description": "Item 2", "Quantity": 1, "InvoiceNo": "INV2"},
+            {"CustomerID": None, "Country": "France", "StockCode": "P3", "Description": "Item 3", "Quantity": 1, "InvoiceNo": "INV3"},
+        ]
+    )
+    raw_file = tmp_path / "raw.csv"
+    raw_df.to_csv(raw_file, index=False)
+
+    tenant_cfg = TenantConfig(
+        tenant_id="test_float_id",
+        data_source=DataSourceConfig(type="csv", path=str(raw_file)),
+        customers=TenantCustomersConfig(
+            id_column="CustomerID",
+            features=[FeatureSpec(name="Country", dtype="categorical")],
+        ),
+        products=TenantProductsConfig(
+            derived_from="transactional",
+            id_column="StockCode",
+            name_column="Description",
+        ),
+        interactions=TenantInteractionsConfig(
+            source="transactional",
+            customer_id_column="CustomerID",
+            product_id_column="StockCode",
+            product_name_column="Description",
+            quantity_column="Quantity",
+            transaction_id_column="InvoiceNo",
+        ),
+    )
+
+    adapter = GenericConfigAdapter(tenant_cfg)
+    customers, products, interactions = adapter.run()
+
+    # Verify no float '.0' artifacts in customer_id
+    assert set(customers["customer_id"]) == {"17850", "13047"}
+    assert set(interactions["customer_id"]) == {"17850", "13047"}
+
+    # Fit ranking recommender to ensure target column is created and model trains
+    model = LearnedRankingRecommender(
+        customer_specs=tenant_cfg.customers.features
+    ).fit(
+        customers=customers,
+        products=products,
+        interactions=interactions,
+    )
+    assert model is not None
+    recs = model.recommend(customer_id="17850", top_k=2)
+    assert isinstance(recs, list)
+
+
+

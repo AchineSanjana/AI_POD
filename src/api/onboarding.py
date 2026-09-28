@@ -585,8 +585,18 @@ open_router = APIRouter(
 )
 def list_tenant_keys() -> list[dict[str, str]]:
     config = load_config()
-    mapping = get_tenant_auth_mapping(config)
-    return [{"tenant_id": v, "api_key": k} for k, v in mapping.items()]
+    mapping = load_tenant_auth(config)
+    tenant_to_key = {v: k for k, v in mapping.items()}
+
+    cfg_tenants = config.get("tenants", {})
+    if isinstance(cfg_tenants, dict):
+        for t in cfg_tenants.keys():
+            if t not in tenant_to_key:
+                default_key = f"sk-{t}-xxxx"
+                tenant_to_key[t] = default_key
+                TENANT_AUTH_MAPPING[default_key] = t
+
+    return [{"tenant_id": t, "api_key": k} for t, k in sorted(tenant_to_key.items())]
 
 
 @open_router.post(
