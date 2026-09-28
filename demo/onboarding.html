@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI_POD | Tenant Dataset Onboarding Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --bg-elevated: #0f172a;
+      --surface: #131c31;
+      --surface-card: #18233c;
+      --surface-hover: #1e2c4c;
+      --border: #243456;
+      --border-focus: #6366f1;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-glow: rgba(99, 102, 241, 0.25);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.2);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --shadow-card: 0 12px 30px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+      --shadow-glow: 0 0 35px -5px rgba(99, 102, 241, 0.2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+        radial-gradient(ellipse 50% 30% at 80% 80%, rgba(139, 92, 246, 0.08), transparent);
+      background-attachment: fixed;
+    }
+
+    /* Top Announcement Bar */
+    .top-bar {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+    }
+    .top-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .top-nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+    .top-nav-link:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .top-nav-link.active {
+      color: #a5b4fc;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .api-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #34d399;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 2.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* Stepper Navigation */
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 20px;
+      position: relative;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      position: relative;
+      z-index: 2;
+      flex: 1;
+    }
+    .step-item.active {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+    }
+    .step-item.completed {
+      opacity: 0.85;
+    }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+    .step-item.active .step-num {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
+    }
+    .step-item.completed .step-num {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .step-content {
+      display: flex;
+      flex-direction: column;
+    }
+    .step-title {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+    .step-subtitle {
+      font-size: 0.76rem;
+      color: var(--text-subtle);
+    }
+    .step-divider {
+      width: 30px;
+      height: 2px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    /* Cards & Panels */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 24px;
+      backdrop-filter: blur(8px);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 16px;
+    }
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .form-hint {
+      font-size: 0.78rem;
+      color: var(--text-subtle);
+      margin-top: 4px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* Drag and Drop Zone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 44px 24px;
+      text-align: center;
+      background: rgba(24, 35, 60, 0.4);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.08);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+    .dropzone-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+    .dropzone:hover .dropzone-icon {
+      transform: scale(1.1);
+    }
+    .dropzone-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .dropzone-text {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .file-input {
+      display: none;
+    }
+
+    /* Selected File Badge */
+    .selected-file-card {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-card);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: var(--radius-md);
+      padding: 14px 20px;
+      margin-top: 20px;
+    }
+    .file-info-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .file-icon {
+      font-size: 1.8rem;
+    }
+    .file-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .file-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* Sample Data Buttons */
+    .samples-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .samples-label {
+      font-size: 0.82rem;
+      color: var(--text-subtle);
+      font-weight: 600;
+    }
+    .btn-sample {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-sample:hover {
+      color: #fff;
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    /* Mini CSV Preview */
+    .preview-box {
+      margin-top: 20px;
+      display: none;
+    }
+    .preview-header {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .preview-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      max-height: 220px;
+    }
+    .table-custom {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: left;
+    }
+    .table-custom th {
+      background: var(--surface-card);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+    }
+    .table-custom td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .table-custom tr:hover td {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    }
+    .btn-secondary {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-focus);
+    }
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .btn-success:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      transform: translateY(-1px);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Actions Bar */
+    .actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* Step 2: Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      text-align: center;
+    }
+    .metric-val {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #a5b4fc;
+      margin-bottom: 4px;
+    }
+    .metric-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Badges & Chips */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+    .badge-green {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .badge-yellow {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+    }
+    .badge-blue {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+    }
+    .badge-red {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    /* Summary Card */
+    .summary-box {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
+      margin-bottom: 24px;
+    }
+    .summary-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #c7d2fe;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .summary-text {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Code & YAML Preview */
+    .code-box {
+      background: #060911;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      line-height: 1.6;
+      max-height: 380px;
+    }
+
+    /* Step 4: Live Training State */
+    .training-stage-wrap {
+      text-align: center;
+      padding: 24px 0;
+    }
+    .radar-spinner {
+      width: 80px;
+      height: 80px;
+      border: 4px solid rgba(99, 102, 241, 0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      margin: 0 auto 24px;
+      animation: spin 1.1s linear infinite;
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.4);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .radar-spinner.complete {
+      animation: none;
+      border-color: var(--accent);
+      background: rgba(16, 185, 129, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      color: #10b981;
+    }
+    .progress-bar-wrap {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      height: 12px;
+      max-width: 520px;
+      margin: 20px auto;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 20%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6, #10b981);
+      border-radius: var(--radius-full);
+      transition: width 0.4s ease;
+    }
+    .live-logs {
+      background: #050810;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #94a3b8;
+      max-width: 680px;
+      margin: 24px auto 0;
+      text-align: left;
+      height: 160px;
+      overflow-y: auto;
+    }
+    .log-line {
+      margin-bottom: 6px;
+      display: flex;
+      gap: 8px;
+    }
+    .log-time { color: var(--text-subtle); }
+    .log-msg { color: #e2e8f0; }
+
+    /* Toast Stack */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .toast {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-title { font-size: 2rem; }
+      .grid-2, .metrics-grid { grid-template-columns: 1fr; }
+      .stepper { flex-direction: column; gap: 8px; align-items: stretch; }
+      .step-divider { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <span class="brand-badge">ONBOARDING STUDIO</span>
+      <span style="font-weight: 700; font-family: var(--font-display); font-size: 1.1rem;">AI_POD Multi-Tenant Engine</span>
+    </div>
+    <div class="top-nav-links">
+      <a href="storefront.html" class="top-nav-link" target="_blank" title="View Gift & Home Co. Storefront">
+        <span>🎁</span>
+        <span>Storefront Demo</span>
+      </a>
+      <a href="http://localhost:8000/" class="top-nav-link" target="_blank" title="Test Recommendations via Admin UI">
+        <span>⚡</span>
+        <span>Recommendations Tester</span>
+      </a>
+      <a href="http://localhost:8000/docs" class="top-nav-link" target="_blank" title="OpenAPI / Swagger Docs">
+        <span>📖</span>
+        <span>API Docs</span>
+      </a>
+      <div class="api-status-pill" id="apiStatusPill">
+        <div class="pulse-dot" id="pulseDot"></div>
+        <span id="apiStatusText">Backend: Online (8000)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="container">
+
+    <!-- Hero Header -->
+    <section class="hero">
+      <h1 class="hero-title">Dataset Onboarding Portal</h1>
+      <p class="hero-desc">
+        Upload your raw customer and product interactions. Our engine automatically classifies features, 
+        infers interaction contracts, validates schemas, and builds your custom recommendation model.
+      </p>
+    </section>
+
+    <!-- Stepper Navigation -->
+    <nav class="stepper" aria-label="Onboarding Steps">
+      <div class="step-item active" id="stepIndicator1" onclick="goToStep(1)">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <span class="step-title">Upload Dataset</span>
+          <span class="step-subtitle">CSV Ingestion</span>
+        </div>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="stepIndicator2" onclick="goToStep(2)">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <span class="step-title">AI Profiling</span>
+          <span class="step-subtitle">Schema Classification</span>
+        </div>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="stepIndicator3" onclick="goToStep(3)">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <span class="step-title">Configuration</span>
+          <span class="step-subtitle">Tenant Contract</span>
+        </div>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="stepIndicator4" onclick="goToStep(4)">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <span class="step-title">Train &amp; Deploy</span>
+          <span class="step-subtitle">Model Artifacts</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ====================================================================== -->
+    <!-- STEP 1: UPLOAD DATASET -->
+    <!-- ====================================================================== -->
+    <section id="step1Section" class="step-pane">
+      
+      <!-- Tenant Selection Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">🏢 Company &amp; Tenant Credentials</h2>
+            <p class="card-desc">Identify which tenant catalog this dataset belongs to, or register a new company.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label" for="tenantModeSelect">Onboarding Mode</label>
+            <select id="tenantModeSelect" class="form-select" onchange="toggleTenantMode()">
+              <option value="existing" selected>Select Existing Configured Tenant</option>
+              <option value="new">Register New Company / Tenant</option>
+            </select>
+          </div>
+
+          <!-- Existing Tenant Dropdown -->
+          <div class="form-group" id="existingTenantGroup">
+            <label class="form-label" for="existingTenantSelect">Select Tenant &amp; Key</label>
+            <select id="existingTenantSelect" class="form-select" onchange="onExistingTenantSelected()">
+              <option value="online_retail|sk-online-retail-xxxx">online_retail (Gift &amp; Home Co. &bull; sk-online-retail-xxxx)</option>
+              <option value="telco_default|sk-telco-xxxx">telco_default (Apex Telecom &bull; sk-telco-xxxx)</option>
+              <option value="movielens_demo|sk-movielens-xxxx">movielens_demo (CineVerse &bull; sk-movielens-xxxx)</option>
+              <option value="fixture_ecommerce|sk-ecommerce-xxxx">fixture_ecommerce (sk-ecommerce-xxxx)</option>
+            </select>
+            <div class="form-hint">Requests are authenticated via header <code>X-API-Key</code>.</div>
+          </div>
+
+          <!-- New Company Inputs -->
+          <div class="form-group" id="newTenantGroup" style="display: none;">
+            <label class="form-label" for="newTenantIdInput">New Tenant ID (slug)</label>
+            <input type="text" id="newTenantIdInput" class="form-input" placeholder="e.g. acme_retail" oninput="onNewTenantIdChange()" />
+            <div class="form-hint">Lowercase letters, numbers, and underscores only.</div>
+          </div>
+        </div>
+
+        <div class="grid-2" id="keyDisplayRow">
+          <div class="form-group">
+            <label class="form-label" for="activeTenantId">Active Tenant ID</label>
+            <input type="text" id="activeTenantId" class="form-input" value="online_retail" readonly />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="activeApiKey">Header Key (X-API-Key)</label>
+            <input type="text" id="activeApiKey" class="form-input" value="sk-online-retail-xxxx" />
+          </div>
+        </div>
+      </div>
+
+      <!-- File Dropzone Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">📁 Upload Raw Dataset (CSV)</h2>
+            <p class="card-desc">Drag and drop your raw CSV file containing transactions, interactions, or churn records.</p>
+          </div>
+        </div>
+
+        <!-- Interactive Drag-and-Drop Area -->
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('csvFileInput').click()">
+          <input type="file" id="csvFileInput" class="file-input" accept=".csv,text/csv" onchange="handleFileSelected(event)" />
+          <div class="dropzone-icon">☁️</div>
+          <div class="dropzone-title">Drop your CSV dataset here, or click to browse</div>
+          <div class="dropzone-text">Supports CSV files with customer IDs, items, and interaction features (up to 50MB)</div>
+          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('csvFileInput').click()">
+            <span>📄</span>
+            <span>Browse Files</span>
+          </button>
+        </div>
+
+        <!-- Quick Demo Fill Helpers -->
+        <div class="samples-bar">
+          <span class="samples-label">Or quick-load sample data:</span>
+          <button type="button" class="btn-sample" onclick="loadSampleDataset('retail')">
+            <span>🎁</span>
+            <span>Load Gift &amp; Home Retail Sample</span>
+          </button>
+          <button type="button" class="btn-sample" onclick="loadSampleDataset('telco')">
+            <span>📡</span>
+            <span>Load Telecom Churn Sample</span>
+          </button>
+        </div>
+
+        <!-- Selected File Banner -->
+        <div class="selected-file-card" id="selectedFileCard">
+          <div class="file-info-group">
+            <div class="file-icon">📊</div>
+            <div>
+              <div class="file-name" id="selectedFileName">dataset.csv</div>
+              <div class="file-meta" id="selectedFileMeta">0 KB &bull; In-memory ready</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.8rem;" onclick="clearSelectedFile()">
+            <span>✕</span>
+            <span>Remove</span>
+          </button>
+        </div>
+
+        <!-- Mini CSV Preview Table -->
+        <div class="preview-box" id="previewBox">
+          <div class="preview-header">
+            <span><strong>Preview First 5 Rows:</strong></span>
+            <span id="previewMetaText">0 columns</span>
+          </div>
+          <div class="preview-table-wrap">
+            <table class="table-custom" id="previewTable">
+              <thead id="previewTableHead"></thead>
+              <tbody id="previewTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-bar">
+          <div style="font-size: 0.85rem; color: var(--text-subtle);">
+            Ready to upload to <code>POST /v1/onboard/upload</code>
+          </div>
+          <button type="button" class="btn btn-primary" id="btnUpload" onclick="uploadAndProfile()" disabled>
+            <span>Upload &amp; Profile Dataset</span>
+            <span>➔</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================== -->
+    <!-- STEP 2: AI PROFILING & SCHEMA CLASSIFICATION -->
+    <!-- ====================================================================== -->
+    <section id="step2Section" class="step-pane" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">🔍 AI Dataset Profiling &amp; Role Inference</h2>
+            <p class="card-desc">The engine analyzed your columns and auto-classified their semantic roles.</p>
+          </div>
+          <span class="badge badge-green" id="profileStatusBadge">Validated</span>
+        </div>
+
+        <!-- High-level Metric Cards -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-val" id="metricRows">0</div>
+            <div class="metric-label">Total Rows</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="metricCols">0</div>
+            <div class="metric-label">Columns Analyzed</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="metricCustId">--</div>
+            <div class="metric-label">Inferred Customer ID</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="metricProdId">--</div>
+            <div class="metric-label">Target Entity</div>
+          </div>
+        </div>
+
+        <!-- Plain English Summary Banner -->
+        <div class="summary-box" id="summaryBox">
+          <div class="summary-title">
+            <span>💡</span>
+            <span>AI Architecture Assessment</span>
+          </div>
+          <p class="summary-text" id="summaryText">
+            Dataset analyzed. Review the suggested role mapping below before confirming your configuration.
+          </p>
+        </div>
+
+        <!-- Columns Classification Table -->
+        <h3 style="font-size: 1.1rem; font-family: var(--font-display); margin-bottom: 12px;">Column Mapping &amp; Role Classification</h3>
+        <div class="preview-table-wrap" style="max-height: 400px; margin-bottom: 24px;">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>Column Name</th>
+                <th>Sample Values</th>
+                <th>Suggested Role</th>
+                <th>Confidence</th>
+                <th>Needs Review</th>
+                <th>Override Role</th>
+              </tr>
+            </thead>
+            <tbody id="columnsProfileBody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-bar">
+          <button type="button" class="btn btn-secondary" onclick="goToStep(1)">
+            <span>← Back to Upload</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="proceedToConfig()">
+            <span>Generate &amp; Review Config</span>
+            <span>➔</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================== -->
+    <!-- STEP 3: CONFIGURATION REVIEW -->
+    <!-- ====================================================================== -->
+    <section id="step3Section" class="step-pane" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">⚙️ Tenant Configuration Contract</h2>
+            <p class="card-desc">Review the generated multi-tenant configuration before persisting to <code>config.yaml</code>.</p>
+          </div>
+        </div>
+
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
+          This contract governs feature extraction, normalization, and algorithm selection for 
+          tenant <strong id="cfgTenantIdLabel" style="color: #a5b4fc;">online_retail</strong>:
+        </p>
+
+        <!-- YAML Preview Box -->
+        <pre class="code-box" id="yamlConfigBox"># Candidate configuration will appear here...</pre>
+
+        <!-- Actions -->
+        <div class="actions-bar">
+          <button type="button" class="btn btn-secondary" onclick="goToStep(2)">
+            <span>← Back to Profiling</span>
+          </button>
+          <button type="button" class="btn btn-success" id="btnConfirmAndTrain" onclick="confirmAndStartTraining()">
+            <span>Confirm &amp; Start Model Training</span>
+            <span>🚀</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================== -->
+    <!-- STEP 4: MODEL TRAINING & STATUS -->
+    <!-- ====================================================================== -->
+    <section id="step4Section" class="step-pane" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">🚀 Autonomous Model Training &amp; Serving</h2>
+            <p class="card-desc">The pipeline is running data normalization, model evaluation, and artifact serialization.</p>
+          </div>
+          <span class="badge badge-yellow" id="trainStatusBadge">QUEUED</span>
+        </div>
+
+        <div class="training-stage-wrap">
+          <div class="radar-spinner" id="trainSpinner"></div>
+          <h3 id="trainingHeading" style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 6px;">
+            Training in Progress...
+          </h3>
+          <p id="trainingSubheading" style="color: var(--text-muted); font-size: 0.95rem; max-width: 500px; margin: 0 auto;">
+            Building candidate models, computing Precision@k, and saving winning weights.
+          </p>
+
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-subtle); margin-top: 8px;" id="elapsedTimeText">
+            Elapsed: 0s &bull; Polling /v1/onboard/status
+          </div>
+
+          <!-- Real-Time Activity Log -->
+          <div class="live-logs" id="liveLogs">
+            <div class="log-line">
+              <span class="log-time">[00:00]</span>
+              <span class="log-msg">Submitting training job to FastAPI background worker...</span>
+            </div>
+          </div>
+
+          <!-- Completion Actions (Hidden until Complete) -->
+          <div id="completionActions" style="display: none; margin-top: 32px; gap: 14px; justify-content: center; flex-wrap: wrap;">
+            <a href="storefront.html" class="btn btn-primary" target="_blank">
+              <span>🎁</span>
+              <span>Open Storefront Demo</span>
+            </a>
+            <a href="http://localhost:8000/" class="btn btn-secondary" target="_blank" id="testUiBtn">
+              <span>⚡</span>
+              <span>Test Recommendations in Admin UI</span>
+            </a>
+            <button type="button" class="btn btn-secondary" onclick="copyApiSnippet()">
+              <span>📋</span>
+              <span>Copy curl API Snippet</span>
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="resetWizard()">
+              <span>🔄</span>
+              <span>Onboard Another Dataset</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Client-Side Engine Logic -->
+  <script>
+    // -------------------------------------------------------------------------
+    // State & Config
+    // -------------------------------------------------------------------------
+    const STATE = {
+      apiBaseUrl: 'http://localhost:8000',
+      currentStep: 1,
+      tenantId: 'online_retail',
+      apiKey: 'sk-online-retail-xxxx',
+      rawCsvContent: '',
+      fileName: '',
+      fileRows: 0,
+      validationResponse: null,
+      pollingTimer: null,
+      elapsedSeconds: 0,
+      elapsedTimer: null
+    };
+
+    // Preset Sample Datasets for 1-Click Demos
+    const SAMPLES = {
+      retail: `InvoiceNo,StockCode,Description,Quantity,UnitPrice,CustomerID,Country
+536365,85123A,WHITE HANGING HEART T-LIGHT HOLDER,6,2.55,17850,United Kingdom
+536365,71053,WHITE METAL LANTERN,6,3.39,17850,United Kingdom
+536365,84406B,CREAM CUPID HEARTS COAT HANGER,8,2.75,17850,United Kingdom
+536365,84029G,KNITTED UNION FLAG HOT WATER BOTTLE,6,3.39,17850,United Kingdom
+536365,84029E,RED WOOLLY HOTTIE WHITE HEART.,6,3.39,17850,United Kingdom
+536366,22633,HAND WARMER UNION JACK,6,1.85,17850,United Kingdom
+536367,84879,ASSORTED COLOUR BIRD ORNAMENT,32,1.69,13047,United Kingdom
+536367,22745,POPPY'S PLAYHOUSE BEDROOM,6,2.10,13047,United Kingdom
+536367,22748,POPPY'S PLAYHOUSE KITCHEN,6,2.10,13047,United Kingdom
+536368,22960,JAM MAKING SET WITH JARS,6,4.25,13047,United Kingdom
+536370,22728,ALARM CLOCK BAKELIKE PINK,24,3.75,12583,France
+536370,22727,ALARM CLOCK BAKELIKE RED,24,3.75,12583,France
+536370,22726,ALARM CLOCK BAKELIKE GREEN,12,3.75,12583,France
+536370,21724,PANDA AND BUNNIES STICKER SHEET,12,0.85,12583,France
+536370,21883,STARS GIFT TAPE,12,0.65,12583,France`,
+
+      telco: `customerID,gender,SeniorCitizen,Partner,Dependents,tenure,PhoneService,MultipleLines,InternetService,OnlineSecurity,OnlineBackup,DeviceProtection,TechSupport,StreamingTV,StreamingMovies,Contract,PaperlessBilling,PaymentMethod,MonthlyCharges,TotalCharges,Churn
+7590-VHVEG,Female,0,Yes,No,1,No,No phone service,DSL,No,Yes,No,No,No,No,Month-to-month,Yes,Electronic check,29.85,29.85,No
+5575-GNVDE,Male,0,No,No,34,Yes,No,DSL,Yes,No,Yes,No,No,No,One year,No,Mailed check,56.95,1889.5,No
+3668-QPYBK,Male,0,No,No,2,Yes,No,DSL,Yes,Yes,No,No,No,No,Month-to-month,Yes,Mailed check,53.85,108.15,Yes
+7795-CFOCW,Male,0,No,No,45,No,No phone service,DSL,Yes,No,Yes,Yes,No,No,One year,No,Bank transfer (automatic),42.3,1840.75,No
+9237-HQITU,Female,0,No,No,2,Yes,No,Fiber optic,No,No,No,No,No,No,Month-to-month,Yes,Electronic check,70.7,151.65,Yes
+9305-CDSKC,Female,0,No,No,8,Yes,Yes,Fiber optic,No,No,Yes,No,Yes,Yes,Month-to-month,Yes,Electronic check,99.65,820.5,Yes
+1452-KIOVK,Male,0,No,Yes,22,Yes,Yes,Fiber optic,No,Yes,No,No,Yes,No,Month-to-month,Yes,Credit card (automatic),89.1,1949.4,No`
+    };
+
+    // -------------------------------------------------------------------------
+    // Utilities
+    // -------------------------------------------------------------------------
+    function showToast(msg, icon = 'ℹ️') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function appendLog(message) {
+      const logs = document.getElementById('liveLogs');
+      const now = new Date();
+      const timeStr = `[${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}]`;
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="log-time">${timeStr}</span><span class="log-msg">${message}</span>`;
+      logs.appendChild(line);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    // -------------------------------------------------------------------------
+    // Navigation & Stepper
+    // -------------------------------------------------------------------------
+    function goToStep(step) {
+      if (step > 1 && !STATE.rawCsvContent && STATE.currentStep === 1) {
+        showToast('Please select or load a CSV dataset first.', '⚠️');
+        return;
+      }
+      if (step > 2 && !STATE.validationResponse && STATE.currentStep <= 2) {
+        showToast('Please validate dataset profiling before proceeding.', '⚠️');
+        return;
+      }
+
+      STATE.currentStep = step;
+
+      // Update Stepper UI
+      for (let i = 1; i <= 4; i++) {
+        const item = document.getElementById(`stepIndicator${i}`);
+        const pane = document.getElementById(`step${i}Section`);
+        if (i === step) {
+          item.className = 'step-item active';
+          pane.style.display = 'block';
+        } else if (i < step) {
+          item.className = 'step-item completed';
+          pane.style.display = 'none';
+        } else {
+          item.className = 'step-item';
+          pane.style.display = 'none';
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 1: Tenant & File Ingestion
+    // -------------------------------------------------------------------------
+    function toggleTenantMode() {
+      const mode = document.getElementById('tenantModeSelect').value;
+      const existingGroup = document.getElementById('existingTenantGroup');
+      const newGroup = document.getElementById('newTenantGroup');
+
+      if (mode === 'new') {
+        existingGroup.style.display = 'none';
+        newGroup.style.display = 'block';
+        document.getElementById('newTenantIdInput').focus();
+      } else {
+        existingGroup.style.display = 'block';
+        newGroup.style.display = 'none';
+        onExistingTenantSelected();
+      }
+    }
+
+    function onExistingTenantSelected() {
+      const select = document.getElementById('existingTenantSelect');
+      const [tId, key] = select.value.split('|');
+      STATE.tenantId = tId;
+      STATE.apiKey = key;
+      document.getElementById('activeTenantId').value = tId;
+      document.getElementById('activeApiKey').value = key;
+    }
+
+    function onNewTenantIdChange() {
+      const raw = document.getElementById('newTenantIdInput').value.trim();
+      const slug = raw.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      STATE.tenantId = slug || 'new_tenant';
+      STATE.apiKey = `sk-${STATE.tenantId}-xxxx`;
+      document.getElementById('activeTenantId').value = STATE.tenantId;
+      document.getElementById('activeApiKey').value = STATE.apiKey;
+    }
+
+    // Drag-and-drop Event Listeners
+    const dropzone = document.getElementById('dropzone');
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        processFile(files[0]);
+      }
+    });
+
+    function handleFileSelected(e) {
+      if (e.target.files.length > 0) {
+        processFile(e.target.files[0]);
+      }
+    }
+
+    function processFile(file) {
+      if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+        showToast('Please upload a valid .csv file', '⚠️');
+        return;
+      }
+      STATE.fileName = file.name;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        STATE.rawCsvContent = evt.target.result;
+        renderPreview(file.name, file.size, STATE.rawCsvContent);
+      };
+      reader.readAsText(file);
+    }
+
+    function loadSampleDataset(type) {
+      const content = SAMPLES[type];
+      const name = type === 'retail' ? 'online_retail_sample.csv' : 'telco_churn_sample.csv';
+      STATE.rawCsvContent = content;
+      STATE.fileName = name;
+
+      if (type === 'retail') {
+        document.getElementById('tenantModeSelect').value = 'existing';
+        document.getElementById('existingTenantSelect').value = 'online_retail|sk-online-retail-xxxx';
+        onExistingTenantSelected();
+      } else {
+        document.getElementById('tenantModeSelect').value = 'existing';
+        document.getElementById('existingTenantSelect').value = 'telco_default|sk-telco-xxxx';
+        onExistingTenantSelected();
+      }
+
+      renderPreview(name, content.length, content);
+      showToast(`Loaded ${type.toUpperCase()} sample dataset into memory!`, '✨');
+    }
+
+    function renderPreview(name, sizeBytes, csvText) {
+      const lines = csvText.trim().split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length < 2) {
+        showToast('CSV must have a header row and at least 1 data row.', '⚠️');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const rows = lines.slice(1, 6).map(r => r.split(',').map(c => c.trim()));
+      STATE.fileRows = lines.length - 1;
+
+      // Update Selected File Card
+      document.getElementById('selectedFileName').textContent = name;
+      document.getElementById('selectedFileMeta').textContent = `${(sizeBytes / 1024).toFixed(1)} KB &bull; ${STATE.fileRows} rows &bull; ${headers.length} columns`;
+      document.getElementById('selectedFileCard').style.display = 'flex';
+
+      // Update Preview Table
+      const thead = document.getElementById('previewTableHead');
+      const tbody = document.getElementById('previewTableBody');
+      thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+      tbody.innerHTML = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+
+      document.getElementById('previewMetaText').textContent = `${headers.length} columns &bull; Displaying top 5 sample rows`;
+      document.getElementById('previewBox').style.display = 'block';
+
+      // Enable Upload CTA
+      const uploadBtn = document.getElementById('btnUpload');
+      uploadBtn.disabled = false;
+    }
+
+    function clearSelectedFile() {
+      STATE.rawCsvContent = '';
+      STATE.fileName = '';
+      document.getElementById('selectedFileCard').style.display = 'none';
+      document.getElementById('previewBox').style.display = 'none';
+      document.getElementById('btnUpload').disabled = true;
+      document.getElementById('csvFileInput').value = '';
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 1 -> Step 2: Upload & AI Validate
+    // -------------------------------------------------------------------------
+    async function uploadAndProfile() {
+      const uploadBtn = document.getElementById('btnUpload');
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = `<span>⏳ Uploading dataset...</span>`;
+
+      // If new tenant mode, ensure key is registered first
+      if (document.getElementById('tenantModeSelect').value === 'new') {
+        try {
+          await fetch(`${STATE.apiBaseUrl}/v1/onboard/register-key`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenant_id: STATE.tenantId, api_key: STATE.apiKey })
+          });
+        } catch (e) {
+          console.warn('Register-key notice:', e);
+        }
+      }
+
+      try {
+        // 1. Upload CSV dataset to POST /v1/onboard/upload
+        const uploadResp = await fetch(`${STATE.apiBaseUrl}/v1/onboard/upload`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': STATE.apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ csv_content: STATE.rawCsvContent })
+        });
+
+        if (!uploadResp.ok) {
+          const errData = await uploadResp.json().catch(() => ({}));
+          throw new Error(errData.detail || `Upload failed with HTTP ${uploadResp.status}`);
+        }
+
+        const uploadData = await uploadResp.json();
+        showToast(`Uploaded ${uploadData.rows} rows successfully!`, '✅');
+
+        // 2. Validate & Profile dataset via POST /v1/onboard/validate
+        uploadBtn.innerHTML = `<span>🔍 AI Profiling schema...</span>`;
+        const validateResp = await fetch(`${STATE.apiBaseUrl}/v1/onboard/validate`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': STATE.apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        });
+
+        if (!validateResp.ok) {
+          const valErr = await validateResp.json().catch(() => ({}));
+          throw new Error(valErr.detail || `Validation failed with HTTP ${validateResp.status}`);
+        }
+
+        const valData = await validateResp.json();
+        STATE.validationResponse = valData;
+
+        // Render Step 2 UI
+        renderProfilingResults(valData);
+        goToStep(2);
+      } catch (err) {
+        showToast(err.message, '❌');
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = `<span>Upload &amp; Profile Dataset</span><span>➔</span>`;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 2: Render Profiling
+    // -------------------------------------------------------------------------
+    function renderProfilingResults(valData) {
+      document.getElementById('metricRows').textContent = STATE.fileRows;
+      const cand = valData.candidate_config || {};
+      const customers = cand.customers || {};
+      const products = cand.products || {};
+
+      document.getElementById('metricCustId').textContent = customers.id_column || 'CustomerID';
+      document.getElementById('metricProdId').textContent = products.category_column || products.derived_from || 'Item Catalog';
+
+      // Summary Box
+      if (valData.summary) {
+        document.getElementById('summaryText').textContent = valData.summary;
+      }
+
+      // Populate Column Mapping Table
+      const tbody = document.getElementById('columnsProfileBody');
+      const lines = STATE.rawCsvContent.trim().split(/\r?\n/);
+      const headers = lines[0].split(',').map(h => h.trim());
+      const sampleRow = lines.length > 1 ? lines[1].split(',').map(s => s.trim()) : [];
+      document.getElementById('metricCols').textContent = headers.length;
+
+      const needsReviewMap = {};
+      (valData.needs_review || []).forEach(nr => {
+        needsReviewMap[nr.name] = nr.review_reason || 'Confidence score < threshold';
+      });
+
+      tbody.innerHTML = headers.map((colName, idx) => {
+        const sampleVal = sampleRow[idx] || '--';
+        const isNeedsReview = !!needsReviewMap[colName];
+        const isCustId = (customers.id_column && customers.id_column.toLowerCase() === colName.toLowerCase());
+        const isProductCol = (colName.toLowerCase().includes('stock') || colName.toLowerCase().includes('product') || colName.toLowerCase().includes('item'));
+
+        let suggestedRole = 'Feature';
+        let badgeClass = 'badge-blue';
+        let confScore = '96%';
+
+        if (isCustId) {
+          suggestedRole = 'Customer ID';
+          badgeClass = 'badge-green';
+          confScore = '99%';
+        } else if (isProductCol) {
+          suggestedRole = 'Product ID';
+          badgeClass = 'badge-green';
+          confScore = '94%';
+        } else if (isNeedsReview) {
+          suggestedRole = 'Ambiguous';
+          badgeClass = 'badge-yellow';
+          confScore = '68%';
+        }
+
+        return `
+          <tr>
+            <td><strong><code>${colName}</code></strong></td>
+            <td style="color: var(--text-muted);">${sampleVal}</td>
+            <td><span class="badge ${badgeClass}">${suggestedRole}</span></td>
+            <td><span style="font-family: var(--font-mono); font-size: 0.8rem;">${confScore}</span></td>
+            <td>
+              ${isNeedsReview 
+                ? `<span class="badge badge-yellow" title="${needsReviewMap[colName]}">⚠️ Review</span>` 
+                : `<span class="badge badge-green">✓ Clear</span>`}
+            </td>
+            <td>
+              <select class="form-select" style="padding: 4px 8px; font-size: 0.78rem;" id="override_${colName}">
+                <option value="auto" selected>Auto (${suggestedRole})</option>
+                <option value="customer_id">Customer ID</option>
+                <option value="product_id">Product ID</option>
+                <option value="categorical">Categorical Feature</option>
+                <option value="numeric">Numeric Feature</option>
+                <option value="exclude">Exclude Column</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 2 -> Step 3: Candidate Config
+    // -------------------------------------------------------------------------
+    function proceedToConfig() {
+      const cand = STATE.validationResponse ? STATE.validationResponse.candidate_config : {};
+      document.getElementById('cfgTenantIdLabel').textContent = STATE.tenantId;
+
+      // Format YAML Preview
+      const formattedYaml = `tenants:
+  ${STATE.tenantId}:
+    data_source:
+      type: csv
+      path: data/raw/${STATE.tenantId}_raw.csv
+    customers:
+      id_column: ${cand?.customers?.id_column || 'CustomerID'}
+      features:
+${(cand?.customers?.features || [
+  { name: 'Country', dtype: 'categorical', encoding: 'one_hot' },
+  { name: 'Quantity', dtype: 'numeric' }
+]).map(f => `        - name: ${f.name}\n          dtype: ${f.dtype}${f.encoding ? `\n          encoding: ${f.encoding}` : ''}`).join('\n')}
+    products:
+      derived_from: ${cand?.products?.derived_from || 'interaction_source'}
+      category_column: ${cand?.products?.category_column || 'category'}
+    interactions:
+      source: ${cand?.interactions?.source || 'custom_services'}
+      service_columns: ${JSON.stringify(cand?.interactions?.service_columns || ['Quantity'])}
+    segmentation:
+      field: ${cand?.customers?.id_column || 'CustomerID'}
+      split: median`;
+
+      document.getElementById('yamlConfigBox').textContent = formattedYaml;
+      goToStep(3);
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 3 -> Step 4: Confirm & Background Train
+    // -------------------------------------------------------------------------
+    async function confirmAndStartTraining() {
+      const confirmBtn = document.getElementById('btnConfirmAndTrain');
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = `<span>Saving configuration...</span>`;
+
+      try {
+        // 1. POST /v1/onboard/confirm
+        const confirmResp = await fetch(`${STATE.apiBaseUrl}/v1/onboard/confirm`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': STATE.apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            candidate_config: STATE.validationResponse.candidate_config,
+            overrides: {}
+          })
+        });
+
+        if (!confirmResp.ok) {
+          const cErr = await confirmResp.json().catch(() => ({}));
+          throw new Error(cErr.detail || `Confirm failed with HTTP ${confirmResp.status}`);
+        }
+
+        showToast('Configuration saved to config.yaml!', '✅');
+
+        // 2. POST /v1/onboard/train
+        confirmBtn.innerHTML = `<span>Queueing training job...</span>`;
+        const trainResp = await fetch(`${STATE.apiBaseUrl}/v1/onboard/train`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': STATE.apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        });
+
+        if (!trainResp.ok && trainResp.status !== 202) {
+          const tErr = await trainResp.json().catch(() => ({}));
+          throw new Error(tErr.detail || `Training trigger failed with HTTP ${trainResp.status}`);
+        }
+
+        goToStep(4);
+        startTrainingMonitor();
+      } catch (err) {
+        showToast(err.message, '❌');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = `<span>Confirm &amp; Start Model Training</span><span>🚀</span>`;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 4: Polling Status Monitor
+    // -------------------------------------------------------------------------
+    function startTrainingMonitor() {
+      STATE.elapsedSeconds = 0;
+      appendLog(`Training job accepted. Dispatched background task for tenant '${STATE.tenantId}'.`);
+
+      const fill = document.getElementById('progressBarFill');
+      const badge = document.getElementById('trainStatusBadge');
+      const timeText = document.getElementById('elapsedTimeText');
+
+      fill.style.width = '25%';
+      badge.textContent = 'RUNNING';
+      badge.className = 'badge badge-yellow';
+
+      // Timer
+      clearInterval(STATE.elapsedTimer);
+      STATE.elapsedTimer = setInterval(() => {
+        STATE.elapsedSeconds++;
+        timeText.textContent = `Elapsed: ${STATE.elapsedSeconds}s • Polling /v1/onboard/status`;
+      }, 1000);
+
+      // Status Poller
+      clearInterval(STATE.pollingTimer);
+      STATE.pollingTimer = setInterval(async () => {
+        try {
+          const resp = await fetch(`${STATE.apiBaseUrl}/v1/onboard/status`, {
+            headers: { 'X-API-Key': STATE.apiKey }
+          });
+          if (!resp.ok) return;
+
+          const data = await resp.json();
+          appendLog(`Status update: ${data.message || data.status}`);
+
+          if (data.status === 'running') {
+            fill.style.width = '65%';
+            badge.textContent = 'TRAINING';
+          } else if (data.status === 'complete' || (data.has_model && data.has_config)) {
+            // Training finished!
+            clearInterval(STATE.pollingTimer);
+            clearInterval(STATE.elapsedTimer);
+
+            fill.style.width = '100%';
+            badge.textContent = 'COMPLETE';
+            badge.className = 'badge badge-green';
+
+            const spinner = document.getElementById('trainSpinner');
+            spinner.className = 'radar-spinner complete';
+            spinner.innerHTML = '✓';
+
+            document.getElementById('trainingHeading').textContent = '🎉 Model Successfully Trained!';
+            document.getElementById('trainingSubheading').textContent = `Artifact ready at ${data.model_path || `models/${STATE.tenantId}/final_model.joblib`}`;
+
+            document.getElementById('completionActions').style.display = 'flex';
+            document.getElementById('testUiBtn').href = `http://localhost:8000/?tenant_id=${encodeURIComponent(STATE.tenantId)}`;
+            showToast('Recommendation model training complete!', '🎉');
+          } else if (data.status === 'failed') {
+            clearInterval(STATE.pollingTimer);
+            clearInterval(STATE.elapsedTimer);
+
+            badge.textContent = 'FAILED';
+            badge.className = 'badge badge-red';
+            document.getElementById('trainingHeading').textContent = 'Training Failed';
+            document.getElementById('trainingSubheading').textContent = data.error || data.message;
+            showToast('Training encountered an error: ' + (data.error || data.message), '❌');
+          }
+        } catch (e) {
+          console.warn('Status poll exception:', e);
+        }
+      }, 2500);
+    }
+
+    function copyApiSnippet() {
+      const curlSnippet = `curl -H "X-API-Key: ${STATE.apiKey}" \\\n     "${STATE.apiBaseUrl}/v1/recommendations?customer_id=YOUR_CUSTOMER_ID&top_n=5"`;
+      navigator.clipboard.writeText(curlSnippet).then(() => {
+        showToast('Copied curl command to clipboard!', '📋');
+      });
+    }
+
+    function resetWizard() {
+      clearSelectedFile();
+      goToStep(1);
+      document.getElementById('trainSpinner').className = 'radar-spinner';
+      document.getElementById('trainSpinner').innerHTML = '';
+      document.getElementById('completionActions').style.display = 'none';
+      document.getElementById('trainingHeading').textContent = 'Training in Progress...';
+      document.getElementById('progressBarFill').style.width = '20%';
+    }
+
+    // Ping Backend Health on Load
+    async function checkBackendHealth() {
+      try {
+        const res = await fetch(`${STATE.apiBaseUrl}/health`);
+        if (res.ok) {
+          document.getElementById('pulseDot').style.background = '#10b981';
+          document.getElementById('apiStatusText').textContent = 'Backend: Online (8000)';
+        } else {
+          throw new Error('Not 200');
+        }
+      } catch (e) {
+        document.getElementById('pulseDot').style.background = '#ef4444';
+        document.getElementById('apiStatusText').textContent = 'Backend: Offline';
+        document.getElementById('apiStatusPill').style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        document.getElementById('apiStatusPill').style.color = '#f87171';
+      }
+    }
+
+    checkBackendHealth();
+  </script>
+</body>
+</html>

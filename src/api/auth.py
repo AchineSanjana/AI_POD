@@ -48,7 +48,7 @@ def get_current_tenant(
             detail="API key is missing. Provide a valid 'X-API-Key' header.",
         )
 
-    if not TENANT_AUTH_MAPPING:
+    if not TENANT_AUTH_MAPPING or x_api_key not in TENANT_AUTH_MAPPING:
         load_tenant_auth()
 
     if x_api_key not in TENANT_AUTH_MAPPING:

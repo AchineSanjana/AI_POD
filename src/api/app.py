@@ -6,10 +6,12 @@ from fastapi.responses import HTMLResponse
 
 from src.api.auth import get_current_tenant, load_tenant_auth
 from src.api.onboarding import get_onboarding_status
+from src.api.onboarding import open_router as open_onboarding_router
 from src.api.onboarding import router as onboarding_router
 from src.api.rate_limiter import check_rate_limit
 from src.api.recommendations import router as recommendations_router
 from src.api.ui import build_home_page, router as ui_router
+from src.utils.config import PROJECT_ROOT
 
 
 @asynccontextmanager
@@ -39,6 +41,7 @@ app.add_middleware(
 v1_router = APIRouter(prefix="/v1")
 v1_router.include_router(recommendations_router)
 v1_router.include_router(onboarding_router)
+v1_router.include_router(open_onboarding_router)
 app.include_router(v1_router)
 
 # ---------------------------------------------------------------------------
@@ -47,6 +50,7 @@ app.include_router(v1_router)
 app.include_router(ui_router)
 app.include_router(recommendations_router)
 app.include_router(onboarding_router)
+app.include_router(open_onboarding_router)
 
 
 @app.get(
@@ -63,6 +67,14 @@ def read_root():
     return HTMLResponse(
         "<h1>Recommendations API</h1><p>Open <a href='/'>the demo UI</a> or <a href='/docs'>/docs</a>.</p>"
     )
+
+
+@app.get("/onboarding", response_class=HTMLResponse)
+def onboarding_portal():
+    portal_file = PROJECT_ROOT / "demo" / "onboarding.html"
+    if portal_file.exists():
+        return HTMLResponse(portal_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Onboarding Portal Not Found</h1>", status_code=404)
 
 
 @app.get("/", response_class=HTMLResponse)

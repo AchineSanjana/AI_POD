@@ -11,10 +11,12 @@ import threading
 from typing import Any
 
 import pandas as pd
+import yaml
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 
 from scripts.onboard_tenant import _apply_overrides, save_tenant_to_config
-from src.api.auth import get_current_tenant
+from src.api.auth import TENANT_AUTH_MAPPING, get_current_tenant, load_tenant_auth
 from src.api.rate_limiter import check_rate_limit
 from src.api.recommendations import clear_model_cache
 from src.api.schemas import (
@@ -38,7 +40,13 @@ from src.onboarding.config_generator import (
 from src.onboarding.profiler import profile_dataframe
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
-from src.utils.config import PROJECT_ROOT, get_tenant_config, load_config, resolve_path
+from src.utils.config import (
+    PROJECT_ROOT,
+    get_tenant_auth_mapping,
+    get_tenant_config,
+    load_config,
+    resolve_path,
+)
 from src.utils.persistence import save_model
 
 logger = logging.getLogger(__name__)
@@ -169,7 +177,16 @@ async def upload_dataset(
     raw_bytes: bytes = b""
     target_filename = f"{tenant_id}_raw.csv"
 
-    if "application/json" in content_type:
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        for _, value in form.items():
+            if hasattr(value, "read"):
+                raw_bytes = await value.read()
+                break
+            elif isinstance(value, str) and value.strip():
+                raw_bytes = value.strip().encode("utf-8")
+                break
+    elif "application/json" in content_type:
         try:
             body_json = await request.json()
         except Exception:
@@ -547,3 +564,59 @@ def get_onboarding_status(
         error=None,
         message=msg,
     )
+
+
+class RegisterKeyRequest(BaseModel):
+    tenant_id: str
+    api_key: str | None = None
+
+
+# Unauthenticated onboarding router for public discovery and registration
+open_router = APIRouter(
+    prefix="/onboard",
+    tags=["onboard"],
+)
+
+
+@open_router.get(
+    "/keys",
+    summary="List configured tenant authentication keys",
+    description="Returns list of configured tenant IDs and their API keys for onboarding selection.",
+)
+def list_tenant_keys() -> list[dict[str, str]]:
+    config = load_config()
+    mapping = get_tenant_auth_mapping(config)
+    return [{"tenant_id": v, "api_key": k} for k, v in mapping.items()]
+
+
+@open_router.post(
+    "/register-key",
+    summary="Register a new tenant API key",
+    description="Registers a new tenant_id and API key for onboarding.",
+)
+def register_tenant_key(payload: RegisterKeyRequest) -> dict[str, str]:
+    tenant_id = payload.tenant_id.strip()
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="tenant_id cannot be blank")
+
+    api_key = payload.api_key.strip() if payload.api_key else f"sk-{tenant_id}-xxxx"
+
+    local_path = resolve_path("config/tenants_auth.local.yaml")
+    data = {}
+    if local_path.exists():
+        with open(local_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+
+    if "tenants_auth" not in data or not isinstance(data["tenants_auth"], dict):
+        data["tenants_auth"] = {}
+
+    data["tenants_auth"][api_key] = tenant_id
+    with open(local_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f)
+
+    # Immediately register in in-memory auth cache
+    TENANT_AUTH_MAPPING[api_key] = tenant_id
+    load_tenant_auth()
+    return {"status": "ok", "tenant_id": tenant_id, "api_key": api_key}
+
+
