@@ -287,6 +287,7 @@ class TenantConfig:
     products: TenantProductsConfig
     interactions: TenantInteractionsConfig
     segmentation: TenantSegmentationConfig | None = None
+    catalog_feed_url: str | None = None
 
 
 def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
@@ -434,6 +435,14 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
                 category_value=cat_val,
             )
 
+    # 6. optional catalog_feed_url
+    catalog_feed_url = block.get("catalog_feed_url")
+    feed_url = (
+        str(catalog_feed_url).strip()
+        if catalog_feed_url is not None and str(catalog_feed_url).strip()
+        else None
+    )
+
     return TenantConfig(
         tenant_id=tenant_id,
         data_source=data_source,
@@ -441,20 +450,52 @@ def get_tenant_config(config: dict, tenant_id: str) -> TenantConfig:
         products=products,
         interactions=interactions,
         segmentation=segmentation,
+        catalog_feed_url=feed_url,
     )
 
 
-def get_tenant_auth_mapping(config: dict | None = None) -> dict[str, str]:
-    """Retrieve tenant API key to tenant_id mapping.
+def _normalize_key_record(key: str, value: Any) -> dict[str, Any]:
+    """Normalize raw key mapping entry into structured key record.
 
-    - In local/dev mode (STORAGE_BACKEND != 's3'), reads from `config/tenants_auth.local.yaml`.
-    - In AWS mode (STORAGE_BACKEND == 's3'), reads from SSM Parameter Store (or Secrets Manager if specified).
+    Schema:
+        - tenant_id: str
+        - key_type: 'private' | 'public'
+        - created_at: str | None (ISO-8601)
+    """
+    k_str = str(key).strip()
+    if isinstance(value, dict):
+        tenant_id = str(value.get("tenant_id", "")).strip()
+        raw_type = value.get("key_type")
+        if not raw_type:
+            raw_type = "public" if k_str.startswith("pk-") else "private"
+        key_type = "public" if str(raw_type).strip().lower() == "public" else "private"
+        created_at = value.get("created_at")
+        if created_at is not None:
+            created_at = str(created_at)
+        return {
+            "tenant_id": tenant_id,
+            "key_type": key_type,
+            "created_at": created_at,
+        }
 
-    Args:
-        config: Loaded config dictionary. If None, loaded via `load_config()`.
+    tenant_id = str(value).strip()
+    key_type = "public" if k_str.startswith("pk-") else "private"
+    return {
+        "tenant_id": tenant_id,
+        "key_type": key_type,
+        "created_at": None,
+    }
 
-    Returns:
-        Dictionary mapping api_key -> tenant_id.
+
+def get_tenant_auth_records(config: dict | None = None) -> dict[str, dict[str, Any]]:
+    """Retrieve structured tenant API key records.
+
+    Each record contains:
+        - tenant_id (str)
+        - key_type ('private' | 'public')
+        - created_at (str | None)
+
+    Reads from SSM Parameter Store / Secrets Manager in AWS mode, or local YAML in local mode.
     """
     if config is None:
         try:
@@ -466,6 +507,8 @@ def get_tenant_auth_mapping(config: dict | None = None) -> dict[str, str]:
     backend = os.environ.get(
         "STORAGE_BACKEND", storage_cfg.get("backend", "local")
     ).strip().lower()
+
+    raw_mapping: dict[Any, Any] = {}
 
     if backend == "s3":
         import boto3
@@ -499,35 +542,49 @@ def get_tenant_auth_mapping(config: dict | None = None) -> dict[str, str]:
             data = json.loads(val)
 
         if isinstance(data, dict):
-            mapping = data.get("tenants_auth", data)
-            return {str(k): str(v) for k, v in mapping.items()}
-        raise ValueError(
-            f"Invalid tenant auth data loaded from AWS: expected JSON object, got {type(data)}"
-        )
+            raw_mapping = data.get("tenants_auth", data)
+        else:
+            raise ValueError(
+                f"Invalid tenant auth data loaded from AWS: expected JSON object, got {type(data)}"
+            )
+    else:
+        # Local / dev mode: Read from config/tenants_auth.local.yaml
+        local_path = resolve_path("config/tenants_auth.local.yaml")
+        if local_path.exists():
+            with open(local_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            if isinstance(data, dict):
+                raw_mapping = data.get("tenants_auth", data)
+        elif "tenants_auth" in config and isinstance(config["tenants_auth"], dict):
+            raw_mapping = config["tenants_auth"]
+        else:
+            example_path = resolve_path("config/tenants_auth.example.yaml")
+            if example_path.exists():
+                with open(example_path, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                if isinstance(data, dict):
+                    raw_mapping = data.get("tenants_auth", data)
 
-    # Local / dev mode: Read from config/tenants_auth.local.yaml
-    local_path = resolve_path("config/tenants_auth.local.yaml")
-    if local_path.exists():
-        with open(local_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        if isinstance(data, dict):
-            mapping = data.get("tenants_auth", data)
-            return {str(k): str(v) for k, v in mapping.items()}
+    return {
+        str(k): _normalize_key_record(str(k), v)
+        for k, v in raw_mapping.items()
+    }
 
-    # Fallback to config['tenants_auth'] if present (legacy support)
-    if "tenants_auth" in config and isinstance(config["tenants_auth"], dict):
-        return {str(k): str(v) for k, v in config["tenants_auth"].items()}
 
-    # Fallback to example file if local file does not exist
-    example_path = resolve_path("config/tenants_auth.example.yaml")
-    if example_path.exists():
-        with open(example_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        if isinstance(data, dict):
-            mapping = data.get("tenants_auth", data)
-            return {str(k): str(v) for k, v in mapping.items()}
+def get_tenant_auth_mapping(config: dict | None = None) -> dict[str, str]:
+    """Retrieve tenant API key to tenant_id mapping.
 
-    return {}
+    - In local/dev mode (STORAGE_BACKEND != 's3'), reads from `config/tenants_auth.local.yaml`.
+    - In AWS mode (STORAGE_BACKEND == 's3'), reads from SSM Parameter Store (or Secrets Manager if specified).
+
+    Args:
+        config: Loaded config dictionary. If None, loaded via `load_config()`.
+
+    Returns:
+        Dictionary mapping api_key -> tenant_id.
+    """
+    records = get_tenant_auth_records(config)
+    return {k: rec["tenant_id"] for k, rec in records.items()}
 
 
 def get_storage_backend(config: dict | None = None):
@@ -559,6 +616,7 @@ def get_tenant_rate_limit(
     default_limits = {
         "recommendations": 60,
         "onboarding": 5,
+        "tracking": 120,
     }
     fallback_limit = default_limits.get(scope, 60)
 

@@ -566,9 +566,21 @@ def get_onboarding_status(
     )
 
 
+from datetime import datetime, timezone
+from src.utils.config import get_tenant_auth_records
+from src.utils.key_manager import issue_tenant_keys
+
+
 class RegisterKeyRequest(BaseModel):
     tenant_id: str
     api_key: str | None = None
+    key_type: str = "private"
+
+
+class IssueKeysPayload(BaseModel):
+    tenant_id: str
+    private_key: str | None = None
+    public_key: str | None = None
 
 
 # Unauthenticated onboarding router for public discovery and registration
@@ -581,22 +593,40 @@ open_router = APIRouter(
 @open_router.get(
     "/keys",
     summary="List configured tenant authentication keys",
-    description="Returns list of configured tenant IDs and their API keys for onboarding selection.",
+    description="Returns list of configured tenant IDs, their API keys, and key types.",
 )
-def list_tenant_keys() -> list[dict[str, str]]:
+def list_tenant_keys() -> list[dict[str, Any]]:
     config = load_config()
-    mapping = load_tenant_auth(config)
-    tenant_to_key = {v: k for k, v in mapping.items()}
+    records = get_tenant_auth_records(config)
+    load_tenant_auth(config)
 
+    items: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+
+    for k, rec in records.items():
+        items.append({
+            "tenant_id": rec["tenant_id"],
+            "api_key": k,
+            "key_type": rec.get("key_type", "private"),
+            "created_at": rec.get("created_at"),
+        })
+        seen_keys.add(k)
+
+    # Include fallback demo tenant default keys if not configured
     cfg_tenants = config.get("tenants", {})
     if isinstance(cfg_tenants, dict):
         for t in cfg_tenants.keys():
-            if t not in tenant_to_key:
-                default_key = f"sk-{t}-xxxx"
-                tenant_to_key[t] = default_key
-                TENANT_AUTH_MAPPING[default_key] = t
+            default_sk = f"sk-{t}-xxxx"
+            if default_sk not in seen_keys:
+                items.append({
+                    "tenant_id": t,
+                    "api_key": default_sk,
+                    "key_type": "private",
+                    "created_at": None,
+                })
+                TENANT_AUTH_MAPPING[default_sk] = t
 
-    return [{"tenant_id": t, "api_key": k} for t, k in sorted(tenant_to_key.items())]
+    return sorted(items, key=lambda x: (x["tenant_id"], x["api_key"]))
 
 
 @open_router.post(
@@ -604,12 +634,20 @@ def list_tenant_keys() -> list[dict[str, str]]:
     summary="Register a new tenant API key",
     description="Registers a new tenant_id and API key for onboarding.",
 )
-def register_tenant_key(payload: RegisterKeyRequest) -> dict[str, str]:
+def register_tenant_key(payload: RegisterKeyRequest) -> dict[str, Any]:
     tenant_id = payload.tenant_id.strip()
     if not tenant_id:
         raise HTTPException(status_code=400, detail="tenant_id cannot be blank")
 
     api_key = payload.api_key.strip() if payload.api_key else f"sk-{tenant_id}-xxxx"
+    key_type = "public" if (payload.key_type == "public" or api_key.startswith("pk-")) else "private"
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    record = {
+        "tenant_id": tenant_id,
+        "key_type": key_type,
+        "created_at": now_iso,
+    }
 
     local_path = resolve_path("config/tenants_auth.local.yaml")
     data = {}
@@ -620,13 +658,41 @@ def register_tenant_key(payload: RegisterKeyRequest) -> dict[str, str]:
     if "tenants_auth" not in data or not isinstance(data["tenants_auth"], dict):
         data["tenants_auth"] = {}
 
-    data["tenants_auth"][api_key] = tenant_id
+    data["tenants_auth"][api_key] = record
     with open(local_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(data, f)
+        yaml.safe_dump(data, f, sort_keys=False)
 
     # Immediately register in in-memory auth cache
-    TENANT_AUTH_MAPPING[api_key] = tenant_id
     load_tenant_auth()
-    return {"status": "ok", "tenant_id": tenant_id, "api_key": api_key}
+    return {
+        "status": "ok",
+        "tenant_id": tenant_id,
+        "api_key": api_key,
+        "key_type": key_type,
+        "created_at": now_iso,
+    }
+
+
+@open_router.post(
+    "/issue-keys",
+    summary="Issue both private and public API keys for a tenant",
+    description="Generates and returns both a private organization key and a public client key for the tenant.",
+)
+def issue_keys_endpoint(payload: IssueKeysPayload) -> dict[str, Any]:
+    tenant_id = payload.tenant_id.strip()
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="tenant_id cannot be blank")
+
+    try:
+        result = issue_tenant_keys(
+            tenant_id=tenant_id,
+            private_key=payload.private_key,
+            public_key=payload.public_key,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return result
+
 
 

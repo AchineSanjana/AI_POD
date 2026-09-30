@@ -1,23 +1,37 @@
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
-from src.api.auth import get_current_tenant, load_tenant_auth
+from src.api.auth import (
+    get_current_tenant,
+    get_key_record,
+    is_request_allowed_for_key,
+    load_tenant_auth,
+)
 from src.api.onboarding import get_onboarding_status
 from src.api.onboarding import open_router as open_onboarding_router
 from src.api.onboarding import router as onboarding_router
 from src.api.rate_limiter import check_rate_limit
 from src.api.recommendations import router as recommendations_router
+from src.api.tracking import router as tracking_router
 from src.api.ui import build_home_page, router as ui_router
+from src.integrations.shopify.api import router as shopify_router
 from src.utils.config import PROJECT_ROOT
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_tenant_auth()
+    worker = None
+    if os.environ.get("ENABLE_TRACKING_WORKER", "").strip().lower() in ("true", "1", "yes"):
+        from src.queue.tracking_worker import start_background_tracking_worker
+        worker = start_background_tracking_worker()
     yield
+    if worker:
+        worker.stop()
 
 
 app = FastAPI(
@@ -35,13 +49,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def enforce_public_key_restrictions(request: Request, call_next):
+    """Server-side restriction: public keys are only allowed for POST /v1/track and GET /v1/recommendations."""
+    x_api_key = request.headers.get("x-api-key") or request.headers.get("X-API-Key")
+    if x_api_key:
+        record = get_key_record(x_api_key)
+        if record and record.get("key_type") == "public":
+            if not is_request_allowed_for_key("public", request.method, request.url.path):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": (
+                            f"Forbidden: Public API keys are only permitted for POST /v1/track and "
+                            f"GET /v1/recommendations. Action '{request.method} {request.url.path}' is not allowed."
+                        )
+                    },
+                )
+    return await call_next(request)
+
+
 # ---------------------------------------------------------------------------
 # Versioned /v1 Public API Router
 # ---------------------------------------------------------------------------
 v1_router = APIRouter(prefix="/v1")
 v1_router.include_router(recommendations_router)
+v1_router.include_router(tracking_router)
 v1_router.include_router(onboarding_router)
 v1_router.include_router(open_onboarding_router)
+v1_router.include_router(shopify_router)
 app.include_router(v1_router)
 
 # ---------------------------------------------------------------------------
@@ -49,8 +86,10 @@ app.include_router(v1_router)
 # ---------------------------------------------------------------------------
 app.include_router(ui_router)
 app.include_router(recommendations_router)
+app.include_router(tracking_router)
 app.include_router(onboarding_router)
 app.include_router(open_onboarding_router)
+app.include_router(shopify_router)
 
 
 @app.get(

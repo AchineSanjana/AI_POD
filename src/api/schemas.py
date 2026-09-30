@@ -123,3 +123,49 @@ class OnboardStatusResponse(BaseModel):
     model_path: str | None = Field(None, description="Path to trained model artifact if available")
     error: str | None = Field(None, description="Detailed error message if training failed")
     message: str = Field(..., description="Current tenant lifecycle summary")
+
+
+# ---------------------------------------------------------------------------
+# Tracking Schemas
+# ---------------------------------------------------------------------------
+
+
+class TrackEventPayload(BaseModel):
+    event_type: str = Field(..., description="'view' | 'add_to_cart' | 'purchase'")
+    customer_id: str | None = Field(None, description="string or null if anonymous")
+    session_id: str = Field(..., description="Browser session identifier")
+    product_id: str = Field(..., description="Product identifier")
+    quantity: float | int | None = Field(None, description="Optional numerical quantity")
+    timestamp: str | None = Field(None, description="Optional ISO-8601 timestamp")
+
+
+class TrackEventAcceptedResponse(BaseModel):
+    status: str = Field("accepted", description="Status confirmation")
+
+
+
+# ---------------------------------------------------------------------------
+# Key Management Schemas
+# ---------------------------------------------------------------------------
+
+
+class KeyDetail(BaseModel):
+    key: str = Field(..., description="API key string")
+    key_type: str = Field(..., description="Key permission tier: 'private' | 'public'")
+    created_at: str = Field(..., description="UTC ISO timestamp of issuance")
+
+
+class IssueKeysRequest(BaseModel):
+    tenant_id: str = Field(..., description="Unique tenant identifier")
+    private_key: str | None = Field(None, description="Optional custom private key")
+    public_key: str | None = Field(None, description="Optional custom public key")
+
+
+class IssueKeysResponse(BaseModel):
+    status: str = Field("ok", description="Status of operation")
+    tenant_id: str = Field(..., description="Tenant identifier")
+    private_key: KeyDetail = Field(..., description="Issued private organization key")
+    public_key: KeyDetail = Field(..., description="Issued public client key")
+    sk: str = Field(..., description="Private key string convenience accessor")
+    pk: str = Field(..., description="Public key string convenience accessor")
+

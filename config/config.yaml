@@ -2,6 +2,9 @@ storage:
   backend: local
   s3_bucket: null
   s3_prefix: ''
+tracking:
+  queue_name: ai-pod-tracking-events
+  queue_url: null
 paths:
   raw_dir: data/raw
   processed_dir: data/processed
@@ -175,6 +178,7 @@ tenants:
     segmentation:
       field: signup_days
       split: median
+    catalog_feed_url: null
     rate_limit:
       recommendations: 60
       onboarding: 5

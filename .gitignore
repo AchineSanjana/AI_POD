@@ -8,6 +8,7 @@ __pycache__/
 # Env vars / secrets
 .env
 config/tenants_auth.local.yaml
+config/shopify_connections.local.yaml
 
 # Data (keep folder structure, ignore actual data files)
 data/raw/*
@@ -19,6 +20,8 @@ data/processed/*
 !data/processed/interactions.csv
 data/external/*
 !data/external/.gitkeep
+data/events/*
+!data/events/.gitkeep
 
 # Saved models (keep folder structure, ignore actual artifacts)
 models/*
