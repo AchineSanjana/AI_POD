@@ -108,11 +108,69 @@ def _execute_training_job(tenant_id: str, config: dict) -> None:
         storage=storage,
     )
     try:
-        tenant_cfg = get_tenant_config(config, tenant_id)
-        adapter = GenericConfigAdapter(tenant_cfg, storage=storage)
-        customers, products, interactions = adapter.run()
+        specs = None
+        try:
+            tenant_cfg = get_tenant_config(config, tenant_id)
+            adapter = GenericConfigAdapter(tenant_cfg, storage=storage)
+            customers, products, interactions = adapter.run()
+            specs = tenant_cfg.customers.features
+        except Exception as cfg_err:
+            # Fall back to processed tables in storage if tenant is not configured in config.yaml
+            cust_path = f"data/processed/{tenant_id}/customers.csv"
+            prod_path = f"data/processed/{tenant_id}/products.csv"
+            int_path = f"data/processed/{tenant_id}/interactions.csv"
+            if storage.exists(cust_path) and storage.exists(prod_path) and storage.exists(int_path):
+                customers = pd.read_csv(io.BytesIO(storage.read_file(cust_path)))
+                products = pd.read_csv(io.BytesIO(storage.read_file(prod_path)))
+                interactions = pd.read_csv(io.BytesIO(storage.read_file(int_path)))
+            elif storage.exists(int_path):
+                interactions = pd.read_csv(io.BytesIO(storage.read_file(int_path)))
+                if storage.exists(cust_path):
+                    customers = pd.read_csv(io.BytesIO(storage.read_file(cust_path)))
+                else:
+                    c_col = "customer_id" if "customer_id" in interactions.columns else interactions.columns[0]
+                    customers = pd.DataFrame({"customer_id": interactions[c_col].dropna().unique()})
+                if storage.exists(prod_path):
+                    products = pd.read_csv(io.BytesIO(storage.read_file(prod_path)))
+                else:
+                    p_col = "product_id" if "product_id" in interactions.columns else interactions.columns[1]
+                    products = pd.DataFrame({"product_id": interactions[p_col].dropna().unique()})
+            else:
+                raise cfg_err
+
+        # Merge newly arrived interactions from data/processed/{tenant_id}/interactions.csv
+        proc_int_path = f"data/processed/{tenant_id}/interactions.csv"
+        if storage.exists(proc_int_path):
+            try:
+                proc_bytes = storage.read_file(proc_int_path)
+                proc_df = pd.read_csv(io.BytesIO(proc_bytes))
+                if not proc_df.empty and "customer_id" in proc_df.columns and "product_id" in proc_df.columns:
+                    interactions = pd.concat([interactions, proc_df], ignore_index=True)
+                    interactions = interactions.drop_duplicates(subset=["customer_id", "product_id"], keep="last")
+            except Exception as e:
+                logger.warning("Could not merge processed interactions for %s: %s", tenant_id, e)
+
+        # Merge in-memory queued tracking events if present
+        try:
+            from src.api.tracking import get_queued_events
+
+            queued = get_queued_events(tenant_id)
+            if queued:
+                q_rows = []
+                for ev in queued:
+                    cid = ev.get("customer_id")
+                    pid = ev.get("product_id")
+                    if cid and pid:
+                        q_rows.append({"customer_id": str(cid), "product_id": str(pid), "weight": float(ev.get("quantity") or 1.0)})
+                if q_rows:
+                    q_df = pd.DataFrame(q_rows)
+                    interactions = pd.concat([interactions, q_df], ignore_index=True)
+                    interactions = interactions.drop_duplicates(subset=["customer_id", "product_id"], keep="last")
+        except Exception:
+            pass
+
         model = LearnedRankingRecommender(
-            customer_specs=tenant_cfg.customers.features
+            customer_specs=specs
         ).fit(
             customers=customers,
             products=products,
@@ -143,7 +201,7 @@ def _execute_training_job(tenant_id: str, config: dict) -> None:
         _ACTIVE_TRAINING_THREADS.pop(tenant_id, None)
 
 
-def _start_background_training(tenant_id: str, config: dict) -> None:
+def _start_background_training(tenant_id: str, config: dict) -> threading.Thread:
     """FastAPI BackgroundTasks entrypoint: spawns worker thread and tracks it."""
     thread = threading.Thread(
         target=_execute_training_job,
@@ -153,6 +211,7 @@ def _start_background_training(tenant_id: str, config: dict) -> None:
     )
     _ACTIVE_TRAINING_THREADS[tenant_id] = thread
     thread.start()
+    return thread
 
 
 router = APIRouter(
@@ -537,6 +596,20 @@ def get_onboarding_status(
                 message=status_data.get(
                     "message",
                     f"Model successfully trained and saved to {saved_model_path} for tenant '{tenant_id}'.",
+                ),
+            )
+        elif train_status in ("ready_to_train", "ready-to-train"):
+            return OnboardStatusResponse(
+                tenant_id=tenant_id,
+                status="ready_to_train",
+                has_data=has_data,
+                has_config=has_config,
+                has_model=has_model,
+                model_path=model_path if has_model else None,
+                error=None,
+                message=status_data.get(
+                    "message",
+                    f"Tenant '{tenant_id}' has reached required data thresholds and is ready to train.",
                 ),
             )
 

@@ -25,6 +25,10 @@ class RecommendationsResponse(BaseModel):
     recommendations: list[RecommendationItem] = Field(
         ..., description="List of top recommended items ranked by relevance"
     )
+    fallback: bool = Field(
+        False,
+        description="True if recommendations are fallback popularity-based rather than personalized",
+    )
 
 
 class RecommendationRequest(BaseModel):
@@ -168,4 +172,34 @@ class IssueKeysResponse(BaseModel):
     public_key: KeyDetail = Field(..., description="Issued public client key")
     sk: str = Field(..., description="Private key string convenience accessor")
     pk: str = Field(..., description="Public key string convenience accessor")
+
+
+# ---------------------------------------------------------------------------
+# Scheduled Retraining Schemas (EventBridge / Step 21.2)
+# ---------------------------------------------------------------------------
+
+
+class ScheduledRetrainTenantSummary(BaseModel):
+    tenant_id: str = Field(..., description="Tenant identifier")
+    tenant_type: str = Field(..., description="'new_ready', 'already_trained', 'below_threshold', or 'in_progress'")
+    action: str = Field(..., description="'first_training', 'retrain', or 'skipped'")
+    status: str = Field(..., description="'queued', 'running', 'skipped', 'failed', or 'complete'")
+    reason: str | None = Field(None, description="Explanation for action/skip")
+    message: str | None = Field(None, description="Detailed status message")
+
+
+class ScheduledRetrainResponse(BaseModel):
+    status: str = Field("ok", description="Overall execution status ('ok', 'partial', 'error')")
+    timestamp: str = Field(..., description="UTC ISO timestamp of execution")
+    total_tenants_checked: int = Field(..., description="Total tenants evaluated")
+    first_trainings_triggered: int = Field(..., description="New ready tenants started on first training")
+    retrainings_triggered: int = Field(..., description="Already-trained tenants started on retrain")
+    skipped_in_progress: int = Field(..., description="Tenants skipped due to collision with running job")
+    skipped_other: int = Field(..., description="Tenants skipped (e.g. below threshold / untrained)")
+    summaries: list[ScheduledRetrainTenantSummary] = Field(..., description="Per-tenant run summary list")
+
+
+class ScheduledRetrainRequest(BaseModel):
+    wait_for_completion: bool = Field(False, description="Wait for background training jobs to finish before responding")
+    timeout_seconds: float = Field(30.0, description="Max seconds to wait if wait_for_completion is True")
 

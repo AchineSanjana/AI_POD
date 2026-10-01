@@ -1,13 +1,15 @@
 <!-- 
   Gift & Home Co. - Interactive Recommendation Storefront Demo
   
-  NOTE: This demo calls the recommendation API directly from the browser for 
-  simplicity; a real integration would proxy this call through the organization's 
-  own backend, per the integration guide's stated best practice (Step 15.7).
-
-  This file is a demo artifact only, not part of the deployed application - 
-  it can be opened directly in any web browser and pointed at either a local 
-  development API (http://localhost:8000) or the live AWS API endpoint.
+  REAL INTEGRATION PATTERN:
+  This storefront demo uses the official AI_POD client JavaScript SDK (sdk.js)
+  loaded via:
+  <script src="/sdk.js" data-tenant-key="pk-online-retail-xxxx"></script>
+  
+  It exercises the standard production client-side integration:
+  - AIPod.identify(customerId) on customer profile selection
+  - AIPod.getRecommendations(customerId) for personalized product fetching
+  - AIPod.track(eventType, productId, options) on cart and browsing interactions
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -16,8 +18,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gift & Home Co. | Personalized Homeware & Gifts</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Load AI_POD Client Tracking & Recommendation SDK with Demo Public Key -->
+  <script src="/sdk.js" data-tenant-key="pk-online-retail-xxxx" id="aipod-sdk"></script>
   <style>
     :root {
       --primary: #1e293b;
@@ -854,11 +858,11 @@
         <input type="text" id="apiBaseUrl" value="http://localhost:8000" placeholder="e.g. http://localhost:8000 or http://<EC2_PUBLIC_IP>:8000">
       </div>
       <div class="config-field">
-        <label for="apiKey">Demo API Key (Header: X-API-Key)</label>
-        <input type="text" id="apiKey" value="sk-online-retail-xxxx" placeholder="sk-online-retail-xxxx">
+        <label for="apiKey">Demo Public Tenant Key (sdk.js data-tenant-key)</label>
+        <input type="text" id="apiKey" value="pk-online-retail-xxxx" placeholder="pk-online-retail-xxxx">
       </div>
       <div>
-        <button id="saveConfigBtn" class="btn-save-config">Apply & Re-Fetch</button>
+        <button id="saveConfigBtn" class="btn-save-config">Apply &amp; Re-Fetch via AIPod</button>
       </div>
     </div>
   </div>
@@ -1014,16 +1018,16 @@
       <div class="footer-col">
         <h4>Integration Architecture</h4>
         <ul>
-          <li><a href="#">Endpoint: <code>/v1/recommendations</code></a></li>
-          <li><a href="#">Auth: <code>X-API-Key</code> Header</a></li>
-          <li><a href="#">Tenant: <code>online_retail</code></a></li>
-          <li><a href="#">Model: Matrix Factorization</a></li>
+          <li><a href="#">Script: <code>sdk.js</code> (Client Snippet)</a></li>
+          <li><a href="#">Public Key: <code>pk-online-retail-xxxx</code></a></li>
+          <li><a href="#">Method: <code>AIPod.getRecommendations()</code></a></li>
+          <li><a href="#">Telemetry: <code>AIPod.track()</code></a></li>
         </ul>
       </div>
     </div>
     <div class="footer-bottom">
       <div>&copy; 2026 Gift &amp; Home Co. &bull; Powered by AI_POD Recommendation Platform.</div>
-      <div style="color: #64748b;">Demo Artifact Only &bull; Step 15 Integration Preview</div>
+      <div style="color: #64748b;">Demo Artifact Only &bull; Step 17 Web SDK Integration Preview</div>
     </div>
   </footer>
 
@@ -1036,8 +1040,8 @@
     // Configuration & State
     // ---------------------------------------------------------------------------
     const CONFIG = {
-      baseUrl: localStorage.getItem('storefront_api_base') || 'http://localhost:8000',
-      apiKey: localStorage.getItem('storefront_api_key') || 'sk-online-retail-xxxx',
+      baseUrl: localStorage.getItem('storefront_api_base') || (window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8000'),
+      apiKey: localStorage.getItem('storefront_api_key') || 'pk-online-retail-xxxx',
       topN: 5
     };
 
@@ -1121,7 +1125,7 @@
     }
 
     // ---------------------------------------------------------------------------
-    // Recommendations Fetcher
+    // Recommendations Fetcher (via Official AIPod JavaScript SDK)
     // ---------------------------------------------------------------------------
     async function fetchRecommendations(customerId) {
       const grid = document.getElementById('recommendationsGrid');
@@ -1138,43 +1142,42 @@
       grid.innerHTML = Array(CONFIG.topN).fill(0).map(() => '<div class="skeleton-card"></div>').join('');
 
       statusDot.className = 'status-dot';
-      statusText.textContent = `Fetching recommendations for ${customerId}...`;
-
-      const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
-      const url = `${cleanBase}/v1/recommendations?customer_id=${encodeURIComponent(customerId)}&top_n=${CONFIG.topN}`;
+      statusText.textContent = `AIPod.getRecommendations("${customerId}")...`;
 
       try {
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'X-API-Key': CONFIG.apiKey
-          }
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || `HTTP Error ${response.status}: ${response.statusText}`);
+        if (typeof window.AIPod === 'undefined') {
+          throw new Error('AIPod SDK (sdk.js) is not loaded. Verify sdk.js is served at ' + CONFIG.baseUrl + '/sdk.js');
         }
 
-        const data = await response.json();
-        const recommendations = data.recommendations || [];
+        // Initialize SDK with configured base URL and public key
+        AIPod.init({
+          baseUrl: CONFIG.baseUrl,
+          apiKey: CONFIG.apiKey
+        });
+
+        // Identify active customer profile
+        AIPod.identify(customerId);
+
+        // Fetch recommendations through official SDK method
+        const recommendations = await AIPod.getRecommendations(customerId, { topN: CONFIG.topN });
+
+        const isFallback = Boolean(recommendations && recommendations.fallback);
+        const count = Array.isArray(recommendations) ? recommendations.length : 0;
 
         statusDot.className = 'status-dot online';
-        statusText.textContent = `Connected: GET /v1/recommendations (200 OK &bull; ${recommendations.length} items)`;
+        statusText.innerHTML = `Loaded via <strong>sdk.js</strong> &bull; <code>AIPod.getRecommendations("${customerId}")</code> &bull; ${count} items ${isFallback ? '<span style="color:#d97706;font-weight:700;">(Cold-Start Fallback)</span>' : '<span style="color:#10b981;font-weight:700;">(Personalized ML)</span>'}`;
 
         renderRecommendations(recommendations);
       } catch (err) {
-        console.error('Failed to fetch recommendations:', err);
+        console.error('Failed to fetch recommendations via AIPod SDK:', err);
         grid.style.display = 'none';
         errorState.style.display = 'block';
         document.getElementById('errorMessage').innerHTML = `
           <strong>Connection Failed:</strong> ${err.message}<br>
-          Target URL: <code style="background:#fee2e2; padding:2px 6px; border-radius:4px;">${url}</code><br>
-          Ensure the AI_POD API service is running and the API key is valid for tenant <code>online_retail</code>.
+          Ensure the AI_POD API service is running at <code>${CONFIG.baseUrl}</code> and the public key <code>${CONFIG.apiKey}</code> is configured.
         `;
         statusDot.className = 'status-dot offline';
-        statusText.textContent = `API Error: ${err.message}`;
+        statusText.textContent = `SDK Error: ${err.message}`;
       }
     }
 
@@ -1197,7 +1200,7 @@
         const bgGrad = getGradientForId(item.product_id);
 
         return `
-          <article class="product-card">
+          <article class="product-card" onclick="trackProductView('${item.product_id}')">
             <span class="card-badge rec-badge">Top Pick #${item.rank || (index + 1)}</span>
             <div class="card-image-box">
               <div class="card-placeholder-graphic" style="background: ${bgGrad}">
@@ -1235,7 +1238,7 @@
         const bgGrad = getGradientForId(item.id);
 
         return `
-          <article class="product-card">
+          <article class="product-card" onclick="trackProductView('${item.id}')">
             <span class="card-badge">Catalog Item</span>
             <div class="card-image-box">
               <div class="card-placeholder-graphic" style="background: ${bgGrad}">
@@ -1266,6 +1269,18 @@
     function addToCart(productId, productName) {
       updateCartCount(cartCount + 1);
       showToast(`Added "${productName}" to cart!`);
+
+      // Real integration pattern: track add_to_cart interaction via AIPod SDK
+      if (typeof window.AIPod !== 'undefined') {
+        AIPod.track('add_to_cart', productId, { quantity: 1 });
+      }
+    }
+
+    function trackProductView(productId) {
+      // Real integration pattern: track view interaction via AIPod SDK
+      if (typeof window.AIPod !== 'undefined') {
+        AIPod.track('view', productId);
+      }
     }
 
     // ---------------------------------------------------------------------------
@@ -1293,11 +1308,14 @@
       // Save config button
       saveConfigBtn.addEventListener('click', () => {
         CONFIG.baseUrl = apiBaseInput.value.trim() || 'http://localhost:8000';
-        CONFIG.apiKey = apiKeyInput.value.trim() || 'sk-online-retail-xxxx';
+        CONFIG.apiKey = apiKeyInput.value.trim() || 'pk-online-retail-xxxx';
         localStorage.setItem('storefront_api_base', CONFIG.baseUrl);
         localStorage.setItem('storefront_api_key', CONFIG.apiKey);
+        if (typeof window.AIPod !== 'undefined') {
+          AIPod.init({ baseUrl: CONFIG.baseUrl, apiKey: CONFIG.apiKey });
+        }
         configDrawer.classList.remove('open');
-        showToast('API Configuration updated!');
+        showToast('AIPod SDK Configuration updated!');
         fetchRecommendations(customerSelect.value);
       });
 
@@ -1309,7 +1327,12 @@
       // Customer change trigger
       customerSelect.addEventListener('change', (e) => {
         const selectedId = e.target.value;
-        
+
+        // Sync customer identity with AIPod SDK
+        if (typeof window.AIPod !== 'undefined') {
+          AIPod.identify(selectedId);
+        }
+
         // Update VIP / Loyalty chip
         const badge = document.getElementById('personaBadgeText');
         if (selectedId === '14911' || selectedId === '12748') {

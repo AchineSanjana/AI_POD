@@ -44,11 +44,12 @@ def test_get_recommendations_missing_tenant_model():
             params={"customer_id": "cust_1"},
             headers={"X-API-Key": "sk-dummy-uninitialized"},
         )
-        assert response.status_code == 404
-        assert response.json()["detail"] == (
-            "No trained model found for tenant 'non_existent_tenant'. "
-            "Run the pipeline for this tenant first."
-        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["tenant_id"] == "non_existent_tenant"
+        assert payload["customer_id"] == "cust_1"
+        assert payload["fallback"] is True
+        assert isinstance(payload["recommendations"], list)
     finally:
         TENANT_AUTH_MAPPING.pop("sk-dummy-uninitialized", None)
 

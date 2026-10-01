@@ -5,6 +5,14 @@ storage:
 tracking:
   queue_name: ai-pod-tracking-events
   queue_url: null
+training:
+  min_customers_to_train: 50
+  min_interactions_to_train: 200
+eventbridge:
+  rule_name: ai-pod-nightly-retrain
+  schedule_expression: cron(0 2 * * ? *)
+  endpoint_url: null
+  state: ENABLED
 paths:
   raw_dir: data/raw
   processed_dir: data/processed

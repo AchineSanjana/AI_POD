@@ -21,6 +21,34 @@ from src.core.schema import CustomerSchema, FeatureSpec, ProductSchema
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
 
+# Default training readiness thresholds
+MIN_CUSTOMERS_TO_TRAIN = 50
+MIN_INTERACTIONS_TO_TRAIN = 200
+
+
+def get_training_thresholds(
+    config: dict | None = None, tenant_id: str | None = None
+) -> tuple[int, int]:
+    """Retrieve (min_customers, min_interactions) from config with defaults (50, 200)."""
+    if config is None:
+        try:
+            config = load_config()
+        except Exception:
+            config = {}
+
+    if tenant_id and isinstance(config, dict) and "tenants" in config:
+        t_block = config["tenants"].get(tenant_id, {})
+        if isinstance(t_block, dict):
+            c = t_block.get("min_customers_to_train")
+            i = t_block.get("min_interactions_to_train")
+            if c is not None and i is not None:
+                return int(c), int(i)
+
+    training_cfg = config.get("training", {}) if isinstance(config, dict) else {}
+    min_c = training_cfg.get("min_customers_to_train", MIN_CUSTOMERS_TO_TRAIN)
+    min_i = training_cfg.get("min_interactions_to_train", MIN_INTERACTIONS_TO_TRAIN)
+    return int(min_c), int(min_i)
+
 
 # ---------------------------------------------------------------------------
 # InteractionSourceConfig — mirrors the hardcoded constants in reshape_telco.py

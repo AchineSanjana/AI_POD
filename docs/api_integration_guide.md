@@ -5,38 +5,40 @@ Welcome to the **AI_POD Recommendations API**! This guide is designed for extern
 ---
 
 ## Table of Contents
-1. [Obtaining an API Key](#1-obtaining-an-api-key)
+1. [Obtaining API Keys (Private vs Public)](#1-obtaining-api-keys-private-vs-public)
 2. [Authentication](#2-authentication)
-3. [The Onboarding Flow](#3-the-onboarding-flow)
-   - [Step 1: Upload Dataset (`POST /v1/onboard/upload`)](#step-1-upload-dataset-post-v1onboardupload)
-   - [Step 2: Validate & Profile Schema (`POST /v1/onboard/validate`)](#step-2-validate--profile-schema-post-v1onboardvalidate)
-   - [Step 3: Confirm Configuration (`POST /v1/onboard/confirm`)](#step-3-confirm-configuration-post-v1onboardconfirm)
-   - [Step 4: Trigger Asynchronous Training (`POST /v1/onboard/train`)](#step-4-trigger-asynchronous-training-post-v1onboardtrain)
-   - [Step 5: Poll Training Status (`GET /v1/onboard/status`)](#step-5-poll-training-status-get-v1onboardstatus)
-4. [The Recommendations Flow](#4-the-recommendations-flow)
-5. [Rate Limiting](#5-rate-limiting)
-6. [Error Handling & Status Codes](#6-error-handling--status-codes)
-7. [Minimal, Complete Code Examples](#7-minimal-complete-code-examples)
-   - [Python Example](#python-example)
-   - [JavaScript / Node.js Example](#javascript--nodejs-example)
+3. [The Onboarding Flow (Batch CSV Upload)](#3-the-onboarding-flow-batch-csv-upload)
+4. [The Fully-Automated Integration Path (Web SDK & Continuous ML)](#4-the-fully-automated-integration-path-web-sdk--continuous-ml)
+   - [4.1 Private vs Public Keys](#41-private-vs-public-keys)
+   - [4.2 Web SDK Snippet & Tracking Instrument Points](#42-web-sdk-snippet--tracking-instrument-points)
+   - [4.3 Connecting Store Platforms & Catalog Feeds](#43-connecting-store-platforms--catalog-feeds)
+   - [4.4 Automated Lifecycle: Fallbacks, Thresholds & Retraining](#44-automated-lifecycle-fallbacks-thresholds--retraining)
+   - [4.5 Privacy, Cookie Notice & Visitor Consent](#45-privacy-cookie-notice--visitor-consent)
+5. [The Recommendations Flow](#5-the-recommendations-flow)
+6. [Rate Limiting](#6-rate-limiting)
+7. [Error Handling & Status Codes](#7-error-handling--status-codes)
+8. [Minimal, Complete Code Examples](#8-minimal-complete-code-examples)
+9. [Summary Checklist for Integration](#9-summary-checklist-for-integration)
 
 ---
 
-## 1. Obtaining an API Key
+## 1. Obtaining API Keys (Private vs Public)
 
-API keys are tenant-isolated credentials formatted as `sk-<tenant>-<random_string>` (for example, `sk-telco-8f92a10b4c3e`).
+AI_POD provisions **pairs of cryptographically distinct API keys** for every tenant:
 
-### How to Request Your Key
-1. **Contact the Platform Admin**: Send an onboarding request to the platform operations team with:
-   - Your company/organization name
-   - Desired tenant identifier (e.g., `acme_retail`, `fintech_corp`)
-   - Primary technical contact email
-   - Expected request volume (queries per minute)
-2. **Key Provisioning**: The administrator provisions your tenant mapping in the platform's secure vault (AWS SSM Parameter Store / Secrets Manager in production, or local configuration during development).
-3. **Storage Best Practices**:
-   - Store your key in an environment variable (e.g. `RECOMMENDATIONS_API_KEY`).
-   - Never commit API keys to version control.
-   - Restrict access to backend services; do not expose your API key in client-side code (browsers or mobile applications).
+| Key Type | Prefix | Intended Environment | Permitted Endpoints | Confidentiality |
+| :--- | :--- | :--- | :--- | :--- |
+| **Private / Secret Key** | `sk-<tenant>-...` | Backend Servers only | All endpoints (`/v1/onboard/*`, `/v1/catalog/*`, `/v1/retrain/*`, `/v1/recommendations`) | **Strictly confidential** (never expose in client code) |
+| **Public Key** | `pk-<tenant>-...` | Client browsers (`sdk.js`) | Strictly `POST /v1/track` and `GET /v1/recommendations` | **Safe for frontend snippet tags** |
+
+### How to Request Your Keys
+1. **Contact the Platform Admin**: Send an onboarding request with your organization name and desired tenant identifier (e.g. `acme_retail`).
+2. **Automated Issuance**: Keys can also be provisioned directly via the tenant key utility:
+   ```bash
+   python scripts/issue_tenant_keys.py --tenant acme_retail
+   ```
+   Or via the administrative management endpoint `POST /v1/auth/keys`.
+3. **Vault Storage**: The administrator stores your key mapping in the platform's secure vault (AWS SSM Parameter Store / AWS Secrets Manager in production, or `config/tenants_auth.local.yaml` during local testing).
 
 ---
 
@@ -302,7 +304,279 @@ If training fails (e.g. malformed values or missing columns), the exact reason i
 
 ---
 
-## 4. The Recommendations Flow
+## 4. The Fully-Automated Integration Path (Web SDK & Continuous ML)
+
+For web applications, e-commerce storefronts, and platforms that want a hands-off, self-learning recommendation engine without manually uploading batches of historic data, AI_POD provides a **fully-automated end-to-end integration path**.
+
+```mermaid
+flowchart TD
+    subgraph ClientBrowser [Client Browser]
+        A["sdk.js Snippet"] -->|Auto-Init| B["localStorage / Cookie (session_id)"]
+        B --> C["AIPod.identify(customerId)"]
+        B --> D["AIPod.track('view' | 'add_to_cart' | 'purchase')"]
+    end
+
+    subgraph DataIngestion [Real-Time Ingestion & Sync]
+        D -->|Public Key| E["POST /v1/track (Queue)"]
+        F["Shopify / Catalog Feed URL"] -->|Private Key| G["Catalog Sync Worker"]
+    end
+
+    subgraph AutomatedML [Automated Intelligence]
+        E --> H["Pre-Training Fallback Engine ('fallback': true)"]
+        E --> I["Threshold Checker (50 cust / 200 events)"]
+        I -->|Thresholds Met| J["Mark Tenant 'ready_to_train'"]
+        K["EventBridge Nightly Rule"] -->|Triggers| L["Retrain Orchestrator"]
+        J --> L
+        L --> M["Personalized Model Training"]
+        M --> N["Active Personalized Recommendations ('fallback': false)"]
+    end
+```
+
+---
+
+### 4.1 Private vs Public Keys
+
+AI_POD separates client-facing interactions from administrative operations using a dual-key model:
+
+* **Private / Secret Key (`sk-<tenant>-<random>`):**
+  * **Environment:** Backend servers only.
+  * **Scope:** Full administrative access (batch onboarding, catalog feed management, manual retrain triggering, raw data inspection).
+  * **Security:** Keep confidential. Never expose this key in client-side HTML, JavaScript bundles, or mobile applications.
+* **Public Key (`pk-<tenant>-<random>`):**
+  * **Environment:** Client-side browsers and storefronts.
+  * **Scope:** Strictly restricted by the server middleware to two endpoints:
+    1. `POST /v1/track` (event ingestion)
+    2. `GET /v1/recommendations` (fetching product suggestions)
+  * Any attempt to access administrative, onboarding, or tenant configuration endpoints using a public key returns **`403 Forbidden`**.
+
+#### How to Obtain Both Keys
+Run the tenant key generator CLI (or request keys from your platform administrator):
+```bash
+python scripts/issue_tenant_keys.py --tenant acme_retail
+```
+This generates and outputs:
+```text
+Tenant: acme_retail
+Private Key: sk-acme_retail-9f2b84c17e0d
+Public Key:  pk-acme_retail-3a1c8e7f5b20
+Keys securely recorded in config/tenants_auth.yaml (or AWS SSM/Secrets Manager).
+```
+
+---
+
+### 4.2 Web SDK Snippet & Tracking Instrument Points
+
+#### Step A: Embed `sdk.js` in Your Website
+Add the lightweight script snippet to your site's `<head>` or before the closing `</body>` tag, supplying your **public key** in the `data-tenant-key` attribute:
+
+```html
+<script src="https://api.yourdomain.com/sdk.js" data-tenant-key="pk-acme_retail-3a1c8e7f5b20"></script>
+```
+
+Upon load, `sdk.js` automatically:
+1. Reads `data-tenant-key` from the script tag.
+2. Generates and persists a cryptographically secure `session_id` in **`localStorage`** (with automatic fallback to a **first-party cookie** if `localStorage` is restricted or sandboxed).
+3. Exposes the global **`window.AIPod`** API.
+4. Fails silently on network errors or parsing exceptions — **guaranteeing it will never throw an uncaught error into your host application**.
+
+---
+
+#### Step B: Instrument Real-Time Tracking Events
+Place `AIPod` tracking calls at the key conversion milestones across your customer journey:
+
+#### 1. Identify User (Upon Login, Registration, or Checkout Email Entry)
+Call `AIPod.identify()` once the visitor's account ID or email is known. This binds their anonymous browsing session to their persistent customer profile:
+```javascript
+// On login or registration success
+AIPod.identify(user.id);
+```
+
+#### 2. Product Detail Page (PDP) View
+Call `AIPod.track('view', productId)` when a visitor views a product:
+```javascript
+// On product page load
+AIPod.track('view', currentProduct.id);
+```
+
+#### 3. Add-to-Cart Interaction
+Call `AIPod.track('add_to_cart', productId, options)` whenever a visitor adds an item to their basket:
+```javascript
+// In the "Add to Cart" button click handler
+document.getElementById('add-to-cart-btn').addEventListener('click', () => {
+  AIPod.track('add_to_cart', currentProduct.id, { quantity: 1 });
+});
+```
+
+#### 4. Order Confirmation / Purchase Complete
+Call `AIPod.track('purchase', productId, options)` on your checkout thank-you or confirmation receipt page. Loop through all purchased line items:
+```javascript
+// On Order Confirmation / Thank You page
+order.lineItems.forEach((item) => {
+  AIPod.track('purchase', item.productId, {
+    quantity: item.quantity,
+    price: item.unitPrice,
+  });
+});
+```
+
+---
+
+#### Step C: Display Recommendations on Your Storefront
+
+You have two choices for displaying recommendations:
+
+##### Choice 1: Custom Frontend Framework (React, Vue, Svelte, or Headless)
+Call `AIPod.getRecommendations(customerId)` to retrieve the raw product array and render using your existing design system:
+```javascript
+const products = await AIPod.getRecommendations(user.id || 'guest');
+// products: [{ rank: 1, product_id: "...", product_name: "...", category: "..." }]
+```
+
+##### Choice 2: Turnkey Built-In Widget Helper (`AIPod.renderWidget`)
+For zero-code instant UI rendering into any container element:
+```html
+<div id="product-recommendations-widget"></div>
+
+<script>
+  AIPod.renderWidget(
+    'product-recommendations-widget',
+    AIPod.getRecommendations(user.id || 'guest'),
+    {
+      title: 'Trending & Recommended for You',
+      emptyMessage: 'Check back soon for personalized recommendations.',
+      trackClicks: true, // Automatically tracks 'view' when a product card is clicked
+      onProductClick: (product) => {
+        window.location.href = `/products/${product.product_id}`;
+      },
+    }
+  );
+</script>
+```
+
+---
+
+### 4.3 Connecting Store Platforms & Catalog Feeds
+
+To ensure recommendations display accurate product titles, categories, and inventory without requiring manual CSV uploads, connect your store platform or product catalog:
+
+#### Option 1: Shopify One-Click Integration
+Connect your Shopify store using the native integration:
+1. Register your store domain and access token via `POST /v1/shopify/install`.
+2. AI_POD automatically subscribes to Shopify webhooks:
+   * `products/create` & `products/update`: Real-time updates to titles, pricing, and tags.
+   * `products/delete`: Automatic pruning of retired items.
+   * `inventory_levels/update`: Immediate exclusion of out-of-stock products from recommendations.
+
+#### Option 2: Live Catalog Feed URL (CSV / JSON / XML)
+For custom e-commerce platforms (Magento, WooCommerce, BigCommerce, or custom backends), register a live catalog feed URL via `POST /v1/catalog/feed` using your **private API key**:
+
+```bash
+curl -X POST "https://api.yourdomain.com/v1/catalog/feed" \
+  -H "X-API-Key: sk-acme_retail-9f2b84c17e0d" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "feed_url": "https://store.com/feeds/products.csv",
+    "format": "csv",
+    "sync_interval_hours": 24
+  }'
+```
+
+The AI_POD background catalog worker automatically pulls and syncs product metadata on a recurring interval.
+
+---
+
+### 4.4 Automated Lifecycle: Fallbacks, Thresholds & Retraining
+
+Once your site starts sending events via `sdk.js`, the engine manages the entire machine learning lifecycle automatically:
+
+#### 1. Instant Pre-Training Cold-Start Fallback
+Before an untrained tenant's machine learning model has run, calls to `GET /v1/recommendations` **never fail or return 500 errors**.
+
+Instead, the engine automatically serves a popularity aggregate derived from initial interaction events (views, cart additions, and purchases), clearly tagged with `"fallback": true`:
+
+```json
+{
+  "tenant_id": "acme_retail",
+  "customer_id": "cust_123",
+  "recommendations": [
+    {
+      "rank": 1,
+      "product_id": "prod_galaxy_s24",
+      "product_name": "Galaxy S24 Ultra",
+      "category": "Smartphones"
+    },
+    {
+      "rank": 2,
+      "product_id": "prod_anker_cable",
+      "product_name": "USB-C Braided Cable",
+      "category": "Accessories"
+    }
+  ],
+  "fallback": true
+}
+```
+* **Transparency:** Callers and analytical dashboards can immediately distinguish between cold-start popularity fallbacks (`fallback: true`) and fully trained personalized inferences (`fallback: false`).
+
+---
+
+#### 2. Automatic Readiness Thresholds
+The background readiness engine continuously evaluates untrained tenants:
+* `MIN_CUSTOMERS_TO_TRAIN = 50` unique identified customers or visitors
+* `MIN_INTERACTIONS_TO_TRAIN = 200` total recorded interaction events
+
+As soon as your live website traffic crosses both thresholds, your tenant is automatically tagged `ready_to_train: true`. No manual intervention is needed.
+
+---
+
+#### 3. Scheduled First Training & Nightly Retraining
+An **Amazon EventBridge** scheduled rule triggers the retrain orchestrator nightly:
+1. **New Tenants:** Kicks off the first collaborative/ranking model training for any tenant newly marked `ready_to_train`.
+2. **Existing Tenants:** Kicks off an incremental retrain run using all new interaction events collected since the previous run.
+3. **Safe Concurrency:** A robust per-tenant lock ensures that if training is already in progress, duplicate executions are skipped cleanly without collisions.
+4. **Zero-Downtime Transition:** Once training completes, recommendation queries immediately switch to serving personalized, multi-objective ranking predictions (`"fallback": false`).
+
+---
+
+### 4.5 Privacy, Cookie Notice & Visitor Consent
+
+> [!IMPORTANT]
+> **Legal Compliance & Privacy Responsibility**
+> AI_POD provides client-side telemetry and personalization technology, but **your company is strictly responsible for complying with all applicable privacy laws and consumer consent regulations** (including the EU GDPR, ePrivacy Directive, UK GDPR, California CCPA/CPRA, and Virginia CDPA).
+
+#### Key Privacy Facts About `sdk.js`:
+* **Client-Side Storage:** `sdk.js` writes to `localStorage` (and sets a first-party cookie as fallback) using the keys `aipod_session_id` and `aipod_customer_id`.
+* **Visitor Telemetry:** The snippet transmits user behavior (pages viewed, products carted, items purchased) along with timestamps and pseudonymous session IDs.
+* **Consent Disclosures:** You must explicitly disclose this first-party tracking in your public **Privacy Policy** and **Cookie Policy**.
+
+#### Recommended Consent Gating Pattern
+If you operate in jurisdictions requiring prior opt-in consent for analytics or functional tracking (such as the European Union), **do not execute the snippet or call `AIPod` tracking methods until the user has granted consent** via your Consent Management Platform (CMP) or cookie banner:
+
+```html
+<!-- Example: Gating AI_POD SDK behind cookie consent banner -->
+<script>
+  function initializeAIPodTracking() {
+    var s = document.createElement('script');
+    s.src = 'https://api.yourdomain.com/sdk.js';
+    s.setAttribute('data-tenant-key', 'pk-acme_retail-3a1c8e7f5b20');
+    document.head.appendChild(s);
+  }
+
+  // Check if consent has already been granted, or wait for CMP event
+  if (window.myConsentManager && window.myConsentManager.hasConsent('analytics')) {
+    initializeAIPodTracking();
+  } else {
+    window.addEventListener('consent_granted', function (e) {
+      if (e.detail && e.detail.categories.includes('analytics')) {
+        initializeAIPodTracking();
+      }
+    });
+  }
+</script>
+```
+
+---
+
+## 5. The Recommendations Flow
 
 Once your tenant status is `complete` (or `active`), you can query personalized recommendations for any known customer.
 
@@ -347,7 +621,7 @@ curl -X GET "https://api.yourdomain.com/v1/recommendations?customer_id=usr_001&t
 
 ---
 
-## 5. Rate Limiting
+## 6. Rate Limiting
 
 To guarantee quality of service across all organizations, rate limits are enforced on a per-tenant sliding window basis.
 
@@ -387,7 +661,7 @@ if response.status_code == 429:
 
 ---
 
-## 6. Error Handling & Status Codes
+## 7. Error Handling & Status Codes
 
 The API uses standard HTTP response status codes. Every client error (4xx) and server error (5xx) returns a JSON body with a `"detail"` string describing the failure.
 
@@ -419,7 +693,7 @@ The API uses standard HTTP response status codes. Every client error (4xx) and s
 
 ---
 
-## 7. Minimal, Complete Code Examples
+## 8. Minimal, Complete Code Examples
 
 ### Python Example
 
@@ -552,10 +826,18 @@ async function getRecommendations(customerId, topN = 5, retries = 3) {
 
 ---
 
-## 8. Summary Checklist for Integration
+## 9. Summary Checklist for Integration
 
-- [ ] **Provisioning**: Secured your tenant API key from the platform administrator.
-- [ ] **Authentication**: Configured your HTTP client to pass the `X-API-Key` header with every request.
+### Batch / Backend Integration Path
+- [ ] **Provisioning**: Secured your tenant private API key (`sk-...`) from the administrator.
+- [ ] **Authentication**: Configured your backend HTTP client to pass the `X-API-Key` header with every request.
 - [ ] **Data Readiness**: Verified tenant onboarding is complete (`GET /v1/onboard/status` returns `"complete"` or `"active"`).
 - [ ] **Resilience**: Implemented 429 rate limit backoff using the `Retry-After` header.
-- [ ] **Validation**: Handled 404 responses for unknown or inactive customer IDs gracefully.
+
+### Automated Web SDK Integration Path
+- [ ] **Public Key**: Secured your tenant public key (`pk-...`) strictly for frontend usage.
+- [ ] **Snippet Embedding**: Added `<script src="/sdk.js" data-tenant-key="pk-..."></script>` to your website.
+- [ ] **Event Instrumentation**: Implemented `AIPod.identify()` on login and `AIPod.track()` on product view, cart addition, and purchase confirmation.
+- [ ] **Catalog Sync**: Connected Shopify app/webhooks or registered a live catalog feed URL (`POST /v1/catalog/feed`).
+- [ ] **Cold-Start Validation**: Verified your storefront handles `"fallback": true` popularity responses cleanly before first model training.
+- [ ] **Privacy & Consent Notice**: Disclosed `localStorage` / cookie tracking in your public Privacy & Cookie Policies and gated SDK execution behind user consent where legally mandated.

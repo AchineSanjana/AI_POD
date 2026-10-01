@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI_POD SDK Verification Sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-surface: #111827;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.16);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --accent-success: #10b981;
+      --accent-warning: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --mono-font: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 40%),
+                  var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 0.2rem;
+    }
+
+    .pill {
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pill-active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.5rem;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .meta-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .meta-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 0.6rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .meta-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .meta-val {
+      font-family: var(--mono-font);
+      color: var(--accent-cyan);
+      font-weight: 500;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    button:hover {
+      background: #4f46e5;
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+    }
+
+    button.btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    button.btn-success {
+      background: var(--accent-success);
+    }
+
+    button.btn-success:hover {
+      background: #059669;
+    }
+
+    .console-card {
+      background: #060911;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.25rem;
+      font-family: var(--mono-font);
+      font-size: 0.82rem;
+    }
+
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .console-output {
+      height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .log-time {
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    .log-type-info { color: #60a5fa; }
+    .log-type-success { color: #34d399; }
+    .log-type-warn { color: #fbbf24; }
+    .log-type-error { color: #f87171; }
+
+    .recs-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .rec-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      position: relative;
+    }
+
+    .rec-rank {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .rec-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .rec-cat {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .rec-id {
+      font-family: var(--mono-font);
+      font-size: 0.72rem;
+      color: #9ca3af;
+      margin-top: auto;
+    }
+  </style>
+
+  <!-- Load AI_POD Client Tracking & Recommendation SDK with public key -->
+  <script src="/sdk.js" data-tenant-key="pk-telco-xxxx" id="aipod-sdk"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>AI_POD JavaScript SDK Verification</h1>
+          <p class="subtitle">Manual sandbox & live console monitor for client-side sdk.js</p>
+        </div>
+      </div>
+      <div>
+        <span class="pill pill-active" id="sdk-status-pill">SDK Initialized</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Card 1: Session & Identity State -->
+      <div class="card">
+        <div class="card-title">
+          <span>Active State & Identity</span>
+          <button class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="refreshStateDisplay()">Refresh</button>
+        </div>
+        <div class="meta-list">
+          <div class="meta-item">
+            <span class="meta-label">Public Tenant Key</span>
+            <span class="meta-val" id="disp-tenant-key">--</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Session ID (localStorage / Cookie)</span>
+            <span class="meta-val" id="disp-session-id">--</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Identified Customer ID</span>
+            <span class="meta-val" id="disp-customer-id">null (Anonymous)</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Storage Architecture</span>
+            <span class="meta-val" style="color: #10b981;">localStorage (1st-Party)</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.25rem;">
+          <label for="input-customer">Identify Customer (AIPod.identify)</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="input-customer" placeholder="e.g. cust_8832 or 7590-VHVEG" value="cust_live_001" />
+            <button onclick="handleIdentify()">Identify</button>
+            <button class="btn-secondary" onclick="handleReset()">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Track Event Action -->
+      <div class="card">
+        <div class="card-title">
+          <span>Track Interaction (AIPod.track)</span>
+        </div>
+        <div class="form-group">
+          <label for="track-event-type">Event Type</label>
+          <select id="track-event-type">
+            <option value="view">view (Product Detail Page)</option>
+            <option value="add_to_cart">add_to_cart (Basket Interaction)</option>
+            <option value="purchase">purchase (Conversion Complete)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="track-product-id">Product ID</label>
+          <input type="text" id="track-product-id" value="prod_iphone_15" placeholder="e.g. prod_iphone_15" />
+        </div>
+        <div class="btn-row">
+          <button onclick="handleTrack()">Send Track Event</button>
+          <button class="btn-success" onclick="runAutomatedSequence()">Run Full Auto Test</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations Card: Option 1 (Custom display) -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-title">
+        <span>Option 1: Custom Frontend Code (AIPod.getRecommendations)</span>
+        <button onclick="handleGetRecs()">Fetch & Custom Render</button>
+      </div>
+      <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem;">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Target Customer:</span>
+        <span id="recs-target-label" style="font-family: var(--mono-font); color: var(--accent-cyan); font-size: 0.85rem;">(Auto from AIPod.getCustomerId())</span>
+        <span id="recs-fallback-badge" class="pill" style="display: none; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">Fallback Result</span>
+      </div>
+      <div id="recs-grid" class="recs-container">
+        <div style="color: var(--text-muted); font-size: 0.85rem; grid-column: 1 / -1; padding: 1rem 0;">
+          Click "Fetch & Custom Render" to populate via company's own custom display logic.
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations Card: Option 2 (Turnkey Helper) -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-title">
+        <span>Option 2: Turnkey Built-In Helper (AIPod.renderWidget)</span>
+        <button class="btn-success" onclick="handleRenderWidget()">AIPod.renderWidget()</button>
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+        For companies who want immediate display without writing UI code. Genuinely optional.
+      </p>
+      <!-- Container element target for AIPod.renderWidget -->
+      <div id="recs-widget-container" style="min-height: 80px; padding: 0.5rem 0;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">
+          Click "AIPod.renderWidget()" to render into <code>#recs-widget-container</code>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Event Console -->
+    <div class="console-card">
+      <div class="console-header">
+        <span>LIVE SDK & NETWORK LOGS (Mirrored with browser console)</span>
+        <button class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="clearConsoleLog()">Clear</button>
+      </div>
+      <div class="console-output" id="console-output"></div>
+    </div>
+  </div>
+
+  <script>
+    function log(message, type) {
+      type = type || 'info';
+      var time = new Date().toLocaleTimeString();
+      var output = document.getElementById('console-output');
+      var line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = '<span class="log-time">[' + time + ']</span> <span class="log-type-' + type + '">' + message + '</span>';
+      output.appendChild(line);
+      output.scrollTop = output.scrollHeight;
+
+      // Also mirror to browser console
+      if (type === 'error') console.error('[SDK Demo]', message);
+      else if (type === 'warn') console.warn('[SDK Demo]', message);
+      else console.log('[SDK Demo]', message);
+    }
+
+    function clearConsoleLog() {
+      document.getElementById('console-output').innerHTML = '';
+    }
+
+    function refreshStateDisplay() {
+      if (typeof window.AIPod === 'undefined') {
+        log('AIPod global is not loaded yet!', 'error');
+        return;
+      }
+      var tk = AIPod.getTenantKey();
+      var sid = AIPod.getSessionId();
+      var cid = AIPod.getCustomerId();
+
+      document.getElementById('disp-tenant-key').textContent = tk || '(not configured)';
+      document.getElementById('disp-session-id').textContent = sid || '(none)';
+      document.getElementById('disp-customer-id').textContent = cid ? cid : 'null (Anonymous)';
+      document.getElementById('recs-target-label').textContent = cid ? cid : 'guest (Anonymous)';
+    }
+
+    function handleIdentify() {
+      var cid = document.getElementById('input-customer').value;
+      if (!cid) {
+        log('Please provide a customer ID', 'warn');
+        return;
+      }
+      log('Calling AIPod.identify("' + cid + '")...', 'info');
+      AIPod.identify(cid);
+      refreshStateDisplay();
+      log('Customer identified as: ' + AIPod.getCustomerId(), 'success');
+    }
+
+    function handleReset() {
+      log('Calling AIPod.reset()...', 'info');
+      AIPod.reset();
+      refreshStateDisplay();
+      log('Session reset. New session: ' + AIPod.getSessionId(), 'success');
+    }
+
+    function handleTrack() {
+      var eventType = document.getElementById('track-event-type').value;
+      var productId = document.getElementById('track-product-id').value;
+      log('Sending AIPod.track("' + eventType + '", "' + productId + '")...', 'info');
+
+      AIPod.track(eventType, productId).then(function(res) {
+        log('Track response: ' + JSON.stringify(res), res.status === 'accepted' ? 'success' : 'warn');
+      }).catch(function(err) {
+        log('Track error caught: ' + err, 'error');
+      });
+    }
+
+    function handleGetRecs() {
+      var cid = AIPod.getCustomerId() || 'guest';
+      log('Calling AIPod.getRecommendations("' + cid + '")...', 'info');
+
+      AIPod.getRecommendations(cid).then(function(recs) {
+        log('Recommendations received: ' + recs.length + ' products (fallback=' + Boolean(recs.fallback) + ')', 'success');
+        renderRecs(recs);
+      }).catch(function(err) {
+        log('getRecommendations error: ' + err, 'error');
+      });
+    }
+
+    function handleRenderWidget() {
+      var cid = AIPod.getCustomerId() || 'guest';
+      log('Fetching recommendations for turnkey AIPod.renderWidget()...', 'info');
+
+      AIPod.getRecommendations(cid).then(function(recs) {
+        log('Rendering turnkey widget with AIPod.renderWidget("recs-widget-container", recs)...', 'info');
+        var res = AIPod.renderWidget('recs-widget-container', recs, {
+          title: '⚡ Turnkey AI Recommendations',
+          emptyMessage: 'No recommendations currently available.',
+          trackClicks: true,
+          onProductClick: function(prod) {
+            log('Turnkey card clicked: ' + (prod.product_name || prod.product_id), 'success');
+          }
+        });
+        if (res) {
+          log('AIPod.renderWidget() mounted successfully into DOM.', 'success');
+        } else {
+          log('AIPod.renderWidget() failed silently.', 'warn');
+        }
+      });
+    }
+
+    function renderRecs(recs) {
+      var grid = document.getElementById('recs-grid');
+      var fallbackBadge = document.getElementById('recs-fallback-badge');
+      if (recs.fallback) {
+        fallbackBadge.style.display = 'inline-block';
+      } else {
+        fallbackBadge.style.display = 'none';
+      }
+
+      if (!recs || recs.length === 0) {
+        grid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; grid-column: 1 / -1;">No recommendations returned for this user.</div>';
+        return;
+      }
+
+      grid.innerHTML = '';
+      recs.forEach(function(item) {
+        var card = document.createElement('div');
+        card.className = 'rec-item';
+        card.innerHTML = 
+          '<span class="rec-rank">#' + (item.rank || 1) + '</span>' +
+          '<div class="rec-name">' + (item.product_name || item.product_id) + '</div>' +
+          '<div class="rec-cat">' + (item.category || 'General') + '</div>' +
+          '<div class="rec-id">ID: ' + item.product_id + '</div>';
+        grid.appendChild(card);
+      });
+    }
+
+    async function runAutomatedSequence() {
+      log('====================================================', 'info');
+      log('STARTING AUTOMATED VERIFICATION SEQUENCE', 'info');
+      log('====================================================', 'info');
+
+      // 1. Initial State
+      refreshStateDisplay();
+      log('1. Verified initial session: ' + AIPod.getSessionId(), 'success');
+
+      // 2. Identify
+      var testCid = 'test_cust_' + Math.floor(Math.random() * 10000);
+      AIPod.identify(testCid);
+      refreshStateDisplay();
+      log('2. Identified test user: ' + testCid, 'success');
+
+      // 3. Track view
+      log('3. Tracking PDP view event...', 'info');
+      var trackRes1 = await AIPod.track('view', 'prod_galaxy_s24');
+      log('   View track result: ' + JSON.stringify(trackRes1), trackRes1.status === 'accepted' ? 'success' : 'warn');
+
+      // 4. Track add_to_cart
+      log('4. Tracking add_to_cart event...', 'info');
+      var trackRes2 = await AIPod.track('add_to_cart', 'prod_galaxy_s24', { quantity: 2 });
+      log('   Add_to_cart track result: ' + JSON.stringify(trackRes2), trackRes2.status === 'accepted' ? 'success' : 'warn');
+
+      // 5. Fetch Recommendations
+      log('5. Fetching personalized recommendations...', 'info');
+      var recs = await AIPod.getRecommendations(testCid);
+      log('   Recommendations retrieved: ' + recs.length + ' items', 'success');
+      renderRecs(recs);
+
+      // 6. Test AIPod.renderWidget turnkey helper
+      log('6. Testing turnkey AIPod.renderWidget()...', 'info');
+      AIPod.renderWidget('recs-widget-container', recs, {
+        title: '⚡ Auto-Verified Turnkey Recommendations',
+        emptyMessage: 'No recommendations currently available.',
+      });
+      log('   Turnkey widget mounted without error.', 'success');
+
+      log('====================================================', 'info');
+      log('ALL SDK CALLS COMPLETED SUCCESSFULLY WITHOUT ERROR', 'success');
+      log('====================================================', 'info');
+    }
+
+    // On Load
+    window.addEventListener('DOMContentLoaded', function() {
+      log('Page DOM loaded. Verifying AIPod global availability...', 'info');
+      if (typeof window.AIPod !== 'undefined') {
+        log('AIPod global detected (v' + (AIPod.version || '1.0.0') + ')', 'success');
+        refreshStateDisplay();
+      } else {
+        log('AIPod global is not detected!', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

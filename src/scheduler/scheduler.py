@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 # Default intervals
 DEFAULT_CATALOG_SYNC_INTERVAL_HOURS = 4.0
 DEFAULT_CATALOG_SYNC_INTERVAL_SECONDS = DEFAULT_CATALOG_SYNC_INTERVAL_HOURS * 3600.0
+DEFAULT_READINESS_CHECK_INTERVAL_HOURS = 1.0
+DEFAULT_READINESS_CHECK_INTERVAL_SECONDS = DEFAULT_READINESS_CHECK_INTERVAL_HOURS * 3600.0
 
 
 class ScheduledJob:
@@ -198,12 +200,30 @@ def get_scheduler() -> BackgroundScheduler:
     """Retrieve or create the global BackgroundScheduler instance."""
     global _GLOBAL_SCHEDULER
     if _GLOBAL_SCHEDULER is None:
+        from src.scheduler.readiness_checker import check_untrained_tenants_readiness
+
         _GLOBAL_SCHEDULER = BackgroundScheduler()
-        # Automatically register catalog feed sync job
+        # Automatically register catalog feed sync job (Step 20)
         _GLOBAL_SCHEDULER.register_job(
             name="catalog_feed_sync",
             fn=sync_all_tenant_catalogs,
             interval_seconds=DEFAULT_CATALOG_SYNC_INTERVAL_SECONDS,
+            run_immediately=False,
+        )
+        # Automatically register training readiness check job (Step 21.2)
+        _GLOBAL_SCHEDULER.register_job(
+            name="training_readiness_check",
+            fn=check_untrained_tenants_readiness,
+            interval_seconds=DEFAULT_READINESS_CHECK_INTERVAL_SECONDS,
+            run_immediately=False,
+        )
+        # Automatically register scheduled model retraining job (Step 21)
+        from src.scheduler.retrain_orchestrator import run_scheduled_retraining
+
+        _GLOBAL_SCHEDULER.register_job(
+            name="scheduled_model_retrain",
+            fn=run_scheduled_retraining,
+            interval_seconds=86400.0,
             run_immediately=False,
         )
     return _GLOBAL_SCHEDULER
