@@ -89,8 +89,9 @@ def test_e2e_multitenant_pipeline_and_serving(monkeypatch):
         api_key = api_keys[tenant_id]
 
         # A. Direct internal API function: _recommend_for_customer
-        direct_recs = _recommend_for_customer(tenant_id=tenant_id, customer_id=customer_id, top_n=5)
+        direct_recs, is_fallback = _recommend_for_customer(tenant_id=tenant_id, customer_id=customer_id, top_n=5)
         assert isinstance(direct_recs, list)
+        assert is_fallback is False
         assert len(direct_recs) > 0, f"Expected non-empty direct recs for {tenant_id}"
 
         for rec in direct_recs:
