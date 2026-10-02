@@ -503,6 +503,37 @@
       box-shadow: none !important;
     }
 
+    /* Auth Mode Tabs */
+    .auth-tabs {
+      display: inline-flex;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      gap: 4px;
+    }
+    .auth-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .auth-tab.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+    }
+    .auth-tab:hover:not(.active) {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
     /* Actions Bar */
     .actions-bar {
       display: flex;
@@ -793,56 +824,221 @@
     <!-- ====================================================================== -->
     <section id="step1Section" class="step-pane">
       
-      <!-- Tenant Selection Card -->
-      <div class="card">
+      <!-- Company Account & Credentials Card -->
+      <div class="card" id="accountAuthCard">
         <div class="card-header">
           <div>
-            <h2 class="card-title">🏢 Company &amp; Tenant Credentials</h2>
-            <p class="card-desc">Identify which tenant catalog this dataset belongs to, or register a new company.</p>
+            <h2 class="card-title">🏢 Company Account &amp; API Keys</h2>
+            <p class="card-desc">Sign up your company to automatically provision tenant storage and issue API credentials.</p>
+          </div>
+          <!-- Auth Mode Toggle Tabs -->
+          <div class="auth-tabs" id="authModeTabs">
+            <button type="button" class="auth-tab active" id="tabSignup" onclick="setAuthView('signup')">Sign Up</button>
+            <button type="button" class="auth-tab" id="tabLogin" onclick="setAuthView('login')">Log In</button>
           </div>
         </div>
 
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label" for="tenantModeSelect">Onboarding Mode</label>
-            <select id="tenantModeSelect" class="form-select" onchange="toggleTenantMode()">
-              <option value="existing" selected>Select Existing Configured Tenant</option>
-              <option value="new">Register New Company / Tenant</option>
-            </select>
-          </div>
-
-          <!-- Existing Tenant Dropdown -->
-          <div class="form-group" id="existingTenantGroup">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label class="form-label" for="existingTenantSelect" style="margin-bottom: 0;">Select Tenant &amp; Key</label>
-              <button type="button" onclick="loadConfiguredKeys(true)" style="background: none; border: none; color: #818cf8; font-size: 0.78rem; cursor: pointer; text-decoration: underline; padding: 0;">↻ Reload Keys</button>
+        <!-- 1. SIGNUP VIEW -->
+        <div id="authSignupView">
+          <form id="signupForm" onsubmit="handleSignup(event)">
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="signupCompanyName">Company Name</label>
+                <input type="text" id="signupCompanyName" class="form-input" placeholder="e.g. Acme Retail Inc." required />
+                <div class="form-hint">Used to derive your unique tenant identifier.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="signupEmail">Work / Developer Email</label>
+                <input type="email" id="signupEmail" class="form-input" placeholder="e.g. dev@acme.com" required />
+                <div class="form-hint">Primary contact for authentication.</div>
+              </div>
             </div>
-            <select id="existingTenantSelect" class="form-select" onchange="onExistingTenantSelected()">
-              <option value="online_retail|sk-online-retail-xxxx">online_retail (Gift &amp; Home Co. &bull; sk-online-retail-xxxx)</option>
-              <option value="telco_default|sk-telco-xxxx">telco_default (Apex Telecom &bull; sk-telco-xxxx)</option>
-              <option value="movielens_demo|sk-movielens-xxxx">movielens_demo (CineVerse &bull; sk-movielens-xxxx)</option>
-              <option value="fixture_ecommerce|sk-ecommerce-xxxx">fixture_ecommerce (sk-ecommerce-xxxx)</option>
-            </select>
-            <div class="form-hint">Requests are authenticated via header <code>X-API-Key</code>. Loaded dynamically from <code>/v1/onboard/keys</code>.</div>
+
+            <div class="form-group">
+              <label class="form-label" for="signupPassword">Account Password</label>
+              <input type="password" id="signupPassword" class="form-input" placeholder="At least 8 characters" minlength="8" required />
+              <div class="form-hint">Hashed with bcrypt; plaintext password is never stored or exposed.</div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px; flex-wrap: wrap; gap: 12px;">
+              <button type="submit" id="btnSignupSubmit" class="btn btn-primary">
+                <span>✨ Create Company Account &amp; Issue Keys</span>
+              </button>
+              <div style="font-size: 0.88rem; color: var(--text-muted);">
+                Returning company? <a href="javascript:void(0)" onclick="setAuthView('login')" style="color: #818cf8; text-decoration: underline;">Log in to your account</a>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- 2. LOGIN VIEW -->
+        <div id="authLoginView" style="display: none;">
+          <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="loginEmail">Email Address</label>
+                <input type="email" id="loginEmail" class="form-input" placeholder="e.g. dev@acme.com" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" class="form-input" placeholder="Your password" required />
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px; flex-wrap: wrap; gap: 12px;">
+              <button type="submit" id="btnLoginSubmit" class="btn btn-primary">
+                <span>🔐 Log In</span>
+              </button>
+              <div style="font-size: 0.88rem; color: var(--text-muted);">
+                New company? <a href="javascript:void(0)" onclick="setAuthView('signup')" style="color: #818cf8; text-decoration: underline;">Create account</a>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- 3. ONE-TIME KEY DISCLOSURE BANNER (Shown strictly on signup or regeneration) -->
+        <div id="keysDisclosureBanner" style="display: none; margin-top: 10px;">
+          <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+              <span style="font-size: 1.8rem; line-height: 1;">⚠️</span>
+              <div>
+                <div style="color: #fbbf24; font-weight: 700; font-size: 1.05rem; margin-bottom: 4px;">
+                  SECURITY WARNING: Single Disclosure Only!
+                </div>
+                <div style="color: #fde68a; font-size: 0.88rem; line-height: 1.5;">
+                  Your <strong>Private API Key (sk-...)</strong> is displayed below <strong>ONCE</strong> and will <strong>NEVER</strong> be retrievable in plaintext again.
+                  Copy and store it now in your secure secrets manager or key vault before continuing.
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- New Company Inputs -->
-          <div class="form-group" id="newTenantGroup" style="display: none;">
-            <label class="form-label" for="newTenantIdInput">New Tenant ID (slug)</label>
-            <input type="text" id="newTenantIdInput" class="form-input" placeholder="e.g. acme_retail" oninput="onNewTenantIdChange()" />
-            <div class="form-hint">Lowercase letters, numbers, and underscores only.</div>
+          <div class="grid-2">
+            <!-- Private Key -->
+            <div class="form-group">
+              <label class="form-label" style="color: #f87171; display: flex; align-items: center; gap: 6px;">
+                <span>🔒 Private API Key (sk-...)</span>
+                <span class="badge badge-red" style="font-size: 0.7rem;">Shown Once</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="disclosedPrivateKey" class="form-input" readonly style="font-family: var(--font-mono); color: #fca5a5; background: #1c1427; border-color: rgba(239, 68, 68, 0.4); font-size: 0.88rem;" />
+                <button type="button" class="btn btn-secondary" onclick="copyTextToClipboard(document.getElementById('disclosedPrivateKey').value, 'Private API Key')" style="white-space: nowrap;">
+                  📋 Copy
+                </button>
+              </div>
+              <div class="form-hint" style="color: #f87171;">Used for server-side dataset upload, model training, and administration.</div>
+            </div>
+
+            <!-- Public Key -->
+            <div class="form-group">
+              <label class="form-label" style="color: #34d399; display: flex; align-items: center; gap: 6px;">
+                <span>🌐 Public API Key (pk-...)</span>
+                <span class="badge badge-green" style="font-size: 0.7rem;">Client-Safe</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="disclosedPublicKey" class="form-input" readonly style="font-family: var(--font-mono); color: #6ee7b7; background: #0e2424; border-color: rgba(16, 185, 129, 0.4); font-size: 0.88rem;" />
+                <button type="button" class="btn btn-secondary" onclick="copyTextToClipboard(document.getElementById('disclosedPublicKey').value, 'Public API Key')" style="white-space: nowrap;">
+                  📋 Copy
+                </button>
+              </div>
+              <div class="form-hint" style="color: #34d399;">Safe for storefront tracking (POST /v1/track) and recommendations.</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 18px; margin-top: 12px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Assigned Tenant ID:</span>
+              <strong id="disclosedTenantId" style="color: #a5b4fc; font-family: var(--font-mono); margin-left: 6px;"></strong>
+            </div>
+            <button type="button" class="btn btn-success" onclick="proceedFromKeyDisclosure()">
+              <span>Continue to Dataset Upload &amp; Training ➔</span>
+            </button>
           </div>
         </div>
 
-        <div class="grid-2" id="keyDisplayRow">
-          <div class="form-group">
-            <label class="form-label" for="activeTenantId">Active Tenant ID</label>
-            <input type="text" id="activeTenantId" class="form-input" value="online_retail" readonly />
+        <!-- 4. RETURNING COMPANY DASHBOARD (Shown when logged in via session token) -->
+        <div id="authDashboardView" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="font-size: 1.15rem; font-weight: 700; color: #fff;" id="dashCompanyName">Company Dashboard</div>
+              <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                Tenant ID: <code id="dashTenantId" style="color: #a5b4fc; font-weight: 600;"></code> &bull; <span class="badge badge-green" style="font-size: 0.7rem;">Session Authenticated</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="handleLogout()" style="padding: 6px 14px; font-size: 0.82rem;">
+              Sign Out
+            </button>
           </div>
+
+          <!-- Public Key Display for Re-pasting -->
           <div class="form-group">
-            <label class="form-label" for="activeApiKey">Header Key (X-API-Key)</label>
-            <input type="text" id="activeApiKey" class="form-input" value="sk-online-retail-xxxx" />
+            <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+              <span>Public API Key (for re-pasting into storefront / website SDK)</span>
+              <span class="badge badge-green" style="font-size: 0.72rem;">Safe to share</span>
+            </label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="dashPublicKey" class="form-input" readonly style="font-family: var(--font-mono); color: #34d399; background: #0e2424; border-color: rgba(16, 185, 129, 0.3); font-size: 0.9rem;" />
+              <button type="button" class="btn btn-secondary" onclick="copyTextToClipboard(document.getElementById('dashPublicKey').value, 'Public API Key')" style="white-space: nowrap;">
+                📋 Copy Public Key
+              </button>
+            </div>
+            <div class="form-hint">
+              Paste this key into your storefront or client-side JavaScript SDK to track user events (<code>POST /v1/track</code>).
+            </div>
           </div>
+
+          <!-- Key Regeneration & Upload Actions -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap;">
+            <div>
+              <div style="font-weight: 600; font-size: 0.9rem; color: var(--text);">Need to rotate keys?</div>
+              <div style="font-size: 0.78rem; color: var(--text-subtle);">
+                If a key was compromised or lost, regenerate will invalidate old keys immediately and issue a new pair.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary" id="btnRegenerateKeys" onclick="handleRegenerateKeys()" style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                <span>🔄 Regenerate API Keys</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="proceedToUploadWithCurrentTenant()">
+                <span>Proceed to Dataset Upload ➔</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Developer Mode Accordion (optional toggle for existing pre-set keys) -->
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+          <details style="font-size: 0.82rem; color: var(--text-subtle);">
+            <summary style="cursor: pointer; user-select: none;">
+              🛠️ Developer Mode: Use pre-existing local demo keys
+            </summary>
+            <div style="margin-top: 10px; padding: 12px; background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-sm);">
+              <div class="grid-2">
+                <div class="form-group" style="margin-bottom: 6px;">
+                  <label class="form-label" style="font-size: 0.78rem;">Demo Tenant</label>
+                  <select id="existingTenantSelect" class="form-select" onchange="onExistingTenantSelected()" style="font-size: 0.8rem; padding: 6px 10px;">
+                    <option value="online_retail|sk-online-retail-xxxx">online_retail (Gift &amp; Home Co.)</option>
+                    <option value="telco_default|sk-telco-xxxx">telco_default (Apex Telecom)</option>
+                    <option value="movielens_demo|sk-movielens-xxxx">movielens_demo (CineVerse)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 6px;">
+                  <label class="form-label" style="font-size: 0.78rem;">Header Key (X-API-Key)</label>
+                  <input type="text" id="activeApiKey" class="form-input" value="sk-online-retail-xxxx" style="font-size: 0.8rem; padding: 6px 10px; font-family: var(--font-mono);" />
+                  <input type="hidden" id="activeTenantId" value="online_retail" />
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Active Credentials Pill Status -->
+        <div id="activeCredsIndicator" style="display: none; margin-top: 16px; padding: 10px 16px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-md); font-size: 0.85rem; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="badge badge-green">✓ Ready</span>
+            <span>Tenant: <strong id="activeTenantDisplay" style="color: #a5b4fc; font-family: var(--font-mono);"></strong></span>
+          </div>
+          <span style="font-size: 0.78rem; color: var(--text-muted);" id="activeKeyHint">Key ready for upload</span>
         </div>
       </div>
 
@@ -1109,8 +1305,10 @@
     const STATE = {
       apiBaseUrl: defaultApiBase,
       currentStep: 1,
-      tenantId: 'online_retail',
-      apiKey: 'sk-online-retail-xxxx',
+      tenantId: '',
+      apiKey: '',
+      sessionToken: '',
+      account: null,
       rawCsvContent: '',
       fileName: '',
       fileRows: 0,
@@ -1266,40 +1464,315 @@
     }
 
     // -------------------------------------------------------------------------
-    // Step 1: Tenant & File Ingestion
+    // Step 1: Company Account Registration, Login & Key Management
     // -------------------------------------------------------------------------
-    function toggleTenantMode() {
-      const mode = document.getElementById('tenantModeSelect').value;
-      const existingGroup = document.getElementById('existingTenantGroup');
-      const newGroup = document.getElementById('newTenantGroup');
+    function setAuthView(view) {
+      const tabSignup = document.getElementById('tabSignup');
+      const tabLogin = document.getElementById('tabLogin');
+      const signupView = document.getElementById('authSignupView');
+      const loginView = document.getElementById('authLoginView');
+      const dashView = document.getElementById('authDashboardView');
+      const banner = document.getElementById('keysDisclosureBanner');
 
-      if (mode === 'new') {
-        existingGroup.style.display = 'none';
-        newGroup.style.display = 'block';
-        document.getElementById('newTenantIdInput').focus();
-      } else {
-        existingGroup.style.display = 'block';
-        newGroup.style.display = 'none';
-        onExistingTenantSelected();
+      if (banner) banner.style.display = 'none';
+
+      if (view === 'signup') {
+        if (tabSignup) tabSignup.classList.add('active');
+        if (tabLogin) tabLogin.classList.remove('active');
+        if (signupView) signupView.style.display = 'block';
+        if (loginView) loginView.style.display = 'none';
+        if (dashView) dashView.style.display = 'none';
+      } else if (view === 'login') {
+        if (tabLogin) tabLogin.classList.add('active');
+        if (tabSignup) tabSignup.classList.remove('active');
+        if (signupView) signupView.style.display = 'none';
+        if (loginView) loginView.style.display = 'block';
+        if (dashView) dashView.style.display = 'none';
+      } else if (view === 'dashboard') {
+        if (tabSignup) tabSignup.classList.remove('active');
+        if (tabLogin) tabLogin.classList.add('active');
+        if (signupView) signupView.style.display = 'none';
+        if (loginView) loginView.style.display = 'none';
+        if (dashView) dashView.style.display = 'block';
       }
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      const compName = document.getElementById('signupCompanyName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      const btn = document.getElementById('btnSignupSubmit');
+
+      if (!compName || !email || !password) {
+        showToast('Please fill in company name, email, and password.', '⚠️');
+        return;
+      }
+      if (password.length < 8) {
+        showToast('Password must be at least 8 characters long.', '⚠️');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Registering account & issuing keys...</span>`;
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company_name: compName,
+            email: email,
+            password: password
+          })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || `Signup failed (HTTP ${resp.status})`);
+        }
+
+        // Save state: use private key immediately for upload & train
+        STATE.tenantId = data.tenant_id;
+        STATE.apiKey = data.private_key;
+        STATE.account = data;
+
+        // Display keys with single-disclosure warning
+        displayKeysDisclosure(data.private_key, data.public_key, data.tenant_id, compName);
+
+        // Update active credentials indicator
+        updateActiveCredsIndicator(data.tenant_id, data.private_key);
+
+        showToast(`Account created for ${compName}! Keys issued.`, '🎉');
+      } catch (err) {
+        showToast(err.message, '❌');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>✨ Create Company Account &amp; Issue Keys</span>`;
+      }
+    }
+
+    function displayKeysDisclosure(privateKey, publicKey, tenantId, companyName) {
+      const signupView = document.getElementById('authSignupView');
+      const loginView = document.getElementById('authLoginView');
+      const dashView = document.getElementById('authDashboardView');
+      const banner = document.getElementById('keysDisclosureBanner');
+
+      if (signupView) signupView.style.display = 'none';
+      if (loginView) loginView.style.display = 'none';
+      if (dashView) dashView.style.display = 'none';
+
+      document.getElementById('disclosedPrivateKey').value = privateKey;
+      document.getElementById('disclosedPublicKey').value = publicKey;
+      document.getElementById('disclosedTenantId').textContent = tenantId;
+
+      if (banner) {
+        banner.style.display = 'block';
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function proceedFromKeyDisclosure() {
+      showToast('Private key loaded for dataset upload session!', '🚀');
+      const dropzoneEl = document.getElementById('dropzone');
+      if (dropzoneEl) {
+        dropzoneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('btnLoginSubmit');
+
+      if (!email || !password) {
+        showToast('Please enter both email and password.', '⚠️');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Logging in...</span>`;
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, password: password })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Invalid email or password');
+        }
+
+        STATE.sessionToken = data.access_token || data.session_token;
+        STATE.tenantId = data.tenant_id;
+
+        await loadAccountMe();
+      } catch (err) {
+        showToast(err.message, '❌');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>🔐 Log In</span>`;
+      }
+    }
+
+    async function loadAccountMe() {
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/me`, {
+          headers: {
+            'Authorization': `Bearer ${STATE.sessionToken}`
+          }
+        });
+
+        if (!resp.ok) {
+          throw new Error('Failed to retrieve account details');
+        }
+
+        const meData = await resp.json();
+        document.getElementById('dashCompanyName').textContent = meData.company_name || 'Company Dashboard';
+        document.getElementById('dashTenantId').textContent = meData.tenant_id;
+        document.getElementById('dashPublicKey').value = meData.public_key;
+
+        STATE.tenantId = meData.tenant_id;
+        updateActiveCredsIndicator(meData.tenant_id, STATE.apiKey);
+
+        setAuthView('dashboard');
+        showToast(`Logged in as ${meData.company_name}!`, '👋');
+      } catch (err) {
+        showToast(err.message, '❌');
+      }
+    }
+
+    async function handleRegenerateKeys() {
+      if (!STATE.sessionToken) {
+        showToast('Please log in with session token first.', '⚠️');
+        return;
+      }
+
+      const confirmed = confirm(
+        '⚠️ ARE YOU SURE?\n\n' +
+        'Regenerating API keys will IMMEDIATELY invalidate your existing keys.\n' +
+        'Old keys will stop working immediately across all endpoints.\n\n' +
+        'Click OK to issue a brand new key pair.'
+      );
+      if (!confirmed) return;
+
+      const btn = document.getElementById('btnRegenerateKeys');
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Regenerating...</span>`;
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/keys/regenerate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${STATE.sessionToken}`
+          }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Failed to regenerate keys');
+        }
+
+        // New keys are immediately active
+        STATE.apiKey = data.private_key;
+        STATE.tenantId = data.tenant_id;
+
+        displayKeysDisclosure(data.private_key, data.public_key, data.tenant_id, STATE.tenantId);
+        document.getElementById('dashPublicKey').value = data.public_key;
+        updateActiveCredsIndicator(data.tenant_id, data.private_key);
+
+        showToast('New keys issued! Save your new private key now.', '🔑');
+      } catch (err) {
+        showToast(err.message, '❌');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>🔄 Regenerate API Keys</span>`;
+      }
+    }
+
+    function proceedToUploadWithCurrentTenant() {
+      if (!STATE.apiKey) {
+        const inputKey = prompt(
+          `To upload datasets for tenant '${STATE.tenantId}', enter your Private API Key (sk-...):\n` +
+          `(Or leave blank to use demo/test keys):`
+        );
+        if (inputKey && inputKey.trim()) {
+          STATE.apiKey = inputKey.trim();
+        } else {
+          STATE.apiKey = `sk-${STATE.tenantId}-xxxx`;
+        }
+        updateActiveCredsIndicator(STATE.tenantId, STATE.apiKey);
+      }
+      showToast(`Ready for dataset upload for ${STATE.tenantId}!`, '📁');
+      const dropzoneEl = document.getElementById('dropzone');
+      if (dropzoneEl) {
+        dropzoneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function handleLogout() {
+      STATE.sessionToken = '';
+      STATE.account = null;
+      setAuthView('signup');
+      showToast('Logged out.', '👋');
+    }
+
+    function updateActiveCredsIndicator(tenantId, key) {
+      const ind = document.getElementById('activeCredsIndicator');
+      const disp = document.getElementById('activeTenantDisplay');
+      const hint = document.getElementById('activeKeyHint');
+      const activeKeyInput = document.getElementById('activeApiKey');
+      const activeTenantInput = document.getElementById('activeTenantId');
+
+      if (disp) disp.textContent = tenantId;
+      if (activeTenantInput) activeTenantInput.value = tenantId;
+      if (activeKeyInput && key) activeKeyInput.value = key;
+      if (hint && key) {
+        const masked = key.length > 14 ? `${key.substring(0, 8)}...${key.substring(key.length - 4)}` : key;
+        hint.textContent = `Using Key: ${masked}`;
+      }
+      if (ind) ind.style.display = 'flex';
+    }
+
+    function copyTextToClipboard(text, label = 'Key') {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(`Copied ${label} to clipboard!`, '📋');
+        }).catch(() => {
+          fallbackCopyText(text, label);
+        });
+      } else {
+        fallbackCopyText(text, label);
+      }
+    }
+
+    function fallbackCopyText(text, label) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(`Copied ${label} to clipboard!`, '📋');
+      } catch (e) {
+        prompt(`Copy ${label}:`, text);
+      }
+      if (ta.parentNode) document.body.removeChild(ta);
     }
 
     function onExistingTenantSelected() {
       const select = document.getElementById('existingTenantSelect');
+      if (!select) return;
       const [tId, key] = select.value.split('|');
       STATE.tenantId = tId;
       STATE.apiKey = key;
-      document.getElementById('activeTenantId').value = tId;
-      document.getElementById('activeApiKey').value = key;
-    }
-
-    function onNewTenantIdChange() {
-      const raw = document.getElementById('newTenantIdInput').value.trim();
-      const slug = raw.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      STATE.tenantId = slug || 'new_tenant';
-      STATE.apiKey = `sk-${STATE.tenantId}-xxxx`;
-      document.getElementById('activeTenantId').value = STATE.tenantId;
-      document.getElementById('activeApiKey').value = STATE.apiKey;
+      updateActiveCredsIndicator(tId, key);
     }
 
     // Drag-and-drop Event Listeners
@@ -1349,13 +1822,12 @@
       STATE.rawCsvContent = content;
       STATE.fileName = name;
 
+      const select = document.getElementById('existingTenantSelect');
       if (type === 'retail') {
-        document.getElementById('tenantModeSelect').value = 'existing';
-        document.getElementById('existingTenantSelect').value = 'online_retail|sk-online-retail-xxxx';
+        if (select) select.value = 'online_retail|sk-online-retail-xxxx';
         onExistingTenantSelected();
       } else {
-        document.getElementById('tenantModeSelect').value = 'existing';
-        document.getElementById('existingTenantSelect').value = 'telco_default|sk-telco-xxxx';
+        if (select) select.value = 'telco_default|sk-telco-xxxx';
         onExistingTenantSelected();
       }
 
@@ -1410,17 +1882,14 @@
       uploadBtn.disabled = true;
       uploadBtn.innerHTML = `<span>⏳ Uploading dataset...</span>`;
 
-      // If new tenant mode, ensure key is registered first
-      if (document.getElementById('tenantModeSelect').value === 'new') {
-        try {
-          await fetch(`${STATE.apiBaseUrl}/v1/onboard/register-key`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tenant_id: STATE.tenantId, api_key: STATE.apiKey })
-          });
-        } catch (e) {
-          console.warn('Register-key notice:', e);
-        }
+      // Ensure API key is configured
+      if (!STATE.apiKey) {
+        showToast('Please sign up or log in with your company account to issue keys first.', '⚠️');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = `<span>Upload &amp; Profile Dataset</span><span>➔</span>`;
+        const authCard = document.getElementById('accountAuthCard');
+        if (authCard) authCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
       }
 
       try {

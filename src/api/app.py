@@ -20,6 +20,7 @@ from src.api.recommendations import router as recommendations_router
 from src.api.retrain import router as retrain_router
 from src.api.tracking import router as tracking_router
 from src.api.ui import build_home_page, router as ui_router
+from src.api.accounts import router as accounts_router
 from src.integrations.shopify.api import router as shopify_router
 from src.utils.config import PROJECT_ROOT
 
@@ -82,6 +83,7 @@ v1_router.include_router(onboarding_router)
 v1_router.include_router(open_onboarding_router)
 v1_router.include_router(shopify_router)
 v1_router.include_router(retrain_router)
+v1_router.include_router(accounts_router)
 
 
 @v1_router.get("/sdk.js", include_in_schema=False)
@@ -115,6 +117,7 @@ app.include_router(onboarding_router)
 app.include_router(open_onboarding_router)
 app.include_router(shopify_router)
 app.include_router(retrain_router)
+app.include_router(accounts_router)
 
 
 @app.get(
@@ -144,6 +147,7 @@ def onboarding_portal():
 
 @app.get("/storefront", response_class=HTMLResponse)
 @app.get("/storefront.html", response_class=HTMLResponse)
+@app.get("/demo/storefront.html", response_class=HTMLResponse)
 def storefront_portal():
     storefront_file = PROJECT_ROOT / "demo" / "storefront.html"
     if storefront_file.exists():
@@ -151,8 +155,29 @@ def storefront_portal():
     return HTMLResponse("<h1>Storefront Not Found</h1>", status_code=404)
 
 
+@app.get("/instacart", response_class=HTMLResponse)
+@app.get("/instacart_grocery.html", response_class=HTMLResponse)
+@app.get("/demo/instacart_grocery.html", response_class=HTMLResponse)
+def instacart_grocery_portal():
+    grocery_file = PROJECT_ROOT / "demo" / "instacart_grocery.html"
+    if grocery_file.exists():
+        return HTMLResponse(grocery_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Grocery Storefront Not Found</h1>", status_code=404)
+
+
+@app.get("/hm", response_class=HTMLResponse)
+@app.get("/hm_fashion.html", response_class=HTMLResponse)
+@app.get("/demo/hm_fashion.html", response_class=HTMLResponse)
+def hm_fashion_portal():
+    fashion_file = PROJECT_ROOT / "demo" / "hm_fashion.html"
+    if fashion_file.exists():
+        return HTMLResponse(fashion_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Fashion Storefront Not Found</h1>", status_code=404)
+
+
 @app.get("/test-sdk", response_class=HTMLResponse)
 @app.get("/test_sdk.html", response_class=HTMLResponse)
+@app.get("/demo/test_sdk.html", response_class=HTMLResponse)
 def test_sdk_page():
     page_file = PROJECT_ROOT / "demo" / "test_sdk.html"
     if page_file.exists():

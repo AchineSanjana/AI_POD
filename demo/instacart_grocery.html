@@ -1,0 +1,2024 @@
+<!-- 
+  Fresh Cart Co. - Interactive Online Grocery Recommendation Storefront Demo
+  Simulating Instacart Market Basket Dataset Architecture
+
+  INTEGRATION ARCHITECTURE & SIMPLICITY NOTE:
+  This demo page simulates a real-world e-commerce grocery integration using the
+  official AI_POD client JavaScript SDK (sdk.js) loaded via:
+  <script src="{baseUrl}/sdk.js" data-tenant-key="{publicKey}"></script>
+
+  Direct Browser API Calls:
+  This demo calls the API directly from the browser for simplicity, and a real
+  production integration would proxy through the company's own backend service
+  or utilize this exact client SDK pattern for edge tracking and real-time
+  personalization widgets.
+
+  SDK Integration Surface Exercised:
+  - AIPod.init({ baseUrl, apiKey }) for connection configuration
+  - AIPod.identify(customerId) on shopper profile selection
+  - AIPod.getRecommendations(customerId) for personalized grocery item fetching
+  - AIPod.track(eventType, productId, options) on cart and browsing interactions
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fresh Cart Co. | Online Grocery &amp; Market Basket Recommendations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* Grocery App Color Palette - Fresh Greens & Earthy Accents */
+      --primary: #15803d;
+      --primary-hover: #166534;
+      --primary-light: #dcfce7;
+      --primary-soft: #f0fdf4;
+      --accent: #059669;
+      --accent-hover: #047857;
+      --accent-subtle: #ecfdf5;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --border: #e2e8f0;
+      --border-focus: #86efac;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --warning-border: #fcd34d;
+      --warning-text: #92400e;
+      --success: #16a34a;
+      --danger: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Connected Warning Banner */
+    .unconnected-banner {
+      background: var(--warning-bg);
+      border-bottom: 1px solid var(--warning-border);
+      color: var(--warning-text);
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-align: center;
+      box-shadow: var(--shadow-xs);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .unconnected-banner a, .unconnected-banner button {
+      color: var(--warning-text);
+      text-decoration: underline;
+      background: none;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    /* Top Sub-Bar (Status & Settings Drawer Toggle) */
+    .top-bar {
+      background: #064e3b;
+      color: #ecfdf5;
+      font-size: 0.825rem;
+      padding: 6px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-pill-fresh {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .api-config-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: #d1fae5;
+      font-size: 0.8rem;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .api-config-toggle:hover {
+      background: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+    }
+
+    /* Collapsible Setup Checklist Panel (Collapsed by default) */
+    .setup-checklist-drawer {
+      display: none;
+      background: #f0fdf4;
+      border-bottom: 2px solid #86efac;
+      padding: 24px;
+      animation: slideDown 0.22s ease-out;
+    }
+
+    .setup-checklist-drawer.open {
+      display: block;
+    }
+
+    .checklist-card {
+      max-width: 1280px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-md);
+      padding: 24px 28px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .checklist-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 14px;
+    }
+
+    .checklist-badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    .checklist-title {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #14532d;
+      margin-bottom: 4px;
+    }
+
+    .checklist-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .checklist-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.6rem;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.15s;
+    }
+
+    .checklist-close-btn:hover {
+      color: var(--danger);
+    }
+
+    .checklist-items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: #f8fafc;
+      border: 1px solid #f1f5f9;
+    }
+
+    .checklist-box {
+      font-size: 1.15rem;
+      color: #15803d;
+      line-height: 1.2;
+      user-select: none;
+      font-weight: 700;
+    }
+
+    .checklist-text {
+      flex: 1;
+    }
+
+    .checklist-text code {
+      background: #e2e8f0;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-family: monospace;
+    }
+
+    .checklist-footer-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-top: 1px dashed #e2e8f0;
+      padding-top: 12px;
+    }
+
+    /* Collapsible Settings Drawer (In-Memory JS variable session only) */
+    .config-drawer {
+      display: none;
+      background: #022c22;
+      color: #e2e8f0;
+      padding: 20px 24px;
+      border-bottom: 1px solid #065f46;
+      font-size: 0.85rem;
+    }
+
+    .config-drawer.open {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .config-container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .config-title {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #a7f3d0;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .config-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #a7f3d0;
+    }
+
+    .config-field input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #047857;
+      background: #064e3b;
+      color: #ffffff;
+      font-size: 0.875rem;
+      font-family: monospace;
+    }
+
+    .config-field input:focus {
+      outline: none;
+      border-color: #34d399;
+      box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.3);
+    }
+
+    .btn-apply-config {
+      background: #10b981;
+      color: #064e3b;
+      border: none;
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-apply-config:hover {
+      background: #34d399;
+    }
+
+    .config-footnote {
+      font-size: 0.775rem;
+      color: #6ee7b7;
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    /* Header Action Buttons */
+    .header-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-light);
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .header-pill-btn:hover {
+      background: var(--primary-light);
+      border-color: #86efac;
+    }
+
+    .header-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .header-icon-btn:hover {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+    }
+
+    /* Main Navigation Header */
+    .site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25);
+    }
+
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #14532d;
+      line-height: 1.1;
+    }
+
+    .brand-tagline {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .search-mockup {
+      flex: 1;
+      max-width: 460px;
+      position: relative;
+      display: none;
+    }
+
+    @media (min-width: 900px) {
+      .search-mockup { display: block; }
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 16px 10px 42px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: var(--surface-subtle);
+      font-size: 0.875rem;
+      color: var(--text);
+    }
+
+    .search-input:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .cart-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-light);
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cart-btn:hover {
+      background: var(--primary-light);
+    }
+
+    .cart-badge {
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Shopper Context Selection Bar */
+    .shopper-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+    }
+
+    .shopper-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .shopper-select-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .shopper-label {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .shopper-select {
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      border: 1.5px solid var(--border);
+      background: #ffffff;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 280px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .shopper-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.15);
+    }
+
+    .shopper-chip {
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-light);
+      color: var(--primary);
+      font-size: 0.775rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .engine-status-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.825rem;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .status-dot.online {
+      background: #16a34a;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+    }
+
+    .status-dot.warning {
+      background: #d97706;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+    }
+
+    .status-dot.error {
+      background: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+    }
+
+    /* Main Container */
+    .main-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px 64px 24px;
+    }
+
+    /* Fresh Hero Promotional Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #14532d 0%, #15803d 50%, #16a34a 100%);
+      color: #ffffff;
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: '🛒';
+      position: absolute;
+      right: 24px;
+      bottom: -15px;
+      font-size: 9rem;
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 10px;
+      max-width: 650px;
+    }
+
+    .hero-desc {
+      font-size: 0.95rem;
+      color: #ecfdf5;
+      max-width: 580px;
+      line-height: 1.55;
+    }
+
+    /* Section Headers */
+    .section-wrap {
+      margin-bottom: 48px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+    }
+
+    .section-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* Fallback and ML Badges */
+    .badge-fallback {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .badge-personalized {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #15803d;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Products Grid */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 20px;
+    }
+
+    /* Grocery Product Card */
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: #86efac;
+    }
+
+    .card-top-tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 2;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .tag-rec {
+      background: #15803d;
+      color: #ffffff;
+    }
+
+    .tag-catalog {
+      background: rgba(15, 23, 42, 0.75);
+      color: #ffffff;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Card Image / Placeholder Box */
+    .card-image-box {
+      width: 100%;
+      height: 150px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-subtle);
+    }
+
+    .grocery-placeholder-canvas {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+    }
+
+    .grocery-initials-badge {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #15803d;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      border: 2px solid rgba(255, 255, 255, 0.85);
+    }
+
+    .grocery-sku-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(255, 255, 255, 0.75);
+      padding: 1px 7px;
+      border-radius: var(--radius-full);
+      backdrop-filter: blur(2px);
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-category-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--primary);
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 2.7em;
+    }
+
+    .card-meta-row {
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-price-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-price {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .price-asterisk {
+      color: var(--primary);
+      font-weight: 800;
+      margin-left: 2px;
+      font-size: 0.85rem;
+    }
+
+    .card-price-note {
+      font-size: 0.65rem;
+      color: var(--text-subtle);
+      font-style: italic;
+      margin-top: 2px;
+    }
+
+    .btn-add-cart {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-add-cart:hover {
+      background: var(--primary-hover);
+      transform: scale(1.03);
+    }
+
+    .btn-add-cart:active {
+      transform: scale(0.97);
+    }
+
+    /* Skeleton Loading State */
+    .skeleton-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      height: 270px;
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* Price Disclaimer Note */
+    .illustrative-legend {
+      background: #f1f5f9;
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      font-size: 0.775rem;
+      color: var(--text-muted);
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Department Filter Navigation */
+    .dept-nav-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 20px;
+      scrollbar-width: thin;
+    }
+
+    .dept-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .dept-pill:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .dept-pill.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    /* Offline / Error State */
+    .state-banner {
+      background: #ffffff;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius-md);
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .state-banner.warning {
+      border-color: var(--warning-border);
+      background: #fffdf5;
+    }
+
+    .state-icon {
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+    }
+
+    .state-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .state-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      max-width: 540px;
+      margin: 0 auto 16px auto;
+      line-height: 1.6;
+    }
+
+    .btn-retry {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    /* Toast Notification Stack */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xl);
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      border-left: 4px solid var(--primary);
+      animation: toastIn 0.25s ease-out;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(15px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Site Footer */
+    footer.site-footer {
+      background: #022c22;
+      color: #94a3b8;
+      border-top: 1px solid #064e3b;
+      padding: 48px 24px 32px 24px;
+      font-size: 0.875rem;
+    }
+
+    .footer-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    .footer-col h4 {
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      margin-bottom: 14px;
+    }
+
+    .footer-col ul {
+      list-style: none;
+    }
+
+    .footer-col li {
+      margin-bottom: 8px;
+    }
+
+    .footer-col a {
+      color: #a7f3d0;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .footer-col a:hover {
+      color: #ffffff;
+    }
+
+    .footer-bottom {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding-top: 24px;
+      border-top: 1px solid #064e3b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .hero-title { font-size: 1.7rem; }
+      .hero-banner { padding: 24px; }
+      .shopper-select { min-width: 100%; }
+      .shopper-container { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================== -->
+  <!-- TOP CONNECTED STATUS BANNER                                           -->
+  <!-- Checks whether publicKey still equals "PASTE_YOUR_PUBLIC_KEY_HERE"    -->
+  <!-- ===================================================================== -->
+  <div id="unconnectedBanner" class="unconnected-banner" style="display: none;">
+    <span>⚠ Demo not connected yet — add your public key in CONFIG to activate live recommendations.</span>
+    <button type="button" id="bannerQuickConfigBtn">Configure Now ⚙️</button>
+    <button type="button" id="bannerSetupBtn">View Setup Checklist 📋</button>
+  </div>
+
+  <!-- Top Announcement Bar & API Config Toggle -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <span class="badge-pill-fresh">INSTACART DATASET DEMO</span>
+      <span>Fresh Cart Co. &bull; Online Grocery Recommendation Engine</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button id="configToggleBtn" class="api-config-toggle">
+        ⚙️ Settings Drawer
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="#" class="brand-logo">
+        <div class="brand-icon-box">🥑</div>
+        <div>
+          <div class="brand-name">Fresh Cart Co.</div>
+          <div class="brand-tagline">Fresh groceries delivered fast &bull; Powered by AI_POD</div>
+        </div>
+      </a>
+
+      <div class="search-mockup">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="Search organic bananas, milk, snacks, beverages..." readonly onclick="showToast('Browse departments below or try shopper recommendations!')">
+      </div>
+
+      <div class="header-actions">
+        <button class="header-pill-btn" id="setupToggleBtn" title="Toggle Setup Checklist">
+          <span>⚙</span>
+          <span>Setup</span>
+        </button>
+        <button class="header-icon-btn" id="headerConfigBtn" title="API Settings Drawer">
+          <span>⚙️</span>
+        </button>
+        <button class="cart-btn" id="cartBtn" title="View Grocery Cart">
+          <span>🛒</span>
+          <span>Cart</span>
+          <span class="cart-badge" id="cartCount">4</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Collapsible Setup Checklist Panel (Collapsed by default, toggled via '⚙ Setup' button in header) -->
+  <div id="setupChecklistDrawer" class="setup-checklist-drawer">
+    <div class="checklist-card">
+      <div class="checklist-header">
+        <div class="checklist-title-wrap">
+          <span class="checklist-badge">WALKTHROUGH GUIDE</span>
+          <h3 class="checklist-title">📋 Setup Checklist</h3>
+          <p class="checklist-subtitle">
+            Manual steps in order for walking through the demo yourself:
+          </p>
+        </div>
+        <button id="closeChecklistBtn" class="checklist-close-btn" title="Close Checklist">&times;</button>
+      </div>
+      <ul class="checklist-items">
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>1.</strong> Go to the onboarding page and sign up as a new company (&ldquo;Fresh Cart Co.&rdquo;)</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>2.</strong> Copy the private key shown once at signup &mdash; save it somewhere safe, it won't be shown again</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>3.</strong> Copy the public key shown at signup</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>4.</strong> Paste the public key into <code>CONFIG.publicKey</code> in this file's source (or, if a settings UI exists, into the settings drawer below)</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>5.</strong> Use the private key to upload the Instacart dataset through the onboarding upload flow</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>6.</strong> Wait for training (or use the popular-products fallback shown here in the meantime)</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>7.</strong> Refresh this page &mdash; the fallback badge should disappear once training completes</span>
+        </li>
+      </ul>
+      <div class="checklist-footer-note">
+        <em>Note: Each checklist item is plain static text, not functional &mdash; this is a reminder panel for walking through the demo yourself, not a wizard.</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Settings Drawer (stored in JS variable only, not persisted) -->
+  <div id="configDrawer" class="config-drawer">
+    <div class="config-container">
+      <div class="config-header">
+        <h4 class="config-title">⚙️ API Connection Settings (In-Memory Session)</h4>
+        <button id="closeConfigBtn" class="checklist-close-btn" title="Close Settings" style="color:#a7f3d0;">&times;</button>
+      </div>
+      <div class="config-grid">
+        <div class="config-field">
+          <label for="inputBaseUrl">API Base URL (Deployed AWS or Local Server)</label>
+          <input type="text" id="inputBaseUrl" placeholder="https://your-engine.com or http://localhost:8000">
+        </div>
+        <div class="config-field">
+          <label for="inputPublicKey">Tenant Public Key (pk-... received at onboarding)</label>
+          <input type="text" id="inputPublicKey" placeholder="PASTE_YOUR_PUBLIC_KEY_HERE">
+        </div>
+        <div>
+          <button id="saveConfigBtn" class="btn-apply-config">Apply Live (Session Only)</button>
+        </div>
+      </div>
+      <p class="config-footnote">
+        * Edits made here are stored in memory in the <code>CONFIG</code> JavaScript variable for this tab only (not persisted). To save permanently, edit the source code constants.
+      </p>
+    </div>
+  </div>
+
+  <!-- Shopper Context Selection Bar -->
+  <section class="shopper-bar">
+    <div class="shopper-container">
+      <div class="shopper-select-group">
+        <span class="shopper-label">
+          <span>👤</span>
+          <span>Shopping as:</span>
+        </span>
+
+        <!-- 
+          NOTE ON SHOPPER USER IDS:
+          The user_ids below (e.g., 2455, 10928, 48201, 65293, 103842, 189204) are plausible
+          Instacart user_ids. These must be replaced with real user_ids from your dataset once the
+          Instacart dataset is actually onboarded and trained, since they don't exist in the engine until then.
+        -->
+        <select id="shopperSelect" class="shopper-select">
+          <option value="2455" selected>Shopper #2455 (Organic Produce &amp; Smoothie Fan)</option>
+          <option value="10928">Shopper #10928 (Family Breakfast &amp; Dairy Essentials)</option>
+          <option value="48201">Shopper #48201 (Weekly Meal Prepper &amp; Fresh Veggies)</option>
+          <option value="65293">Shopper #65293 (Gluten-Free &amp; Healthy Snacks)</option>
+          <option value="103842">Shopper #103842 (Quick Dinners &amp; Frozen Comfort)</option>
+          <option value="189204">Shopper #189204 (Gourmet Pantry &amp; Beverages)</option>
+          <option value="1">Shopper #1 (Weekend Entertaining &amp; Refreshments)</option>
+        </select>
+
+        <span class="shopper-chip" id="shopperPersonaChip">
+          <span>✨</span>
+          <span id="shopperPersonaText">Profile: Organic Produce Fan</span>
+        </span>
+      </div>
+
+      <div class="engine-status-wrap">
+        <div class="status-dot" id="engineStatusDot"></div>
+        <span id="engineStatusText">Checking SDK status...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Storefront Page -->
+  <main class="main-content">
+
+    <!-- Promotional Hero Banner -->
+    <section class="hero-banner">
+      <div>
+        <span class="hero-badge">AI-Powered Market Basket Engine</span>
+        <h1 class="hero-title">Farm-Fresh Groceries, Personalized for Your Kitchen</h1>
+        <p class="hero-desc">
+          Fresh Cart Co. delivers high quality organic produce, dairy, bakery, and pantry staples. 
+          Our AI_POD engine predicts your reorders and market basket affinity in real time.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 1: Recommended for You (Live API via sdk.js) -->
+    <section class="section-wrap" id="recommendedSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">✨ Recommended for You</h2>
+            <!-- Dynamic Fallback vs Personalized Badge -->
+            <span id="recEngineBadge" class="badge-personalized">✨ Personalized ML</span>
+          </div>
+          <p class="section-subtitle">
+            Items tailored for Shopper <strong id="activeShopperIdLabel">#2455</strong> based on frequent basket combinations
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Recommendation Cards Container -->
+      <div id="recommendationsGrid" class="products-grid">
+        <!-- Rendered dynamically by JavaScript via AIPod.getRecommendations() -->
+      </div>
+
+      <!-- Price Disclaimer -->
+      <div class="illustrative-legend">
+        <span>ℹ️</span>
+        <span><strong>Price Note:</strong> Products in the Instacart Market Basket dataset do not include retail prices. All displayed prices are illustrative placeholders marked with (*).</span>
+      </div>
+
+      <!-- Offline / Not-Connected Banner in Recommendations Section -->
+      <div id="recErrorState" class="state-banner warning" style="display: none; margin-top: 20px;">
+        <div class="state-icon">⚠️</div>
+        <h3 class="state-title" id="recErrorTitle">Demo not connected to live recommendation engine</h3>
+        <p class="state-desc" id="recErrorMessage">
+          Please configure your <code>CONFIG.baseUrl</code> and <code>CONFIG.publicKey</code> at the top of 
+          <code>demo/instacart_grocery.html</code>, or click the settings button above to connect immediately.
+        </p>
+        <button id="recRetryBtn" class="btn-retry">Retry Connection</button>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Browse by Department (Static Instacart Context Grid) -->
+    <section class="section-wrap" id="departmentSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">Browse by Department</h2>
+            <span class="badge-fallback" style="background:#e2e8f0; border-color:#cbd5e1; color:#334155;">Static Catalog Sample</span>
+          </div>
+          <p class="section-subtitle">
+            Explore authentic staples from the Instacart dataset across five core supermarket departments
+          </p>
+        </div>
+      </div>
+
+      <!-- Department Filter Pills -->
+      <div class="dept-nav-pills" id="deptNavPills">
+        <button class="dept-pill active" data-dept="all">All Departments (30)</button>
+        <button class="dept-pill" data-dept="produce">Produce (6)</button>
+        <button class="dept-pill" data-dept="dairy eggs">Dairy &amp; Eggs (6)</button>
+        <button class="dept-pill" data-dept="snacks">Snacks (6)</button>
+        <button class="dept-pill" data-dept="beverages">Beverages (6)</button>
+        <button class="dept-pill" data-dept="frozen">Frozen (6)</button>
+      </div>
+
+      <!-- Static Catalog Grid -->
+      <div id="departmentGrid" class="products-grid">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-col" style="max-width: 320px;">
+        <h4>Fresh Cart Co.</h4>
+        <p style="color:#a7f3d0; font-size:0.825rem; line-height:1.6;">
+          A demonstration grocery storefront simulating real-world consumption of 
+          the AI_POD recommendation engine API on the Instacart Market Basket dataset.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Instacart Departments</h4>
+        <ul>
+          <li><a href="#departmentSection" onclick="filterDepartment('produce')">Fresh Produce &amp; Greens</a></li>
+          <li><a href="#departmentSection" onclick="filterDepartment('dairy eggs')">Dairy &amp; Free Range Eggs</a></li>
+          <li><a href="#departmentSection" onclick="filterDepartment('snacks')">Pantry &amp; Healthy Snacks</a></li>
+          <li><a href="#departmentSection" onclick="filterDepartment('beverages')">Sparkling &amp; Cold Beverages</a></li>
+          <li><a href="#departmentSection" onclick="filterDepartment('frozen')">Frozen Produce &amp; Meals</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Integration Architecture</h4>
+        <ul>
+          <li><a href="#">Script: <code>{baseUrl}/sdk.js</code></a></li>
+          <li><a href="#">Public Key: <code>data-tenant-key</code></a></li>
+          <li><a href="#">Recommendations: <code>AIPod.getRecommendations()</code></a></li>
+          <li><a href="#">Telemetry Tracking: <code>AIPod.track('view' | 'add_to_cart')</code></a></li>
+          <li><a href="#">Cold-Start Flag: <code>response.fallback === true</code></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>&copy; 2026 Fresh Cart Co. &bull; Powered by AI_POD Recommendation Platform.</div>
+      <div style="color: #6ee7b7;">Instacart Market Basket Dataset Simulation &bull; Demo Storefront</div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Client-side Logic (Vanilla JS, Zero External Build Step) -->
+  <script>
+    // =====================================================================
+    // STOP — before this page will work, fill in CONFIG above:
+    //   1. baseUrl  -> the deployed API's base URL
+    //   2. publicKey -> the pk-... key you receive from the sign-up/onboarding page
+    // This page will show a visible on-page warning banner until both are filled in.
+    // =====================================================================
+
+    const CONFIG = {
+      baseUrl: "https://your-engine.com",       // TODO: REPLACE with the deployed AWS API base URL
+      publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",  // TODO: paste the pk-... key from onboarding here
+    };
+
+    // Number of recommendations to request per query
+    const TOP_N = 6;
+
+    // Cart state
+    let cartCount = 4;
+
+    // Pastel gradients for fresh grocery placeholder product imagery
+    const GROCERY_GRADIENTS = [
+      'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', // Mint / Crisp Lettuce
+      'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', // Lemon / Butter
+      'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', // Peach / Citrus
+      'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', // Berry / Strawberry
+      'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)', // Cold Water / Milk
+      'linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%)', // Cucumber / Lime
+      'linear-gradient(135deg, #fae8ff 0%, #f5d0fe 100%)', // Açaí / Blackberry
+      'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)'  // Neutral Pantry
+    ];
+
+    // Static Context Grid: 30 Authentic Instacart Products grouped across 5 departments (~6 each)
+    const STATIC_INSTACART_CATALOG = [
+      // 1. Produce
+      { id: '13176', name: 'Bag of Organic Bananas', department: 'Produce', aisle: 'fresh fruits', price: '$2.49' },
+      { id: '47209', name: 'Organic Hass Avocado', department: 'Produce', aisle: 'fresh fruits', price: '$3.99' },
+      { id: '21137', name: 'Organic Strawberries', department: 'Produce', aisle: 'fresh fruits', price: '$4.49' },
+      { id: '21903', name: 'Organic Baby Spinach', department: 'Produce', aisle: 'packaged vegetables fruits', price: '$3.29' },
+      { id: '19057', name: 'Large Honeycrisp Apples', department: 'Produce', aisle: 'fresh fruits', price: '$4.99' },
+      { id: '22935', name: 'Organic Yellow Onions (3 lb bag)', department: 'Produce', aisle: 'fresh vegetables', price: '$2.99' },
+
+      // 2. Dairy & Eggs
+      { id: '27845', name: 'Organic Whole Milk (1 Gallon)', department: 'Dairy Eggs', aisle: 'milk', price: '$4.89' },
+      { id: '33731', name: 'Grade A Free Range Large Brown Eggs', department: 'Dairy Eggs', aisle: 'eggs', price: '$4.29' },
+      { id: '34126', name: 'Honey Vanilla Whole Milk Greek Yogurt', department: 'Dairy Eggs', aisle: 'yogurt', price: '$3.99' },
+      { id: '5450',  name: 'Small Batch Pure Irish Butter', department: 'Dairy Eggs', aisle: 'butter', price: '$4.19' },
+      { id: '4210',  name: 'Extra Sharp White Cheddar Slices', department: 'Dairy Eggs', aisle: 'packaged cheese', price: '$3.79' },
+      { id: '24954', name: 'Organic Half and Half Cremer (32 oz)', department: 'Dairy Eggs', aisle: 'cream', price: '$3.49' },
+
+      // 3. Snacks
+      { id: '47734', name: 'Sea Salt Pita Chips', department: 'Snacks', aisle: 'chips pretzels', price: '$3.89' },
+      { id: '13870', name: 'Lightly Salted Baked Snap Pea Crisps', department: 'Snacks', aisle: 'chips pretzels', price: '$2.99' },
+      { id: '39877', name: 'Organic Dark Chocolate Almonds', department: 'Snacks', aisle: 'candy chocolate', price: '$4.69' },
+      { id: '18465', name: 'Organic Thin Sea Salt Tortilla Chips', department: 'Snacks', aisle: 'chips pretzels', price: '$3.49' },
+      { id: '20114', name: 'Kettle Cooked Jalapeño Potato Chips', department: 'Snacks', aisle: 'chips pretzels', price: '$3.19' },
+      { id: '28985', name: 'Organic Cranberry Almond Trail Mix', department: 'Snacks', aisle: 'trail mix', price: '$5.29' },
+
+      // 4. Beverages
+      { id: '21386', name: 'Sparkling Natural Mineral Water', department: 'Beverages', aisle: 'water seltzer sparkling water', price: '$2.19' },
+      { id: '44632', name: 'Grapefruit Sparkling Water (8 pk cans)', department: 'Beverages', aisle: 'water seltzer sparkling water', price: '$4.99' },
+      { id: '8021',  name: '100% Raw Pure Coconut Water', department: 'Beverages', aisle: 'juice nectars', price: '$3.29' },
+      { id: '28842', name: 'Ginger Lemon Organic Live Kombucha', department: 'Beverages', aisle: 'refrigerated beverages', price: '$3.79' },
+      { id: '196',   name: 'Cold Brew Coffee Concentrate', department: 'Beverages', aisle: 'coffee', price: '$4.49' },
+      { id: '25890', name: '100% Florida Pulp Free Orange Juice', department: 'Beverages', aisle: 'juice nectars', price: '$3.99' },
+
+      // 5. Frozen
+      { id: '9839',  name: 'Organic Whole Frozen Strawberries', department: 'Frozen', aisle: 'frozen produce', price: '$3.99' },
+      { id: '20995', name: 'Organic Steamable Broccoli Florets', department: 'Frozen', aisle: 'frozen produce', price: '$2.79' },
+      { id: '34358', name: 'Homestyle Gluten-Free Waffles (6 ct)', department: 'Frozen', aisle: 'frozen breakfast', price: '$3.89' },
+      { id: '16185', name: 'Creamy White Cheddar Mac & Cheese', department: 'Frozen', aisle: 'frozen meals', price: '$4.49' },
+      { id: '24489', name: 'Organic Superfruit Açaí Sorbet Bites', department: 'Frozen', aisle: 'ice cream ice', price: '$5.49' },
+      { id: '45007', name: 'Thin Crust Margherita Wood-Fired Pizza', department: 'Frozen', aisle: 'frozen pizza', price: '$6.99' }
+    ];
+
+    // ---------------------------------------------------------------------------
+    // Helper Utilities
+    // ---------------------------------------------------------------------------
+    function getInitials(name) {
+      if (!name) return 'FC';
+      const clean = name.replace(/[^\w\s]/g, '').trim();
+      const parts = clean.split(/\s+/).filter(Boolean);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+
+    function getGradientForId(id) {
+      let hash = 0;
+      const str = String(id);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return GROCERY_GRADIENTS[Math.abs(hash % GROCERY_GRADIENTS.length)];
+    }
+
+    function generateIllustrativePrice(id) {
+      let hash = 0;
+      const str = String(id);
+      for (let i = 0; i < str.length; i++) {
+        hash += str.charCodeAt(i);
+      }
+      const dollars = (hash % 6) + 2; // $2 - $7
+      const centsList = [29, 49, 79, 99];
+      const cents = centsList[hash % centsList.length];
+      return `$${dollars}.${cents}`;
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>🥑</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 350);
+      }, 2800);
+    }
+
+    function updateCartBadge(count) {
+      cartCount = count;
+      document.getElementById('cartCount').textContent = cartCount;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Public Key & Connection Warning Banner Verification
+    // ---------------------------------------------------------------------------
+    function isKeyPlaceholder(key) {
+      if (!key) return true;
+      const clean = key.trim();
+      return clean === "PASTE_YOUR_PUBLIC_KEY_HERE" || 
+             clean === "" || 
+             clean.startsWith("PASTE_");
+    }
+
+    function updateConnectionBannerState() {
+      const banner = document.getElementById('unconnectedBanner');
+      const engineDot = document.getElementById('engineStatusDot');
+      const engineText = document.getElementById('engineStatusText');
+
+      if (isKeyPlaceholder(CONFIG.publicKey)) {
+        // Must show exact requested warning:
+        // "⚠ Demo not connected yet — add your public key in CONFIG to activate live recommendations."
+        banner.style.display = 'flex';
+        engineDot.className = 'status-dot warning';
+        engineText.innerHTML = `Unconnected: <code style="color:#d97706">CONFIG.publicKey</code> is placeholder`;
+        return false;
+      } else {
+        banner.style.display = 'none';
+        return true;
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // SDK Loader & Initializer
+    // Dynamically loads {baseUrl}/sdk.js with data-tenant-key={CONFIG.publicKey}
+    // ---------------------------------------------------------------------------
+    async function ensureAIPodSdkLoaded() {
+      // If already initialized on window
+      if (typeof window.AIPod !== 'undefined') {
+        window.AIPod.init({
+          baseUrl: CONFIG.baseUrl,
+          apiKey: CONFIG.publicKey
+        });
+        return window.AIPod;
+      }
+
+      // If configuration is still placeholder or invalid URL, do not fire broken network requests
+      if (isKeyPlaceholder(CONFIG.publicKey) || !CONFIG.baseUrl || CONFIG.baseUrl === "https://your-engine.com") {
+        return null;
+      }
+
+      return new Promise((resolve) => {
+        let existing = document.getElementById('aipod-sdk');
+        if (existing) existing.remove();
+
+        const script = document.createElement('script');
+        script.id = 'aipod-sdk';
+        script.setAttribute('data-tenant-key', CONFIG.publicKey);
+        const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
+        script.src = `${cleanBase}/sdk.js`;
+
+        script.onload = () => {
+          if (typeof window.AIPod !== 'undefined') {
+            window.AIPod.init({
+              baseUrl: CONFIG.baseUrl,
+              apiKey: CONFIG.publicKey
+            });
+            console.log('[Fresh Cart Co.] AIPod SDK successfully loaded from ' + script.src);
+            resolve(window.AIPod);
+          } else {
+            resolve(null);
+          }
+        };
+
+        script.onerror = () => {
+          console.warn('[Fresh Cart Co.] Could not load sdk.js from ' + script.src);
+          resolve(null);
+        };
+
+        document.head.appendChild(script);
+      });
+    }
+
+    // ---------------------------------------------------------------------------
+    // Telemetry Interaction Triggers (Exercises AIPod.track pattern from Step 23)
+    // ---------------------------------------------------------------------------
+    function trackProductClick(productId, productName) {
+      console.log(`[Telemetry] AIPod.track('view', '${productId}')`);
+      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+        window.AIPod.track('view', productId);
+      }
+      showToast(`Viewed "${productName}" &bull; AIPod.track('view', '${productId}')`);
+    }
+
+    function addProductToCart(event, productId, productName) {
+      if (event) event.stopPropagation();
+      updateCartBadge(cartCount + 1);
+
+      console.log(`[Telemetry] AIPod.track('add_to_cart', '${productId}')`);
+      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+        window.AIPod.track('add_to_cart', productId, { quantity: 1 });
+      }
+      showToast(`Added "${productName}" to cart! &bull; AIPod.track('add_to_cart', '${productId}')`);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Recommendations Fetcher (Calling AIPod.getRecommendations)
+    // ---------------------------------------------------------------------------
+    async function loadRecommendations(shopperId) {
+      const grid = document.getElementById('recommendationsGrid');
+      const recErrorState = document.getElementById('recErrorState');
+      const recErrorTitle = document.getElementById('recErrorTitle');
+      const recErrorMessage = document.getElementById('recErrorMessage');
+      const engineDot = document.getElementById('engineStatusDot');
+      const engineText = document.getElementById('engineStatusText');
+      const recBadge = document.getElementById('recEngineBadge');
+      const activeShopperLabel = document.getElementById('activeShopperIdLabel');
+
+      activeShopperLabel.textContent = `#${shopperId}`;
+      recErrorState.style.display = 'none';
+
+      // Verify connection keys
+      const isConnected = updateConnectionBannerState();
+      if (!isConnected) {
+        grid.innerHTML = '';
+        recErrorState.style.display = 'block';
+        recErrorTitle.textContent = 'Demo not connected to live recommendation engine';
+        recErrorMessage.innerHTML = `
+          <code>CONFIG.publicKey</code> is still set to placeholder <code>"${CONFIG.publicKey}"</code>.<br>
+          1. Edit <code>CONFIG</code> in <code>demo/instacart_grocery.html</code> with your deployed AWS API URL and public key, OR<br>
+          2. Click <strong>"⚙️ API Connection Settings"</strong> above to enter them directly in the browser.
+        `;
+        engineDot.className = 'status-dot warning';
+        engineText.textContent = 'Waiting for valid public key in CONFIG';
+        recBadge.className = 'badge-fallback';
+        recBadge.innerHTML = '⚡ Demo Disconnected';
+        return;
+      }
+
+      // Show skeleton placeholders while fetching
+      grid.style.display = 'grid';
+      grid.innerHTML = Array(TOP_N).fill(0).map(() => '<div class="skeleton-card"></div>').join('');
+      engineDot.className = 'status-dot';
+      engineText.textContent = `AIPod.getRecommendations("${shopperId}")...`;
+
+      try {
+        const sdk = await ensureAIPodSdkLoaded();
+        if (!sdk) {
+          throw new Error(`Unable to load AIPod SDK from ${CONFIG.baseUrl}/sdk.js. Ensure the API server is reachable.`);
+        }
+
+        // Set shopper context via SDK identify
+        sdk.identify(shopperId);
+
+        // Fetch recommendations from API via SDK
+        const recommendations = await sdk.getRecommendations(shopperId, { topN: TOP_N });
+
+        // Check fallback status on response (Step 23 pattern)
+        const isFallback = Boolean(recommendations && recommendations.fallback);
+        const count = Array.isArray(recommendations) ? recommendations.length : 0;
+
+        if (isFallback) {
+          recBadge.className = 'badge-fallback';
+          recBadge.innerHTML = '⚡ Popularity Fallback (Cold-Start)';
+          engineDot.className = 'status-dot online';
+          engineText.innerHTML = `Active: <code>sdk.js</code> &bull; Shopper #${shopperId} &bull; ${count} items &bull; <strong style="color:#d97706;">Popularity Fallback</strong>`;
+        } else {
+          recBadge.className = 'badge-personalized';
+          recBadge.innerHTML = '✨ Personalized ML';
+          engineDot.className = 'status-dot online';
+          engineText.innerHTML = `Active: <code>sdk.js</code> &bull; Shopper #${shopperId} &bull; ${count} items &bull; <strong style="color:#16a34a;">Personalized ML</strong>`;
+        }
+
+        renderRecommendationsGrid(recommendations);
+      } catch (err) {
+        console.error('Failed to retrieve recommendations:', err);
+        grid.style.display = 'none';
+        recErrorState.style.display = 'block';
+        recErrorTitle.textContent = 'Unable to reach the Recommendation API';
+        recErrorMessage.innerHTML = `
+          <strong>Connection Failed:</strong> ${err.message}<br>
+          Ensure your API server is running at <code>${CONFIG.baseUrl}</code> and the public key <code>${CONFIG.publicKey}</code> is valid.
+        `;
+        engineDot.className = 'status-dot error';
+        engineText.textContent = `Error: ${err.message}`;
+        recBadge.className = 'badge-fallback';
+        recBadge.innerHTML = '⚡ Offline';
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Render Live Recommendations Cards
+    // ---------------------------------------------------------------------------
+    function renderRecommendationsGrid(items) {
+      const grid = document.getElementById('recommendationsGrid');
+
+      if (!items || items.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted); background:#ffffff; border-radius:12px; border:1px solid var(--border);">
+            No recommendations currently returned for this shopper profile.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = items.map((item, index) => {
+        const pid = item.product_id;
+        const pName = item.product_name || `Instacart Product ${pid}`;
+        const pCategory = item.category || 'Produce';
+        const pPrice = generateIllustrativePrice(pid);
+        const initials = getInitials(pName);
+        const bgGrad = getGradientForId(pid);
+        const rank = item.rank || (index + 1);
+
+        return `
+          <article class="product-card" onclick="trackProductClick('${pid}', '${pName.replace(/'/g, "\\'")}')">
+            <span class="card-top-tag tag-rec">Top Pick #${rank}</span>
+            <div class="card-image-box">
+              <div class="grocery-placeholder-canvas" style="background: ${bgGrad}">
+                <div class="grocery-initials-badge">${initials}</div>
+                <div class="grocery-sku-label">Item #${pid}</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <span class="card-category-pill">${pCategory}</span>
+              <h3 class="card-title" title="${pName}">${pName}</h3>
+              <div class="card-meta-row">
+                <div class="card-price-wrap">
+                  <div class="card-price">${pPrice}<span class="price-asterisk" title="Illustrative placeholder price">*</span></div>
+                  <div class="card-price-note">*illustrative</div>
+                </div>
+                <button class="btn-add-cart" onclick="addProductToCart(event, '${pid}', '${pName.replace(/'/g, "\\'")}')">
+                  <span>+</span> Add
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // ---------------------------------------------------------------------------
+    // Render Static Department Grid (4-5 Instacart Departments)
+    // ---------------------------------------------------------------------------
+    function renderDepartmentGrid(filterDept = 'all') {
+      const grid = document.getElementById('departmentGrid');
+      let items = STATIC_INSTACART_CATALOG;
+
+      if (filterDept && filterDept !== 'all') {
+        items = STATIC_INSTACART_CATALOG.filter(it => it.department.toLowerCase() === filterDept.toLowerCase());
+      }
+
+      grid.innerHTML = items.map((item) => {
+        const initials = getInitials(item.name);
+        const bgGrad = getGradientForId(item.id);
+
+        return `
+          <article class="product-card" onclick="trackProductClick('${item.id}', '${item.name.replace(/'/g, "\\'")}')">
+            <span class="card-top-tag tag-catalog">${item.department}</span>
+            <div class="card-image-box">
+              <div class="grocery-placeholder-canvas" style="background: ${bgGrad}">
+                <div class="grocery-initials-badge">${initials}</div>
+                <div class="grocery-sku-label">Item #${item.id}</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <span class="card-category-pill">${item.department} &bull; ${item.aisle}</span>
+              <h3 class="card-title" title="${item.name}">${item.name}</h3>
+              <div class="card-meta-row">
+                <div class="card-price-wrap">
+                  <div class="card-price">${item.price}<span class="price-asterisk" title="Illustrative placeholder price">*</span></div>
+                  <div class="card-price-note">*illustrative</div>
+                </div>
+                <button class="btn-add-cart" onclick="addProductToCart(event, '${item.id}', '${item.name.replace(/'/g, "\\'")}')">
+                  <span>+</span> Add
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function filterDepartment(dept) {
+      const pills = document.querySelectorAll('.dept-pill');
+      pills.forEach(p => {
+        if (p.getAttribute('data-dept').toLowerCase() === dept.toLowerCase()) {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+      renderDepartmentGrid(dept);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Page Lifecycle & Event Listeners
+    // ---------------------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputBaseUrl = document.getElementById('inputBaseUrl');
+      const inputPublicKey = document.getElementById('inputPublicKey');
+      const configToggleBtn = document.getElementById('configToggleBtn');
+      const headerConfigBtn = document.getElementById('headerConfigBtn');
+      const closeConfigBtn = document.getElementById('closeConfigBtn');
+      const configDrawer = document.getElementById('configDrawer');
+      const saveConfigBtn = document.getElementById('saveConfigBtn');
+      const setupToggleBtn = document.getElementById('setupToggleBtn');
+      const closeChecklistBtn = document.getElementById('closeChecklistBtn');
+      const setupChecklistDrawer = document.getElementById('setupChecklistDrawer');
+      const bannerSetupBtn = document.getElementById('bannerSetupBtn');
+      const bannerQuickConfigBtn = document.getElementById('bannerQuickConfigBtn');
+      const recRetryBtn = document.getElementById('recRetryBtn');
+      const shopperSelect = document.getElementById('shopperSelect');
+      const cartBtn = document.getElementById('cartBtn');
+      const shopperPersonaText = document.getElementById('shopperPersonaText');
+
+      inputBaseUrl.value = CONFIG.baseUrl;
+      inputPublicKey.value = CONFIG.publicKey;
+
+      // Check and update top warning banner
+      updateConnectionBannerState();
+
+      // Setup Checklist toggling (collapsed by default, small '⚙ Setup' button in header to expand)
+      if (setupToggleBtn) {
+        setupToggleBtn.addEventListener('click', () => {
+          setupChecklistDrawer.classList.toggle('open');
+          // If opening checklist, optionally close config drawer to avoid clutter
+          if (setupChecklistDrawer.classList.contains('open')) {
+            configDrawer.classList.remove('open');
+          }
+        });
+      }
+
+      if (closeChecklistBtn) {
+        closeChecklistBtn.addEventListener('click', () => {
+          setupChecklistDrawer.classList.remove('open');
+        });
+      }
+
+      if (bannerSetupBtn) {
+        bannerSetupBtn.addEventListener('click', () => {
+          setupChecklistDrawer.classList.add('open');
+          setupChecklistDrawer.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+
+      // Settings Drawer toggling (gear button in header and top bar)
+      const toggleSettingsDrawer = () => {
+        configDrawer.classList.toggle('open');
+        if (configDrawer.classList.contains('open')) {
+          setupChecklistDrawer.classList.remove('open');
+          inputPublicKey.focus();
+        }
+      };
+
+      if (configToggleBtn) configToggleBtn.addEventListener('click', toggleSettingsDrawer);
+      if (headerConfigBtn) headerConfigBtn.addEventListener('click', toggleSettingsDrawer);
+      if (bannerQuickConfigBtn) bannerQuickConfigBtn.addEventListener('click', toggleSettingsDrawer);
+      if (closeConfigBtn) {
+        closeConfigBtn.addEventListener('click', () => {
+          configDrawer.classList.remove('open');
+        });
+      }
+
+      // Live In-Memory Settings Update (stored in JS variable only, not persisted)
+      saveConfigBtn.addEventListener('click', () => {
+        const newBase = inputBaseUrl.value.trim() || 'https://your-engine.com';
+        const newKey = inputPublicKey.value.trim() || 'PASTE_YOUR_PUBLIC_KEY_HERE';
+
+        // Stored in JS memory variable only (per requirement, not persisted)
+        CONFIG.baseUrl = newBase;
+        CONFIG.publicKey = newKey;
+
+        if (typeof window.AIPod !== 'undefined') {
+          window.AIPod.init({ baseUrl: newBase, apiKey: newKey });
+        }
+
+        configDrawer.classList.remove('open');
+        updateConnectionBannerState();
+        showToast('CONFIG updated in live JS session (not persisted)!');
+        loadRecommendations(shopperSelect.value);
+      });
+
+      // Retry connection button
+      recRetryBtn.addEventListener('click', () => {
+        loadRecommendations(shopperSelect.value);
+      });
+
+      // Shopper context switcher
+      shopperSelect.addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+
+        // Sync with AIPod SDK identify method
+        if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+          window.AIPod.identify(selectedId);
+        }
+
+        // Persona subtitle update
+        if (selectedId === '2455') {
+          shopperPersonaText.textContent = 'Profile: Organic Produce Fan';
+        } else if (selectedId === '10928') {
+          shopperPersonaText.textContent = 'Profile: Family Breakfast & Dairy';
+        } else if (selectedId === '48201') {
+          shopperPersonaText.textContent = 'Profile: Weekly Meal Prepper';
+        } else if (selectedId === '65293') {
+          shopperPersonaText.textContent = 'Profile: Gluten-Free & Healthy Snacks';
+        } else if (selectedId === '103842') {
+          shopperPersonaText.textContent = 'Profile: Quick Dinners & Frozen Staples';
+        } else if (selectedId === '189204') {
+          shopperPersonaText.textContent = 'Profile: Gourmet Pantry & Beverages';
+        } else {
+          shopperPersonaText.textContent = 'Profile: Weekend Entertaining';
+        }
+
+        showToast(`Switched shopper context to #${selectedId}`);
+        loadRecommendations(selectedId);
+      });
+
+      // Cart icon click
+      cartBtn.addEventListener('click', () => {
+        showToast(`Shopping cart contains ${cartCount} grocery items ready for delivery!`);
+      });
+
+      // Department filter pills
+      const deptPills = document.querySelectorAll('.dept-pill');
+      deptPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          const dept = pill.getAttribute('data-dept');
+          filterDepartment(dept);
+        });
+      });
+
+      // Initial renders
+      renderDepartmentGrid('all');
+      loadRecommendations(shopperSelect.value);
+    });
+  </script>
+</body>
+</html>

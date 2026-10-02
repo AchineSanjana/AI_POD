@@ -12,6 +12,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -613,6 +614,17 @@ def get_tenant_auth_mapping(config: dict | None = None) -> dict[str, str]:
     """
     records = get_tenant_auth_records(config)
     return {k: rec["tenant_id"] for k, rec in records.items()}
+
+
+def get_accounts_records(config: dict | None = None) -> dict[str, dict[str, Any]]:
+    """Retrieve company accounts records from secure storage.
+
+    Convenience wrapper around :func:`src.accounts.storage.get_accounts_records`.
+    """
+    from src.accounts.storage import get_accounts_records as _get_accounts
+
+    return _get_accounts(config)
+
 
 
 def get_storage_backend(config: dict | None = None):

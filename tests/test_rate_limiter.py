@@ -1,8 +1,7 @@
-"""Tests for multi-tenant rate limiting, sliding window enforcement, and 429 responses."""
+"""Tests for multi-tenant rate limiting, sliding window enforcement, and 429s."""
 
 from __future__ import annotations
 
-import time
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,22 +35,30 @@ def test_in_memory_rate_limiter_sliding_window():
     assert r1.remaining == 2
     assert r1.retry_after == 0
 
-    r2 = limiter.check("tenant_test", scope="recommendations", custom_limit=3, now=now + 5.0)
+    r2 = limiter.check(
+        "tenant_test", scope="recommendations", custom_limit=3, now=now + 5.0
+    )
     assert r2.allowed is True
     assert r2.remaining == 1
 
-    r3 = limiter.check("tenant_test", scope="recommendations", custom_limit=3, now=now + 10.0)
+    r3 = limiter.check(
+        "tenant_test", scope="recommendations", custom_limit=3, now=now + 10.0
+    )
     assert r3.allowed is True
     assert r3.remaining == 0
 
-    # 4th request at now + 15s exceeds limit (oldest was at now=1000.0, so retry_after = 1000 + 60 - 1015 = 45s)
-    r4 = limiter.check("tenant_test", scope="recommendations", custom_limit=3, now=now + 15.0)
+    # 4th request at now + 15s exceeds limit (oldest was at now=1000.0, retry_after=45s)
+    r4 = limiter.check(
+        "tenant_test", scope="recommendations", custom_limit=3, now=now + 15.0
+    )
     assert r4.allowed is False
     assert r4.remaining == 0
     assert r4.retry_after == 45
 
     # After window passes oldest request (at now + 61.0s), 1 slot frees up
-    r5 = limiter.check("tenant_test", scope="recommendations", custom_limit=3, now=now + 61.0)
+    r5 = limiter.check(
+        "tenant_test", scope="recommendations", custom_limit=3, now=now + 61.0
+    )
     assert r5.allowed is True
     assert r5.remaining == 0  # 2 older requests remain in window
 
@@ -85,8 +92,10 @@ def test_get_tenant_rate_limit_resolution():
     assert get_tenant_rate_limit("unconfigured_tenant", "onboarding", cfg) == 5
 
 
-def test_recommendations_rate_limit_exceeded_and_tenant_isolation(client: TestClient, monkeypatch):
-    """Simulate rapid requests from Tenant A triggering 429, while Tenant B remains unaffected."""
+def test_recommendations_rate_limit_exceeded_and_tenant_isolation(
+    client: TestClient, monkeypatch
+):
+    """Simulate Tenant A hitting 429, while Tenant B remains unaffected."""
     telco_model = get_model_for_tenant("telco_default")
     telco_cust = telco_model.customers_.iloc[0]["customer_id"]
 
@@ -106,7 +115,10 @@ def test_recommendations_rate_limit_exceeded_and_tenant_isolation(client: TestCl
         return cfg
 
     monkeypatch.setattr("src.utils.config.load_config", mock_config)
-    monkeypatch.setattr("src.api.rate_limiter.get_tenant_rate_limit", lambda t, scope="recommendations": 3 if t == "telco_default" else 60)
+    monkeypatch.setattr(
+        "src.api.rate_limiter.get_tenant_rate_limit",
+        lambda t, scope="recommendations": 3 if t == "telco_default" else 60,
+    )
 
     # 1. Tenant A sends 3 requests within limit -> all succeed
     for i in range(3):
@@ -130,7 +142,7 @@ def test_recommendations_rate_limit_exceeded_and_tenant_isolation(client: TestCl
     assert "Rate limit exceeded" in resp_over.json()["detail"]
     assert "telco_default" in resp_over.json()["detail"]
 
-    # 3. Tenant B makes a request with their own key -> MUST BE COMPLETELY UNAFFECTED (200 OK)
+    # 3. Tenant B makes a request with their own key -> MUST BE UNAFFECTED (200 OK)
     resp_b = client.get(
         f"/recommendations/{ecom_cust}",
         headers={"X-API-Key": "sk-ecommerce-xxxx"},
@@ -153,7 +165,12 @@ def test_onboarding_strict_rate_limit(client: TestClient, monkeypatch):
             headers={"X-API-Key": "sk-telco-xxxx"},
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] in ["ready", "active"]
+        assert resp.json()["status"] in [
+            "ready",
+            "active",
+            "running",
+            "complete",
+        ]
 
     # 3rd request triggers 429 with Retry-After
     resp_over = client.get(

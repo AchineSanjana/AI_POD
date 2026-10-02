@@ -151,3 +151,124 @@ def test_storefront_uses_sdk_and_public_key(client):
     assert "AIPod.getRecommendations(" in html
     assert "AIPod.identify(" in html
     assert "AIPod.track(" in html
+
+
+def test_instacart_grocery_demo_page(client):
+    """Verify demo/instacart_grocery.html meets the Instacart simulation requirements."""
+    res = client.get("/instacart")
+    assert res.status_code == 200
+    html = res.text
+
+    # Header and Brand
+    assert "Fresh Cart Co." in html
+
+    # Exact stop block and placeholder CONFIG
+    assert "// STOP — before this page will work, fill in CONFIG above:" in html
+    assert 'baseUrl: "https://your-engine.com"' in html
+    assert 'publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE"' in html
+
+    # Exact visible warning banner text
+    assert "⚠ Demo not connected yet — add your public key in CONFIG to activate live recommendations." in html
+
+    # Shopping as dropdown with plausible Instacart user_ids and explanatory comment
+    assert "shopperSelect" in html
+    assert 'value="2455"' in html
+    assert "plausible Instacart user_ids" in html or "Instacart user_id" in html
+
+    # Recommended for You section and SDK integration
+    assert "Recommended for You" in html
+    assert "AIPod.getRecommendations(" in html
+    assert "AIPod.track(" in html
+    assert "AIPod.identify(" in html
+    assert "fallback" in html
+
+    # Department structure
+    assert "Browse by Department" in html
+    assert "Produce" in html
+    assert "Dairy Eggs" in html or "Dairy &amp; Eggs" in html
+    assert "Snacks" in html
+    assert "Beverages" in html
+    assert "Frozen" in html
+
+    # Price note for Instacart items
+    assert "*illustrative" in html or "Illustrative placeholder" in html or "illustrative placeholder" in html
+
+    # Collapsible Setup Checklist panel and header button
+    assert "setupToggleBtn" in html
+    assert "setupChecklistDrawer" in html
+    assert "Setup Checklist" in html
+    assert "Go to the onboarding page and sign up as a new company" in html
+    assert "Copy the private key shown once at signup" in html
+    assert "Copy the public key shown at signup" in html
+    assert "Paste the public key into" in html
+    assert "Use the private key to upload the Instacart dataset" in html
+    assert "Wait for training" in html
+    assert "Refresh this page" in html
+    assert "plain static text, not functional" in html
+
+    # Live in-memory settings drawer (not persisted)
+    assert "configDrawer" in html
+    assert "headerConfigBtn" in html or "configToggleBtn" in html
+    assert "not persisted" in html
+
+
+def test_hm_fashion_demo_page(client):
+    """Verify demo/hm_fashion.html meets the H&M simulation requirements."""
+    res = client.get("/hm")
+    assert res.status_code == 200
+    html = res.text
+
+    # Header and Brand
+    assert "Thread &amp; Co." in html or "Thread & Co." in html
+
+    # Exact stop block and placeholder CONFIG
+    assert "// STOP — before this page will work, fill in CONFIG above:" in html
+    assert 'baseUrl: "https://your-engine.com"' in html
+    assert 'publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE"' in html
+
+    # Exact visible warning banner text
+    assert "⚠ Demo not connected yet — add your public key in CONFIG to activate live recommendations." in html
+
+    # Shopping as dropdown with plausible H&M customer_ids and age/membership metadata
+    assert "shopperSelect" in html
+    assert "Active member" in html
+    assert "32, Active member" in html or "32" in html
+    assert "00000dba" in html
+
+    # Recommended for You section and SDK integration
+    assert "Recommended for You" in html
+    assert "AIPod.getRecommendations(" in html
+    assert "AIPod.track(" in html
+    assert "AIPod.identify(" in html
+    assert "fallback" in html
+
+    # Garment groups, colours, swatches, and illustrative price
+    assert "Dresses" in html
+    assert "Knitwear" in html
+    assert "Trousers" in html
+    assert "Swatch" in html or "swatch" in html
+    assert "*illustrative" in html or "Illustrative placeholder" in html or "illustrative" in html
+
+    # Collapsible Setup Checklist panel and header button
+    assert "setupToggleBtn" in html
+    assert "setupChecklistDrawer" in html
+    assert "Setup Checklist" in html
+    assert "Go to the onboarding page and sign up as a new company" in html
+    assert "Thread &amp; Co." in html or "Thread & Co." in html
+    assert "Copy the private key shown once at signup" in html
+    assert "Copy the public key shown at signup" in html
+    assert "Paste the public key into" in html
+    assert ("Use the private key to upload the H&amp;M dataset" in html or
+            "Use the private key to upload the H&M dataset" in html)
+    assert "Wait for training" in html
+    assert "Refresh this page" in html
+    assert "plain static text, not functional" in html
+
+    # Live in-memory settings drawer (not persisted)
+    assert "configDrawer" in html
+    assert "headerConfigBtn" in html or "configToggleBtn" in html
+    assert "not persisted" in html
+
+
+
+

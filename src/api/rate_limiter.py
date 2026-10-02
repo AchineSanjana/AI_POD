@@ -8,13 +8,14 @@ when a limit is exceeded.
 from __future__ import annotations
 
 import math
+import os
 import time
 from collections import deque
 from collections.abc import Callable
 from threading import Lock
 from typing import NamedTuple
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 
 from src.api.auth import get_current_tenant
 from src.utils.config import get_tenant_rate_limit
@@ -65,7 +66,9 @@ class InMemoryRateLimiter:
 
             if len(history) >= limit:
                 oldest = history[0]
-                retry_after = max(1, math.ceil(oldest + self.window_seconds - current_time))
+                retry_after = max(
+                    1, math.ceil(oldest + self.window_seconds - current_time)
+                )
                 return RateLimitResult(
                     allowed=False,
                     limit=limit,
@@ -127,3 +130,64 @@ def check_rate_limit(
         return tenant_id
 
     return dependency
+
+
+# Separate in-memory rate limiter for public unauthenticated endpoints (signup)
+DEFAULT_SIGNUP_LIMIT_PER_MINUTE = int(
+    os.environ.get("SIGNUP_RATE_LIMIT_PER_MINUTE", "5")
+)
+SIGNUP_RATE_LIMITER = InMemoryRateLimiter(window_seconds=60.0)
+
+
+def get_client_ip(request: Request) -> str:
+    """Extract client IP address, respecting X-Forwarded-For and X-Real-IP headers."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "127.0.0.1"
+
+
+def check_ip_rate_limit(
+    scope: str = "signup",
+    limit: int | None = None,
+    limiter: InMemoryRateLimiter | None = None,
+) -> Callable[[Request], str]:
+    """FastAPI dependency enforcing IP-based rate limits on unauthenticated endpoints.
+
+    Separate from the per-tenant authenticated rate limiter, safeguarding public
+    endpoints like signup where new callers have no API keys yet.
+    """
+    active_limiter = limiter or SIGNUP_RATE_LIMITER
+    effective_limit = (
+        limit if limit is not None else DEFAULT_SIGNUP_LIMIT_PER_MINUTE
+    )
+
+    def dependency(request: Request) -> str:
+        ip = get_client_ip(request)
+        result = active_limiter.check(
+            tenant_id=ip,
+            scope=scope,
+            custom_limit=effective_limit,
+        )
+        if not result.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Too many requests from IP '{ip}'. "
+                    f"Max {result.limit} requests per minute allowed for {scope}."
+                ),
+                headers={
+                    "Retry-After": str(result.retry_after),
+                    "X-RateLimit-Limit": str(result.limit),
+                    "X-RateLimit-Remaining": "0",
+                },
+            )
+        return ip
+
+    return dependency
+

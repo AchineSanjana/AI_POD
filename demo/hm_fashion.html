@@ -1,0 +1,2109 @@
+<!-- 
+  Thread & Co. - Interactive Online Fashion Recommendation Storefront Demo
+  Simulating H&M Personalized Fashion Recommendations Dataset Architecture
+
+  INTEGRATION ARCHITECTURE & SIMPLICITY NOTE:
+  This demo page simulates a real-world e-commerce apparel integration using the
+  official AI_POD client JavaScript SDK (sdk.js) loaded via:
+  <script src="{baseUrl}/sdk.js" data-tenant-key="{publicKey}"></script>
+
+  Direct Browser API Calls:
+  This demo calls the API directly from the browser for simplicity, and a real
+  production integration would proxy through the company's own backend service
+  or utilize this exact client SDK pattern for edge tracking and real-time
+  personalization widgets.
+
+  SDK Integration Surface Exercised:
+  - AIPod.init({ baseUrl, apiKey }) for connection configuration
+  - AIPod.identify(customerId) on shopper profile selection
+  - AIPod.getRecommendations(customerId) for personalized fashion item fetching
+  - AIPod.track(eventType, productId, options) on cart and garment browsing interactions
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread &amp; Co. | Contemporary Fashion &amp; Style Recommendations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* High-Fashion Editorial Palette - Charcoal, Warm Stone, Ochre Gold */
+      --primary: #18181b;
+      --primary-hover: #09090b;
+      --primary-soft: #f4f4f5;
+      --accent: #b45309;
+      --accent-hover: #92400e;
+      --accent-light: #fef3c7;
+      --accent-gold: #d97706;
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --surface-subtle: #f5f5f4;
+      --border: #e7e5e4;
+      --border-focus: #18181b;
+      --text: #1c1917;
+      --text-muted: #78716c;
+      --text-subtle: #a8a29e;
+      --warning: #d97706;
+      --warning-bg: #fffbeb;
+      --warning-border: #fcd34d;
+      --warning-text: #92400e;
+      --success: #15803d;
+      --danger: #dc2626;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.03);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Connected Warning Banner */
+    .unconnected-banner {
+      background: var(--warning-bg);
+      border-bottom: 1px solid var(--warning-border);
+      color: var(--warning-text);
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-align: center;
+      box-shadow: var(--shadow-xs);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      flex-wrap: wrap;
+    }
+
+    .unconnected-banner button {
+      color: var(--warning-text);
+      text-decoration: underline;
+      background: none;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    /* Top Editorial Bar */
+    .top-bar {
+      background: #18181b;
+      color: #e4e4e7;
+      font-size: 0.8rem;
+      padding: 6px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-pill-fashion {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fafafa;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-family: var(--font-heading);
+    }
+
+    .api-config-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: #d4d4d8;
+      font-size: 0.775rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: all 0.2s ease;
+    }
+
+    .api-config-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    /* Collapsible Setup Checklist Panel (Collapsed by default) */
+    .setup-checklist-drawer {
+      display: none;
+      background: #fdfaf6;
+      border-bottom: 2px solid #e7e5e4;
+      padding: 24px;
+      animation: slideDown 0.22s ease-out;
+    }
+
+    .setup-checklist-drawer.open {
+      display: block;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .checklist-card {
+      max-width: 1280px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #d6d3d1;
+      border-radius: var(--radius-md);
+      padding: 24px 28px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .checklist-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+    }
+
+    .checklist-badge {
+      display: inline-block;
+      background: #f5f5f4;
+      color: #44403c;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      font-family: var(--font-heading);
+    }
+
+    .checklist-title {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #18181b;
+      margin-bottom: 4px;
+    }
+
+    .checklist-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .checklist-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.6rem;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.15s;
+    }
+
+    .checklist-close-btn:hover {
+      color: var(--danger);
+    }
+
+    .checklist-items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: #fafaf9;
+      border: 1px solid #f5f5f4;
+    }
+
+    .checklist-box {
+      font-size: 1.15rem;
+      color: #78716c;
+      line-height: 1.2;
+      user-select: none;
+      font-weight: 700;
+    }
+
+    .checklist-text {
+      flex: 1;
+    }
+
+    .checklist-text code {
+      background: #e7e5e4;
+      color: #1c1917;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-family: monospace;
+    }
+
+    .checklist-footer-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-top: 1px dashed var(--border);
+      padding-top: 12px;
+    }
+
+    /* Collapsible Settings Drawer (stored in JS variable only, not persisted) */
+    .config-drawer {
+      display: none;
+      background: #18181b;
+      color: #f4f4f5;
+      padding: 20px 24px;
+      border-bottom: 1px solid #27272a;
+      font-size: 0.85rem;
+    }
+
+    .config-drawer.open {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    .config-container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .config-title {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #e4e4e7;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .config-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #a1a1aa;
+    }
+
+    .config-field input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #3f3f46;
+      background: #27272a;
+      color: #ffffff;
+      font-size: 0.875rem;
+      font-family: monospace;
+    }
+
+    .config-field input:focus {
+      outline: none;
+      border-color: #d4d4d8;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-apply-config {
+      background: #fafafa;
+      color: #18181b;
+      border: none;
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: var(--font-heading);
+    }
+
+    .btn-apply-config:hover {
+      background: #e4e4e7;
+    }
+
+    .config-footnote {
+      font-size: 0.775rem;
+      color: #a1a1aa;
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    /* Main Navigation Header */
+    .site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: #18181b;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+      border: 1px solid #27272a;
+    }
+
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #18181b;
+      line-height: 1.05;
+    }
+
+    .brand-tagline {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-family: var(--font-heading);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: var(--font-heading);
+    }
+
+    .header-pill-btn:hover {
+      background: #e7e5e4;
+      border-color: #d6d3d1;
+    }
+
+    .header-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .header-icon-btn:hover {
+      background: #e7e5e4;
+      border-color: #d6d3d1;
+    }
+
+    .cart-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #18181b;
+      border: 1px solid #18181b;
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      font-size: 0.875rem;
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: var(--font-heading);
+    }
+
+    .cart-btn:hover {
+      background: #27272a;
+    }
+
+    .cart-badge {
+      background: #ffffff;
+      color: #18181b;
+      font-size: 0.72rem;
+      font-weight: 800;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Customer Selection / Metadata Bar (Age & Membership status) */
+    .shopper-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+    }
+
+    .shopper-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .shopper-select-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .shopper-label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-heading);
+    }
+
+    .shopper-select {
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: #ffffff;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 320px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .shopper-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.1);
+    }
+
+    .shopper-meta-badge {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: #44403c;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-heading);
+    }
+
+    .engine-status-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.825rem;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #a8a29e;
+      flex-shrink: 0;
+    }
+
+    .status-dot.online {
+      background: #15803d;
+      box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+    }
+
+    .status-dot.warning {
+      background: #d97706;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+    }
+
+    .status-dot.error {
+      background: #dc2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    }
+
+    /* Main Container */
+    .main-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 36px 24px 64px 24px;
+    }
+
+    /* Editorial Hero Banner */
+    .hero-banner {
+      background: #18181b;
+      color: #ffffff;
+      border-radius: var(--radius-md);
+      padding: 48px 48px;
+      margin-bottom: 44px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: '✦';
+      position: absolute;
+      right: 36px;
+      bottom: -30px;
+      font-size: 14rem;
+      opacity: 0.05;
+      pointer-events: none;
+      font-family: var(--font-display);
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 3px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+      font-family: var(--font-heading);
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+      margin-bottom: 12px;
+      max-width: 700px;
+    }
+
+    .hero-desc {
+      font-size: 0.98rem;
+      color: #d4d4d8;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+
+    /* Section Headers */
+    .section-wrap {
+      margin-bottom: 52px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #18181b;
+    }
+
+    .section-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* Fallback and ML Badges */
+    .badge-fallback {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-heading);
+    }
+
+    .badge-personalized {
+      background: #18181b;
+      border: 1px solid #18181b;
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-heading);
+    }
+
+    /* Product Grid */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 24px;
+    }
+
+    /* Fashion Product Card */
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: #a8a29e;
+    }
+
+    .card-top-tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 2;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-xs);
+      font-family: var(--font-heading);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .tag-rec {
+      background: #18181b;
+      color: #ffffff;
+    }
+
+    .tag-catalog {
+      background: rgba(24, 24, 27, 0.8);
+      color: #ffffff;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Product Card Image / Swatch Canvas */
+    .card-image-box {
+      width: 100%;
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f4;
+    }
+
+    .card-real-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .card-swatch-canvas {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .swatch-circle {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+      border: 3px solid #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    .swatch-label-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #44403c;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      backdrop-filter: blur(2px);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      font-family: var(--font-heading);
+    }
+
+    .article-sku-label {
+      font-size: 0.65rem;
+      color: var(--text-subtle);
+      font-family: monospace;
+      letter-spacing: 0.04em;
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-category-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      gap: 8px;
+    }
+
+    .card-garment-group {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-family: var(--font-heading);
+    }
+
+    .card-color-dot-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .color-chip {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      display: inline-block;
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-height: 2.7em;
+    }
+
+    .card-meta-row {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-price-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-price {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #18181b;
+      line-height: 1;
+    }
+
+    .price-asterisk {
+      color: var(--accent-gold);
+      font-weight: 800;
+      margin-left: 2px;
+      font-size: 0.85rem;
+    }
+
+    .card-price-note {
+      font-size: 0.65rem;
+      color: var(--text-subtle);
+      font-style: italic;
+      margin-top: 2px;
+    }
+
+    .btn-add-cart {
+      background: #18181b;
+      color: #ffffff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease, transform 0.1s ease;
+      font-family: var(--font-heading);
+      letter-spacing: 0.02em;
+    }
+
+    .btn-add-cart:hover {
+      background: #27272a;
+      transform: scale(1.02);
+    }
+
+    .btn-add-cart:active {
+      transform: scale(0.98);
+    }
+
+    /* Skeleton Loading State */
+    .skeleton-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      height: 330px;
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* Price Disclaimer Note */
+    .illustrative-legend {
+      background: #f5f5f4;
+      border-radius: var(--radius-sm);
+      padding: 9px 14px;
+      font-size: 0.775rem;
+      color: var(--text-muted);
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Garment Group Filter Navigation */
+    .dept-nav-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 22px;
+      scrollbar-width: thin;
+    }
+
+    .dept-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      font-family: var(--font-heading);
+    }
+
+    .dept-pill:hover {
+      border-color: #18181b;
+      color: #18181b;
+    }
+
+    .dept-pill.active {
+      background: #18181b;
+      border-color: #18181b;
+      color: #ffffff;
+    }
+
+    /* Offline / Error State */
+    .state-banner {
+      background: #ffffff;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .state-banner.warning {
+      border-color: var(--warning-border);
+      background: #fffdf5;
+    }
+
+    .state-icon {
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+    }
+
+    .state-title {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .state-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      max-width: 540px;
+      margin: 0 auto 16px auto;
+      line-height: 1.6;
+    }
+
+    .btn-retry {
+      background: #18181b;
+      color: #ffffff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: var(--font-heading);
+    }
+
+    /* Toast Notification Stack */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #18181b;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-xl);
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      border-left: 4px solid var(--accent-gold);
+      animation: toastIn 0.25s ease-out;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(15px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Site Footer */
+    footer.site-footer {
+      background: #18181b;
+      color: #a1a1aa;
+      border-top: 1px solid #27272a;
+      padding: 48px 24px 32px 24px;
+      font-size: 0.875rem;
+    }
+
+    .footer-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    .footer-col h4 {
+      color: #ffffff;
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      margin-bottom: 14px;
+    }
+
+    .footer-col ul {
+      list-style: none;
+    }
+
+    .footer-col li {
+      margin-bottom: 8px;
+    }
+
+    .footer-col a {
+      color: #d4d4d8;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .footer-col a:hover {
+      color: #ffffff;
+    }
+
+    .footer-bottom {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding-top: 24px;
+      border-top: 1px solid #27272a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .hero-title { font-size: 1.8rem; }
+      .hero-banner { padding: 28px; }
+      .shopper-select { min-width: 100%; }
+      .shopper-container { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================== -->
+  <!-- TOP CONNECTED STATUS BANNER                                           -->
+  <!-- Checks whether publicKey still equals "PASTE_YOUR_PUBLIC_KEY_HERE"    -->
+  <!-- ===================================================================== -->
+  <div id="unconnectedBanner" class="unconnected-banner" style="display: none;">
+    <span>⚠ Demo not connected yet — add your public key in CONFIG to activate live recommendations.</span>
+    <button type="button" id="bannerQuickConfigBtn">Configure Now ⚙️</button>
+    <button type="button" id="bannerSetupBtn">View Setup Checklist 📋</button>
+  </div>
+
+  <!-- Top Announcement Bar & API Config Toggle -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <span class="badge-pill-fashion">H&amp;M FASHION DATASET DEMO</span>
+      <span>Thread &amp; Co. &bull; Personalized Fashion Recommendation Engine</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button id="configToggleBtn" class="api-config-toggle">
+        ⚙️ Settings Drawer
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="#" class="brand-logo">
+        <div class="brand-icon-box">🧵</div>
+        <div>
+          <div class="brand-name">Thread &amp; Co.</div>
+          <div class="brand-tagline">Contemporary Fashion &bull; Powered by AI_POD</div>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <button class="header-pill-btn" id="setupToggleBtn" title="Toggle Setup Checklist">
+          <span>⚙</span>
+          <span>Setup</span>
+        </button>
+        <button class="header-icon-btn" id="headerConfigBtn" title="API Settings Drawer">
+          <span>⚙️</span>
+        </button>
+        <button class="cart-btn" id="cartBtn" title="View Fashion Bag">
+          <span>🛍️</span>
+          <span>Bag</span>
+          <span class="cart-badge" id="cartCount">2</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Collapsible Setup Checklist Panel (Collapsed by default, toggled via '⚙ Setup' button in header) -->
+  <div id="setupChecklistDrawer" class="setup-checklist-drawer">
+    <div class="checklist-card">
+      <div class="checklist-header">
+        <div class="checklist-title-wrap">
+          <span class="checklist-badge">WALKTHROUGH GUIDE</span>
+          <h3 class="checklist-title">📋 Setup Checklist</h3>
+          <p class="checklist-subtitle">
+            Manual reminder steps in order for walking through the Thread &amp; Co. demo yourself:
+          </p>
+        </div>
+        <button id="closeChecklistBtn" class="checklist-close-btn" title="Close Checklist">&times;</button>
+      </div>
+      <ul class="checklist-items">
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>1.</strong> Go to the onboarding page and sign up as a new company (&ldquo;Thread &amp; Co.&rdquo;)</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>2.</strong> Copy the private key shown once at signup &mdash; save it somewhere safe, it won't be shown again</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>3.</strong> Copy the public key shown at signup</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>4.</strong> Paste the public key into <code>CONFIG.publicKey</code> in this file's source (or, if a settings UI exists, into the settings drawer below)</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>5.</strong> Use the private key to upload the H&amp;M dataset through the onboarding upload flow</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>6.</strong> Wait for training (or use the popular-products fallback shown here in the meantime)</span>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-box">☐</span>
+          <span class="checklist-text"><strong>7.</strong> Refresh this page &mdash; the fallback badge should disappear once training completes</span>
+        </li>
+      </ul>
+      <div class="checklist-footer-note">
+        <em>Note: Each checklist item is plain static text, not functional &mdash; this is a reminder panel for walking through the demo yourself, not a wizard.</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Settings Drawer (stored in JS variable only, not persisted) -->
+  <div id="configDrawer" class="config-drawer">
+    <div class="config-container">
+      <div class="config-header">
+        <h4 class="config-title">⚙️ API Connection Settings (In-Memory Session)</h4>
+        <button id="closeConfigBtn" class="checklist-close-btn" title="Close Settings" style="color:#d4d4d8;">&times;</button>
+      </div>
+      <div class="config-grid">
+        <div class="config-field">
+          <label for="inputBaseUrl">API Base URL (Deployed AWS or Local Server)</label>
+          <input type="text" id="inputBaseUrl" placeholder="https://your-engine.com or http://localhost:8000">
+        </div>
+        <div class="config-field">
+          <label for="inputPublicKey">Tenant Public Key (pk-... received at onboarding)</label>
+          <input type="text" id="inputPublicKey" placeholder="PASTE_YOUR_PUBLIC_KEY_HERE">
+        </div>
+        <div>
+          <button id="saveConfigBtn" class="btn-apply-config">Apply Live (Session Only)</button>
+        </div>
+      </div>
+      <p class="config-footnote">
+        * Edits made here are stored in memory in the <code>CONFIG</code> JavaScript variable for this tab only (not persisted). To save permanently, edit the source code constants.
+      </p>
+    </div>
+  </div>
+
+  <!-- Shopper Context Selection Bar (H&M Customer IDs, Age, and Membership Status) -->
+  <section class="shopper-bar">
+    <div class="shopper-container">
+      <div class="shopper-select-group">
+        <span class="shopper-label">
+          <span>👤</span>
+          <span>Shopping as:</span>
+        </span>
+
+        <!-- 
+          NOTE ON H&M CUSTOMER IDS & METADATA:
+          The customer_ids below are plausible 64-character hex strings from the H&M Personalized
+          Fashion Recommendations dataset. Next to each ID, we render the customer's age and
+          membership status provided in the dataset metadata (e.g. '32, Active member').
+          These must be replaced with real customer IDs once the dataset is onboarded into AI_POD.
+        -->
+        <select id="shopperSelect" class="shopper-select">
+          <option value="00000dbacae5abe5e2351e4719c6eef9d527dbadc2ddceda1126726533ac78b4" selected>
+            Customer 00000dba... (32, Active member)
+          </option>
+          <option value="0000423b00ade91418cceaf3b26c6af3dd342b51fd051eec9c12fb36984420fa">
+            Customer 0000423b... (24, Active member)
+          </option>
+          <option value="000058a12d5b43e67d225668fa1f8d618c13dc232df0cad8ffe7ad4a1091e318">
+            Customer 000058a1... (48, Regular member)
+          </option>
+          <option value="00007579c32f16d63d112541f120daac861777da179386426714f593322e1a02">
+            Customer 00007579... (21, Club VIP)
+          </option>
+          <option value="00009d946eec3ea54add5ba56d5210ea898da4b7b0f3bed3735f5d860e66b86c">
+            Customer 00009d94... (36, Active member)
+          </option>
+          <option value="0000b2f1829e23b24feec422ef13df90ece7e48b2da6b5b1422720ff804f72c2">
+            Customer 0000b2f1... (54, Regular member)
+          </option>
+          <option value="0000f1c71aa0351076b543b170e19e2e8c014fb3645a974e2a994787023843f6">
+            Customer 0000f1c7... (29, Active member)
+          </option>
+        </select>
+
+        <span class="shopper-meta-badge" id="shopperMetaBadge">
+          <span>✨</span>
+          <span id="shopperMetaText">Profile: 32, Active member &bull; Contemporary Workwear</span>
+        </span>
+      </div>
+
+      <div class="engine-status-wrap">
+        <div class="status-dot" id="engineStatusDot"></div>
+        <span id="engineStatusText">Checking SDK status...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Storefront Page -->
+  <main class="main-content">
+
+    <!-- Promotional Hero Banner -->
+    <section class="hero-banner">
+      <div>
+        <span class="hero-badge">AI-Curated Wardrobe</span>
+        <h1 class="hero-title">Refined Silhouettes, Curated for Your Aesthetic</h1>
+        <p class="hero-desc">
+          Thread &amp; Co. delivers contemporary fashion essentials, tailored outerwear, and knitwear.
+          Powered by AI_POD recommendation models trained on fashion interaction behavior.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 1: Recommended for You (Live API via sdk.js) -->
+    <section class="section-wrap" id="recommendedSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">Recommended for You</h2>
+            <!-- Dynamic Fallback vs Personalized Badge -->
+            <span id="recEngineBadge" class="badge-personalized">✨ Personalized ML</span>
+          </div>
+          <p class="section-subtitle">
+            Personalized style recommendations for Customer <code id="activeCustomerIdLabel" style="font-family:monospace; background:#e7e5e4; padding:2px 6px; border-radius:4px;">00000dba...</code>
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Recommendation Cards Container -->
+      <div id="recommendationsGrid" class="products-grid">
+        <!-- Rendered dynamically by JavaScript via AIPod.getRecommendations() -->
+      </div>
+
+      <!-- Price Disclaimer -->
+      <div class="illustrative-legend">
+        <span>ℹ️</span>
+        <span><strong>Price &amp; Swatch Note:</strong> Prices are illustrative placeholders marked with (*). Items without image assets display a garment color swatch reflecting dataset shade metadata.</span>
+      </div>
+
+      <!-- Offline / Not-Connected Banner in Recommendations Section -->
+      <div id="recErrorState" class="state-banner warning" style="display: none; margin-top: 20px;">
+        <div class="state-icon">⚠️</div>
+        <h3 class="state-title" id="recErrorTitle">Demo not connected to live recommendation engine</h3>
+        <p class="state-desc" id="recErrorMessage">
+          Please configure your <code>CONFIG.baseUrl</code> and <code>CONFIG.publicKey</code> at the top of 
+          <code>demo/hm_fashion.html</code>, or click the settings button above to connect immediately.
+        </p>
+        <button id="recRetryBtn" class="btn-retry">Retry Connection</button>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Browse by Garment Group (Static H&M Context Grid) -->
+    <section class="section-wrap" id="departmentSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">Browse by Garment Group</h2>
+            <span class="badge-fallback" style="background:#e7e5e4; border-color:#d6d3d1; color:#44403c;">Static Catalog Sample</span>
+          </div>
+          <p class="section-subtitle">
+            Authentic garments from the H&amp;M dataset across five core apparel groups
+          </p>
+        </div>
+      </div>
+
+      <!-- Garment Group Filter Pills -->
+      <div class="dept-nav-pills" id="deptNavPills">
+        <button class="dept-pill active" data-group="all">All Groups (30)</button>
+        <button class="dept-pill" data-group="Dresses">Dresses (6)</button>
+        <button class="dept-pill" data-group="Knitwear">Knitwear (6)</button>
+        <button class="dept-pill" data-group="Trousers">Trousers &amp; Denim (6)</button>
+        <button class="dept-pill" data-group="Tops">Tops &amp; Blouses (6)</button>
+        <button class="dept-pill" data-group="Outerwear">Outerwear (6)</button>
+      </div>
+
+      <!-- Static Catalog Grid -->
+      <div id="departmentGrid" class="products-grid">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-col" style="max-width: 320px;">
+        <h4 style="font-family:var(--font-display); font-size:1.2rem;">Thread &amp; Co.</h4>
+        <p style="color:#a1a1aa; font-size:0.825rem; line-height:1.6;">
+          A demonstration fashion storefront simulating real-world consumption of 
+          the AI_POD recommendation engine API on the H&amp;M Personalized Fashion Recommendations dataset.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Garment Groups</h4>
+        <ul>
+          <li><a href="#departmentSection" onclick="filterGarmentGroup('Dresses')">Dresses &amp; Jumpsuits</a></li>
+          <li><a href="#departmentSection" onclick="filterGarmentGroup('Knitwear')">Knitwear &amp; Cardigans</a></li>
+          <li><a href="#departmentSection" onclick="filterGarmentGroup('Trousers')">Trousers &amp; Denim</a></li>
+          <li><a href="#departmentSection" onclick="filterGarmentGroup('Tops')">Shirts &amp; Blouses</a></li>
+          <li><a href="#departmentSection" onclick="filterGarmentGroup('Outerwear')">Coats &amp; Blazers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Integration Architecture</h4>
+        <ul>
+          <li><a href="#">Script: <code>{baseUrl}/sdk.js</code></a></li>
+          <li><a href="#">Public Key: <code>data-tenant-key</code></a></li>
+          <li><a href="#">Recommendations: <code>AIPod.getRecommendations()</code></a></li>
+          <li><a href="#">Telemetry Tracking: <code>AIPod.track('view' | 'add_to_cart')</code></a></li>
+          <li><a href="#">Cold-Start Flag: <code>response.fallback === true</code></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>&copy; 2026 Thread &amp; Co. &bull; Powered by AI_POD Recommendation Platform.</div>
+      <div style="color: #71717a;">H&amp;M Personalized Fashion Recommendations Simulation &bull; Demo Storefront</div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Client-side Logic (Vanilla JS, Zero External Build Step) -->
+  <script>
+    // =====================================================================
+    // STOP — before this page will work, fill in CONFIG above:
+    //   1. baseUrl  -> the deployed API's base URL
+    //   2. publicKey -> the pk-... key you receive from the sign-up/onboarding page
+    // This page will show a visible on-page warning banner until both are filled in.
+    // =====================================================================
+
+    const CONFIG = {
+      baseUrl: "https://your-engine.com",       // TODO: REPLACE with the deployed AWS API base URL
+      publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",  // TODO: paste the pk-... key from onboarding here
+    };
+
+    // Number of recommendations to request per query
+    const TOP_N = 6;
+
+    // Bag state
+    let cartCount = 2;
+
+    // Palette of authentic H&M garment color mappings with realistic hex values
+    const COLOR_PALETTE = {
+      'Black': '#18181b',
+      'Dark Blue': '#1e293b',
+      'White': '#f8fafc',
+      'Light Beige': '#f5f5dc',
+      'Beige': '#e8dfcf',
+      'Grey': '#9ca3af',
+      'Sage Green': '#9caf88',
+      'Burgundy': '#7f1d1d',
+      'Camel': '#b45309',
+      'Dusty Pink': '#f472b6',
+      'Khaki Green': '#4d5b44',
+      'Off White': '#fafaf9',
+      'Dark Red': '#881337',
+      'Light Blue': '#93c5fd'
+    };
+
+    // Garment group emoji & icon helpers
+    const GARMENT_ICONS = {
+      'Dresses': '👗',
+      'Knitwear': '🧶',
+      'Trousers': '👖',
+      'Tops': '👚',
+      'Outerwear': '🧥',
+      'Accessories': '🧣'
+    };
+
+    // Static Context Grid: 30 Authentic H&M Products grouped across 5 core garment groups (~6 each)
+    const STATIC_HM_CATALOG = [
+      // 1. Dresses
+      { id: '0706016001', name: 'Solide Flounce Midi Dress', garment_group: 'Dresses', colour: 'Black', hex: '#18181b', price: '$49.99' },
+      { id: '0706016002', name: 'Ribbed Knit Bodycon Dress', garment_group: 'Dresses', colour: 'Light Beige', hex: '#f5f5dc', price: '$39.99' },
+      { id: '0685608003', name: 'Floral Tiered Wrap Maxi Dress', garment_group: 'Dresses', colour: 'Dark Blue', hex: '#1e293b', price: '$59.99' },
+      { id: '0751471001', name: 'Satin Bias-Cut Slip Dress', garment_group: 'Dresses', colour: 'Burgundy', hex: '#7f1d1d', price: '$44.99' },
+      { id: '0562245046', name: 'Linen Blend A-Line Shirt Dress', garment_group: 'Dresses', colour: 'Sage Green', hex: '#9caf88', price: '$54.99' },
+      { id: '0108775015', name: 'Pleated Chiffon Party Dress', garment_group: 'Dresses', colour: 'Dusty Pink', hex: '#f472b6', price: '$69.99' },
+
+      // 2. Knitwear
+      { id: '0610776002', name: 'Fine-knit Roll-Neck Jumper', garment_group: 'Knitwear', colour: 'Off White', hex: '#fafaf9', price: '$29.99' },
+      { id: '0714790020', name: 'Oversized Wool-Blend Cardigan', garment_group: 'Knitwear', colour: 'Camel', hex: '#b45309', price: '$49.99' },
+      { id: '0579541001', name: 'Alpaca-Blend Cable Knit Sweater', garment_group: 'Knitwear', colour: 'Grey', hex: '#9ca3af', price: '$59.99' },
+      { id: '0759871003', name: 'Rib-knit Polo Collar Sweater', garment_group: 'Knitwear', colour: 'Dark Blue', hex: '#1e293b', price: '$34.99' },
+      { id: '0811907001', name: 'Fluffy Crew-Neck Pullover', garment_group: 'Knitwear', colour: 'Sage Green', hex: '#9caf88', price: '$39.99' },
+      { id: '0821336001', name: 'Textured Boxy Knit Top', garment_group: 'Knitwear', colour: 'Black', hex: '#18181b', price: '$24.99' },
+
+      // 3. Trousers & Denim
+      { id: '0751472001', name: 'Wide Tailored High-Waist Slacks', garment_group: 'Trousers', colour: 'Black', hex: '#18181b', price: '$39.99' },
+      { id: '0685608001', name: 'Slim Mom High Ankle Denim Jeans', garment_group: 'Trousers', colour: 'Dark Blue', hex: '#1e293b', price: '$49.99' },
+      { id: '0706016003', name: 'Relaxed Linen-Blend Pull-On Pants', garment_group: 'Trousers', colour: 'Beige', hex: '#e8dfcf', price: '$34.99' },
+      { id: '0562245001', name: 'Straight Regular High Waist Jeans', garment_group: 'Trousers', colour: 'Light Blue', hex: '#93c5fd', price: '$44.99' },
+      { id: '0811907002', name: 'Pleated Crepe Cigarette Trousers', garment_group: 'Trousers', colour: 'Burgundy', hex: '#7f1d1d', price: '$39.99' },
+      { id: '0714790001', name: 'Cotton Twill Utility Cargo Pants', garment_group: 'Trousers', colour: 'Khaki Green', hex: '#4d5b44', price: '$49.99' },
+
+      // 4. Tops & Blouses
+      { id: '0610776001', name: 'Oversized Crisp Poplin Cotton Shirt', garment_group: 'Tops', colour: 'White', hex: '#f8fafc', price: '$29.99' },
+      { id: '0706016004', name: 'Satin Drape Long Sleeve Blouse', garment_group: 'Tops', colour: 'Dark Blue', hex: '#1e293b', price: '$34.99' },
+      { id: '0108775044', name: 'Essential Fitted Ribbed Tank Top', garment_group: 'Tops', colour: 'Black', hex: '#18181b', price: '$14.99' },
+      { id: '0759871001', name: 'Puff-Sleeve Tie-Collar Chiffon Top', garment_group: 'Tops', colour: 'Dusty Pink', hex: '#f472b6', price: '$29.99' },
+      { id: '0579541002', name: 'Pure Linen Relaxed Resort Shirt', garment_group: 'Tops', colour: 'Light Beige', hex: '#f5f5dc', price: '$39.99' },
+      { id: '0821336002', name: 'Mock-Neck Modal Stretch Tee', garment_group: 'Tops', colour: 'Grey', hex: '#9ca3af', price: '$19.99' },
+
+      // 5. Outerwear & Jackets
+      { id: '0751471002', name: 'Double-Breasted Structured Wool Coat', garment_group: 'Outerwear', colour: 'Camel', hex: '#b45309', price: '$129.99' },
+      { id: '0685608002', name: 'Tailored Linen-Blend Double Blazer', garment_group: 'Outerwear', colour: 'Black', hex: '#18181b', price: '$79.99' },
+      { id: '0714790002', name: 'Quilted Lightweight Puffer Jacket', garment_group: 'Outerwear', colour: 'Khaki Green', hex: '#4d5b44', price: '$59.99' },
+      { id: '0706016005', name: 'Classic Belted Storm Trench Coat', garment_group: 'Outerwear', colour: 'Beige', hex: '#e8dfcf', price: '$99.99' },
+      { id: '0811907003', name: 'Faux Shearling Lapel Aviator Shacket', garment_group: 'Outerwear', colour: 'Dark Red', hex: '#881337', price: '$89.99' },
+      { id: '0562245002', name: 'Oversized Vintage Wash Denim Jacket', garment_group: 'Outerwear', colour: 'Light Blue', hex: '#93c5fd', price: '$49.99' }
+    ];
+
+    // Customer persona details with H&M age and membership fields
+    const CUSTOMER_METADATA = {
+      '00000dbacae5abe5e2351e4719c6eef9d527dbadc2ddceda1126726533ac78b4': {
+        age: 32, status: 'Active member', aesthetic: 'Contemporary Workwear & Tailoring'
+      },
+      '0000423b00ade91418cceaf3b26c6af3dd342b51fd051eec9c12fb36984420fa': {
+        age: 24, status: 'Active member', aesthetic: 'Trendy Denim & Casual Knitwear'
+      },
+      '000058a12d5b43e67d225668fa1f8d618c13dc232df0cad8ffe7ad4a1091e318': {
+        age: 48, status: 'Regular member', aesthetic: 'Timeless Outerwear & Linen'
+      },
+      '00007579c32f16d63d112541f120daac861777da179386426714f593322e1a02': {
+        age: 21, status: 'Club VIP', aesthetic: 'Youth Divided, Party & Festival Tops'
+      },
+      '00009d946eec3ea54add5ba56d5210ea898da4b7b0f3bed3735f5d860e66b86c': {
+        age: 36, status: 'Active member', aesthetic: 'Athleisure & Weekend Loungewear'
+      },
+      '0000b2f1829e23b24feec422ef13df90ece7e48b2da6b5b1422720ff804f72c2': {
+        age: 54, status: 'Regular member', aesthetic: 'Classic Knitwear & Flared Slacks'
+      },
+      '0000f1c71aa0351076b543b170e19e2e8c014fb3645a974e2a994787023843f6': {
+        age: 29, status: 'Active member', aesthetic: 'Minimalist Monochrome Wardrobe'
+      }
+    };
+
+    // ---------------------------------------------------------------------------
+    // Helper Utilities
+    // ---------------------------------------------------------------------------
+    function getGarmentColorHex(colorName) {
+      if (!colorName) return '#18181b';
+      return COLOR_PALETTE[colorName] || '#18181b';
+    }
+
+    function getGarmentIcon(group) {
+      if (!group) return '👗';
+      for (const key in GARMENT_ICONS) {
+        if (group.toLowerCase().includes(key.toLowerCase())) return GARMENT_ICONS[key];
+      }
+      return '👗';
+    }
+
+    function generateIllustrativePrice(id) {
+      let hash = 0;
+      const str = String(id);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      const dollars = (Math.abs(hash) % 7) * 10 + 29; // $29 - $89
+      return `$${dollars}.99`;
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>🧵</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 350);
+      }, 2800);
+    }
+
+    function updateCartBadge(count) {
+      cartCount = count;
+      document.getElementById('cartCount').textContent = cartCount;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Public Key & Connection Warning Banner Verification
+    // ---------------------------------------------------------------------------
+    function isKeyPlaceholder(key) {
+      if (!key) return true;
+      const clean = key.trim();
+      return clean === "PASTE_YOUR_PUBLIC_KEY_HERE" || 
+             clean === "" || 
+             clean.startsWith("PASTE_");
+    }
+
+    function updateConnectionBannerState() {
+      const banner = document.getElementById('unconnectedBanner');
+      const engineDot = document.getElementById('engineStatusDot');
+      const engineText = document.getElementById('engineStatusText');
+
+      if (isKeyPlaceholder(CONFIG.publicKey)) {
+        // Must show exact requested warning:
+        // "⚠ Demo not connected yet — add your public key in CONFIG to activate live recommendations."
+        banner.style.display = 'flex';
+        engineDot.className = 'status-dot warning';
+        engineText.innerHTML = `Unconnected: <code style="color:#d97706">CONFIG.publicKey</code> is placeholder`;
+        return false;
+      } else {
+        banner.style.display = 'none';
+        return true;
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // SDK Loader & Initializer
+    // Dynamically loads {baseUrl}/sdk.js with data-tenant-key={CONFIG.publicKey}
+    // ---------------------------------------------------------------------------
+    async function ensureAIPodSdkLoaded() {
+      // If already initialized on window
+      if (typeof window.AIPod !== 'undefined') {
+        window.AIPod.init({
+          baseUrl: CONFIG.baseUrl,
+          apiKey: CONFIG.publicKey
+        });
+        return window.AIPod;
+      }
+
+      // If configuration is still placeholder or invalid URL, avoid firing broken network requests
+      if (isKeyPlaceholder(CONFIG.publicKey) || !CONFIG.baseUrl || CONFIG.baseUrl === "https://your-engine.com") {
+        return null;
+      }
+
+      return new Promise((resolve) => {
+        let existing = document.getElementById('aipod-sdk');
+        if (existing) existing.remove();
+
+        const script = document.createElement('script');
+        script.id = 'aipod-sdk';
+        script.setAttribute('data-tenant-key', CONFIG.publicKey);
+        const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
+        script.src = `${cleanBase}/sdk.js`;
+
+        script.onload = () => {
+          if (typeof window.AIPod !== 'undefined') {
+            window.AIPod.init({
+              baseUrl: CONFIG.baseUrl,
+              apiKey: CONFIG.publicKey
+            });
+            console.log('[Thread & Co.] AIPod SDK successfully loaded from ' + script.src);
+            resolve(window.AIPod);
+          } else {
+            resolve(null);
+          }
+        };
+
+        script.onerror = () => {
+          console.warn('[Thread & Co.] Could not load sdk.js from ' + script.src);
+          resolve(null);
+        };
+
+        document.head.appendChild(script);
+      });
+    }
+
+    // ---------------------------------------------------------------------------
+    // Telemetry Interaction Triggers (AIPod.track pattern)
+    // ---------------------------------------------------------------------------
+    function trackProductClick(productId, productName) {
+      console.log(`[Telemetry] AIPod.track('view', '${productId}')`);
+      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+        window.AIPod.track('view', productId);
+      }
+      showToast(`Viewed "${productName}" &bull; AIPod.track('view', '${productId}')`);
+    }
+
+    function addProductToCart(event, productId, productName) {
+      if (event) event.stopPropagation();
+      updateCartBadge(cartCount + 1);
+
+      console.log(`[Telemetry] AIPod.track('add_to_cart', '${productId}')`);
+      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+        window.AIPod.track('add_to_cart', productId, { quantity: 1 });
+      }
+      showToast(`Added "${productName}" to bag! &bull; AIPod.track('add_to_cart', '${productId}')`);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Recommendations Fetcher (Calling AIPod.getRecommendations)
+    // ---------------------------------------------------------------------------
+    async function loadRecommendations(customerId) {
+      const grid = document.getElementById('recommendationsGrid');
+      const recErrorState = document.getElementById('recErrorState');
+      const recErrorTitle = document.getElementById('recErrorTitle');
+      const recErrorMessage = document.getElementById('recErrorMessage');
+      const engineDot = document.getElementById('engineStatusDot');
+      const engineText = document.getElementById('engineStatusText');
+      const recBadge = document.getElementById('recEngineBadge');
+      const activeCustomerLabel = document.getElementById('activeCustomerIdLabel');
+
+      const shortId = customerId.length > 12 ? customerId.slice(0, 8) + '...' : customerId;
+      activeCustomerLabel.textContent = shortId;
+      recErrorState.style.display = 'none';
+
+      // Verify connection keys
+      const isConnected = updateConnectionBannerState();
+      if (!isConnected) {
+        grid.innerHTML = '';
+        recErrorState.style.display = 'block';
+        recErrorTitle.textContent = 'Demo not connected to live recommendation engine';
+        recErrorMessage.innerHTML = `
+          <code>CONFIG.publicKey</code> is still set to placeholder <code>"${CONFIG.publicKey}"</code>.<br>
+          1. Edit <code>CONFIG</code> in <code>demo/hm_fashion.html</code> with your deployed AWS API URL and public key, OR<br>
+          2. Click <strong>"⚙️ Settings Drawer"</strong> above to enter them directly in the browser.
+        `;
+        engineDot.className = 'status-dot warning';
+        engineText.textContent = 'Waiting for valid public key in CONFIG';
+        recBadge.className = 'badge-fallback';
+        recBadge.innerHTML = '⚡ Demo Disconnected';
+        return;
+      }
+
+      // Show skeleton placeholders while fetching
+      grid.style.display = 'grid';
+      grid.innerHTML = Array(TOP_N).fill(0).map(() => '<div class="skeleton-card"></div>').join('');
+      engineDot.className = 'status-dot';
+      engineText.textContent = `AIPod.getRecommendations("${shortId}")...`;
+
+      try {
+        const sdk = await ensureAIPodSdkLoaded();
+        if (!sdk) {
+          throw new Error(`Unable to load AIPod SDK from ${CONFIG.baseUrl}/sdk.js. Ensure the API server is reachable.`);
+        }
+
+        // Set customer context via SDK identify
+        sdk.identify(customerId);
+
+        // Fetch recommendations from API via SDK
+        const recommendations = await sdk.getRecommendations(customerId, { topN: TOP_N });
+
+        // Check fallback status on response
+        const isFallback = Boolean(recommendations && recommendations.fallback);
+        const count = Array.isArray(recommendations) ? recommendations.length : 0;
+
+        if (isFallback) {
+          recBadge.className = 'badge-fallback';
+          recBadge.innerHTML = '⚡ Popularity Fallback (Cold-Start)';
+          engineDot.className = 'status-dot online';
+          engineText.innerHTML = `Active: <code>sdk.js</code> &bull; Customer ${shortId} &bull; ${count} items &bull; <strong style="color:#d97706;">Popularity Fallback</strong>`;
+        } else {
+          recBadge.className = 'badge-personalized';
+          recBadge.innerHTML = '✨ Personalized ML';
+          engineDot.className = 'status-dot online';
+          engineText.innerHTML = `Active: <code>sdk.js</code> &bull; Customer ${shortId} &bull; ${count} items &bull; <strong style="color:#15803d;">Personalized ML</strong>`;
+        }
+
+        renderRecommendationsGrid(recommendations);
+      } catch (err) {
+        console.error('Failed to retrieve recommendations:', err);
+        grid.style.display = 'none';
+        recErrorState.style.display = 'block';
+        recErrorTitle.textContent = 'Unable to reach the Recommendation API';
+        recErrorMessage.innerHTML = `
+          <strong>Connection Failed:</strong> ${err.message}<br>
+          Ensure your API server is running at <code>${CONFIG.baseUrl}</code> and the public key <code>${CONFIG.publicKey}</code> is valid.
+        `;
+        engineDot.className = 'status-dot error';
+        engineText.textContent = `Error: ${err.message}`;
+        recBadge.className = 'badge-fallback';
+        recBadge.innerHTML = '⚡ Offline';
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Render Live Recommendations Cards
+    // ---------------------------------------------------------------------------
+    function renderRecommendationsGrid(items) {
+      const grid = document.getElementById('recommendationsGrid');
+
+      if (!items || items.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--text-muted); background:#ffffff; border-radius:8px; border:1px solid var(--border);">
+            No recommendations currently returned for this fashion customer profile.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = items.map((item, index) => {
+        const pid = item.product_id;
+        const pName = item.product_name || `H&M Article ${pid}`;
+        const pCategory = item.category || 'Dresses';
+        const pPrice = generateIllustrativePrice(pid);
+        const rank = item.rank || (index + 1);
+
+        // Extract color and garment information
+        const colorName = item.colour || item.color || 'Dark Blue';
+        const swatchHex = item.hex || getGarmentColorHex(colorName);
+        const icon = getGarmentIcon(pCategory);
+
+        // Check if image URL is available
+        const hasRealImg = Boolean(item.image_url || item.image);
+        const imgMarkup = hasRealImg
+          ? `<img src="${item.image_url || item.image}" alt="${pName}" class="card-real-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+             <div class="card-swatch-canvas" style="display:none; background:${swatchHex}15;">
+               <div class="swatch-circle" style="background:${swatchHex};">${icon}</div>
+               <div class="swatch-label-pill">Color Swatch: ${colorName}</div>
+               <div class="article-sku-label">Article #${pid}</div>
+             </div>`
+          : `<div class="card-swatch-canvas" style="background:${swatchHex}18;">
+               <div class="swatch-circle" style="background:${swatchHex};">${icon}</div>
+               <div class="swatch-label-pill">Color Swatch: ${colorName}</div>
+               <div class="article-sku-label">Article #${pid}</div>
+             </div>`;
+
+        return `
+          <article class="product-card" onclick="trackProductClick('${pid}', '${pName.replace(/'/g, "\\'")}')">
+            <span class="card-top-tag tag-rec">Top Pick #${rank}</span>
+            <div class="card-image-box">
+              ${imgMarkup}
+            </div>
+            <div class="card-body">
+              <div class="card-category-row">
+                <span class="card-garment-group">${pCategory}</span>
+                <span class="card-color-dot-wrap">
+                  <span class="color-chip" style="background:${swatchHex};"></span>
+                  <span>${colorName}</span>
+                </span>
+              </div>
+              <h3 class="card-title" title="${pName}">${pName}</h3>
+              <div class="card-meta-row">
+                <div class="card-price-wrap">
+                  <div class="card-price">${pPrice}<span class="price-asterisk" title="Illustrative placeholder price">*</span></div>
+                  <div class="card-price-note">*illustrative</div>
+                </div>
+                <button class="btn-add-cart" onclick="addProductToCart(event, '${pid}', '${pName.replace(/'/g, "\\'")}')">
+                  <span>+</span> Add
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // ---------------------------------------------------------------------------
+    // Render Static Catalog Grid (H&M Garment Groups)
+    // ---------------------------------------------------------------------------
+    function renderDepartmentGrid(filterGroup = 'all') {
+      const grid = document.getElementById('departmentGrid');
+      let items = STATIC_HM_CATALOG;
+
+      if (filterGroup && filterGroup !== 'all') {
+        items = STATIC_HM_CATALOG.filter(it => it.garment_group.toLowerCase() === filterGroup.toLowerCase());
+      }
+
+      grid.innerHTML = items.map((item) => {
+        const icon = getGarmentIcon(item.garment_group);
+
+        return `
+          <article class="product-card" onclick="trackProductClick('${item.id}', '${item.name.replace(/'/g, "\\'")}')">
+            <span class="card-top-tag tag-catalog">${item.garment_group}</span>
+            <div class="card-image-box">
+              <div class="card-swatch-canvas" style="background:${item.hex}18;">
+                <div class="swatch-circle" style="background:${item.hex};">${icon}</div>
+                <div class="swatch-label-pill">Color Swatch: ${item.colour}</div>
+                <div class="article-sku-label">Article #${item.id}</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="card-category-row">
+                <span class="card-garment-group">${item.garment_group}</span>
+                <span class="card-color-dot-wrap">
+                  <span class="color-chip" style="background:${item.hex};"></span>
+                  <span>${item.colour}</span>
+                </span>
+              </div>
+              <h3 class="card-title" title="${item.name}">${item.name}</h3>
+              <div class="card-meta-row">
+                <div class="card-price-wrap">
+                  <div class="card-price">${item.price}<span class="price-asterisk" title="Illustrative placeholder price">*</span></div>
+                  <div class="card-price-note">*illustrative</div>
+                </div>
+                <button class="btn-add-cart" onclick="addProductToCart(event, '${item.id}', '${item.name.replace(/'/g, "\\'")}')">
+                  <span>+</span> Add
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function filterGarmentGroup(group) {
+      const pills = document.querySelectorAll('.dept-pill');
+      pills.forEach(p => {
+        if (p.getAttribute('data-group').toLowerCase() === group.toLowerCase()) {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+      renderDepartmentGrid(group);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Page Lifecycle & Event Listeners
+    // ---------------------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputBaseUrl = document.getElementById('inputBaseUrl');
+      const inputPublicKey = document.getElementById('inputPublicKey');
+      const configToggleBtn = document.getElementById('configToggleBtn');
+      const headerConfigBtn = document.getElementById('headerConfigBtn');
+      const closeConfigBtn = document.getElementById('closeConfigBtn');
+      const configDrawer = document.getElementById('configDrawer');
+      const saveConfigBtn = document.getElementById('saveConfigBtn');
+      const setupToggleBtn = document.getElementById('setupToggleBtn');
+      const closeChecklistBtn = document.getElementById('closeChecklistBtn');
+      const setupChecklistDrawer = document.getElementById('setupChecklistDrawer');
+      const bannerSetupBtn = document.getElementById('bannerSetupBtn');
+      const bannerQuickConfigBtn = document.getElementById('bannerQuickConfigBtn');
+      const recRetryBtn = document.getElementById('recRetryBtn');
+      const shopperSelect = document.getElementById('shopperSelect');
+      const cartBtn = document.getElementById('cartBtn');
+      const shopperMetaText = document.getElementById('shopperMetaText');
+
+      inputBaseUrl.value = CONFIG.baseUrl;
+      inputPublicKey.value = CONFIG.publicKey;
+
+      // Check and update top warning banner
+      updateConnectionBannerState();
+
+      // Setup Checklist toggling
+      if (setupToggleBtn) {
+        setupToggleBtn.addEventListener('click', () => {
+          setupChecklistDrawer.classList.toggle('open');
+          if (setupChecklistDrawer.classList.contains('open')) {
+            configDrawer.classList.remove('open');
+          }
+        });
+      }
+
+      if (closeChecklistBtn) {
+        closeChecklistBtn.addEventListener('click', () => {
+          setupChecklistDrawer.classList.remove('open');
+        });
+      }
+
+      if (bannerSetupBtn) {
+        bannerSetupBtn.addEventListener('click', () => {
+          setupChecklistDrawer.classList.add('open');
+          setupChecklistDrawer.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+
+      // Settings Drawer toggling
+      const toggleSettingsDrawer = () => {
+        configDrawer.classList.toggle('open');
+        if (configDrawer.classList.contains('open')) {
+          setupChecklistDrawer.classList.remove('open');
+          inputPublicKey.focus();
+        }
+      };
+
+      if (configToggleBtn) configToggleBtn.addEventListener('click', toggleSettingsDrawer);
+      if (headerConfigBtn) headerConfigBtn.addEventListener('click', toggleSettingsDrawer);
+      if (bannerQuickConfigBtn) bannerQuickConfigBtn.addEventListener('click', toggleSettingsDrawer);
+      if (closeConfigBtn) {
+        closeConfigBtn.addEventListener('click', () => {
+          configDrawer.classList.remove('open');
+        });
+      }
+
+      // Live In-Memory Settings Update (stored in JS variable only, not persisted)
+      saveConfigBtn.addEventListener('click', () => {
+        const newBase = inputBaseUrl.value.trim() || 'https://your-engine.com';
+        const newKey = inputPublicKey.value.trim() || 'PASTE_YOUR_PUBLIC_KEY_HERE';
+
+        // Stored in JS memory variable only (not persisted)
+        CONFIG.baseUrl = newBase;
+        CONFIG.publicKey = newKey;
+
+        if (typeof window.AIPod !== 'undefined') {
+          window.AIPod.init({ baseUrl: newBase, apiKey: newKey });
+        }
+
+        configDrawer.classList.remove('open');
+        updateConnectionBannerState();
+        showToast('CONFIG updated in live JS session (not persisted)!');
+        loadRecommendations(shopperSelect.value);
+      });
+
+      // Retry connection button
+      recRetryBtn.addEventListener('click', () => {
+        loadRecommendations(shopperSelect.value);
+      });
+
+      // Customer context switcher
+      shopperSelect.addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+
+        // Sync with AIPod SDK identify method
+        if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+          window.AIPod.identify(selectedId);
+        }
+
+        // Persona & Customer metadata update (Age and Membership status)
+        const meta = CUSTOMER_METADATA[selectedId] || { age: 30, status: 'Active member', aesthetic: 'Fashion Shopper' };
+        shopperMetaText.innerHTML = `Profile: <strong>${meta.age}, ${meta.status}</strong> &bull; ${meta.aesthetic}`;
+
+        const shortId = selectedId.length > 12 ? selectedId.slice(0, 8) + '...' : selectedId;
+        showToast(`Switched customer context to ${shortId}`);
+        loadRecommendations(selectedId);
+      });
+
+      // Bag icon click
+      cartBtn.addEventListener('click', () => {
+        showToast(`Fashion bag contains ${cartCount} items ready for checkout.`);
+      });
+
+      // Garment group filter pills
+      const deptPills = document.querySelectorAll('.dept-pill');
+      deptPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          const group = pill.getAttribute('data-group');
+          filterGarmentGroup(group);
+        });
+      });
+
+      // Initial renders
+      renderDepartmentGrid('all');
+      loadRecommendations(shopperSelect.value);
+    });
+  </script>
+</body>
+</html>

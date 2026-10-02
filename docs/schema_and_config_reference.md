@@ -278,3 +278,124 @@ python scripts/generate_evaluation_results.py --tenant_id movielens_demo
 # 4. Run automated test suite
 pytest tests/ -v
 ```
+
+---
+
+## 6. Company Accounts & Tenant Ownership Schema
+
+AI_POD provides an explicit **Company Account** concept distinct from `tenant_id`. While tenant identifiers represent isolated operational environments (data, models, recommendations), accounts represent the owning legal/corporate entity and developer credentials.
+
+### 6.1 Accounts Storage Schema (Step 15.2 Pattern)
+
+Accounts follow the Step 15.2 local-file-vs-AWS-secure-storage pattern:
+- **Local Development**: `config/accounts.local.yaml` (git-ignored, template in `config/accounts.example.yaml`).
+- **Production (AWS mode `STORAGE_BACKEND=s3`)**: AWS SSM Parameter Store (`/ai_pod/accounts` or `ACCOUNTS_SSM_PARAM`) or AWS Secrets Manager (`ACCOUNTS_SECRET_NAME`).
+
+```yaml
+accounts:
+  acc_8f2k1x:
+    tenant_id: acme_corp
+    company_name: "Acme Corp"
+    email: "dev@acme.com"
+    password_hash: "<bcrypt hash, never plaintext>"
+    created_at: "2026-10-05T10:00:00Z"
+    email_verified: false
+```
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `tenant_id` | `str` | Provisioned slugified identifier for the company tenant environment. |
+| `company_name` | `str` | Display name of the registered company. |
+| `email` | `str` | Normalized (lowercase) primary contact / developer email. |
+| `password_hash` | `str` | Strong salted bcrypt hash (e.g. `$2b$12$...`). Plaintext passwords are never stored or logged. |
+| `created_at` | `str` | ISO-8601 UTC timestamp of account registration. |
+| `email_verified` | `bool` | Email verification flag (default `false`). |
+
+### 6.2 Signup Endpoint: `POST /v1/accounts/signup`
+
+Creates a new account, provisions an isolated tenant environment, and automatically issues API keys:
+- **Request Body**: `{"company_name": "...", "email": "...", "password": "..."}`
+- **Validation**:
+  - Validates email format.
+  - Validates password strength (minimum 8 characters).
+  - Rejects duplicate email addresses with `409 Conflict`.
+- **Security & Password Hashing**: Plaintext password is cryptographically hashed with `bcrypt`; plaintext passwords are never returned in response bodies or emitted to log files.
+- **Tenant Provisioning**: Derives `tenant_id` by slugifying `company_name` (appending a short random suffix if a collision occurs).
+- **Automatic Key Issuance (Step 15 Integration)**: Automatically calls `issue_tenant_keys` to issue both a private key (`sk-...`) and a public key (`pk-...`) with zero restart or extra manual steps required.
+- **IP-Based Rate Limiting**: Since signup is a public, unauthenticated endpoint, it is protected by an independent sliding-window rate limiter keyed by client IP (`SIGNUP_RATE_LIMITER`, defaulting to 5 requests per 60 seconds). Excessive signups from the same IP are rejected with `HTTP 429 Too Many Requests` including standard `Retry-After` headers, leaving signups from other IPs unaffected.
+- **Single-Disclosure Policy**: The private key is disclosed in plaintext strictly once in the signup response. Frontend Step 24.4 must prompt the user to copy and store it securely.
+- **Response**: HTTP 201 Created with:
+  ```json
+  {
+    "account_id": "acc_8f2k1x",
+    "tenant_id": "acme_corp",
+    "company_name": "Acme Corp",
+    "email": "dev@acme.com",
+    "private_key": "sk-acme_corp-xxxxxxxx",
+    "public_key": "pk-acme_corp-xxxxxxxx",
+    "note": "The private key is shown here once and will not be retrievable in plaintext again. Please store it securely.",
+    "warning": "The private key is shown here once and will not be retrievable in plaintext again. Please store it securely.",
+    "created_at": "2026-10-02T12:00:00Z",
+    "email_verified": false
+  }
+  ```
+
+### 6.3 Login Endpoint: `POST /v1/accounts/login`
+
+Authenticates company account credentials and issues a short-lived signed JWT session token:
+- **Request Body**:
+  ```json
+  {
+    "email": "dev@acme.com",
+    "password": "CorrectPassword123!"
+  }
+  ```
+- **Authentication**: Verifies password against the stored bcrypt hash. Rejects incorrect credentials or non-existent emails with `401 Unauthorized` (`"Invalid email or password"`).
+- **Session Token**: Generates a signed JWT (`HS256`, 32+ byte HMAC secret) encoding `sub`, `account_id`, `tenant_id`, and expiration timestamp.
+- **Response**: HTTP 200 OK:
+  ```json
+  {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "session_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "expires_in": 3600,
+    "account_id": "acc_8f2k1x",
+    "tenant_id": "acme_corp"
+  }
+  ```
+
+### 6.4 Profile Endpoint: `GET /v1/accounts/me`
+
+Retrieves public account details for the authenticated user session:
+- **Authentication**: Requires a valid session token passed via `Authorization: Bearer <token>` or `X-Session-Token: <token>` (API keys are rejected with `401 Unauthorized`).
+- **Privacy Contract**: Returns `company_name`, `tenant_id`, and `public_key` ONLY. Never returns the private key or password information under any circumstances.
+- **Response**: HTTP 200 OK:
+  ```json
+  {
+    "company_name": "Acme Corp",
+    "tenant_id": "acme_corp",
+    "public_key": "pk-acme_corp-xxxxxxxx"
+  }
+  ```
+
+### 6.5 Key Regeneration Endpoint: `POST /v1/accounts/keys/regenerate`
+
+Invalidates compromised or lost keys and generates a brand-new API key pair:
+- **Authentication**: Requires a valid session token (`Authorization: Bearer <token>`).
+- **Immediate Invalidation**: All existing API keys associated with the account's `tenant_id` are permanently removed from persistent storage and purged from in-memory authentication caches. Old keys cease functioning immediately across all protected endpoints with `401 Unauthorized`.
+- **New Key Generation**: Automatically issues a new `(sk-..., pk-...)` key pair. The new keys become active immediately without service restart.
+- **Single-Disclosure Policy**: Returns the new private key strictly once, matching the signup response contract.
+- **Response**: HTTP 200 OK:
+  ```json
+  {
+    "account_id": "acc_8f2k1x",
+    "tenant_id": "acme_corp",
+    "private_key": "sk-acme_corp-newrandomhex",
+    "public_key": "pk-acme_corp-newrandomhex",
+    "note": "The private key is shown here once and will not be retrievable in plaintext again. Please store it securely.",
+    "warning": "The private key is shown here once and will not be retrievable in plaintext again. Please store it securely."
+  }
+  ```
+
+
+

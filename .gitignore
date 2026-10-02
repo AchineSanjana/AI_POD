@@ -9,6 +9,8 @@ __pycache__/
 .env
 config/tenants_auth.local.yaml
 config/shopify_connections.local.yaml
+config/accounts.local.yaml
+
 
 # Data (keep folder structure, ignore actual data files)
 data/raw/*
