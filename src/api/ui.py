@@ -77,9 +77,15 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
     effective_customer_id = default_customer_id or (current_samples[0] if current_samples else "")
 
     try:
+        from src.utils.config import get_tenant_auth_records
         cfg = load_config()
-        auth_mapping = get_tenant_auth_mapping(cfg)
-        tenant_keys_map = {t: key for key, t in auth_mapping.items()}
+        records = get_tenant_auth_records(cfg)
+        tenant_keys_map = {}
+        for key, rec in records.items():
+            t = rec.get("tenant_id")
+            if t:
+                if t not in tenant_keys_map or rec.get("key_type") == "private":
+                    tenant_keys_map[t] = key
     except Exception:
         tenant_keys_map = {}
 
@@ -489,7 +495,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
       try {{
         const apiKey = tenantKeysMap[tenantId] || '';
         const headers = apiKey ? {{ 'X-API-Key': apiKey }} : {{}};
-        const response = await fetch(`/recommendations/${{encodeURIComponent(customerId)}}?top_n=${{topN}}`, {{
+        const response = await fetch(`/v1/recommendations?customer_id=${{encodeURIComponent(customerId)}}&top_n=${{topN}}&tenant_id=${{encodeURIComponent(tenantId)}}`, {{
           headers: headers
         }});
         const payload = await response.json();
