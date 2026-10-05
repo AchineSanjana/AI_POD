@@ -76,25 +76,23 @@ def create_train_test_split(
     if interactions.empty:
         return interactions.copy(), interactions.iloc[0:0].copy()
 
-    test_rows: list[pd.DataFrame] = []
-    train_rows: list[pd.DataFrame] = []
+    import numpy as np
 
-    for group_index, (_, group) in enumerate(interactions.groupby("customer_id", sort=False)):
-        group = group.copy()
-        if len(group) <= 1:
-            test_rows.append(group)
-            continue
+    df = interactions.copy()
+    if random_state is not None:
+        rng = np.random.RandomState(random_state)
+        rand_vals = rng.rand(len(df))
+    else:
+        rand_vals = np.random.rand(len(df))
 
-        n_test = min(max_test_items_per_customer, len(group) - 1)
-        sampled = group.sample(
-            n=n_test,
-            random_state=(random_state + group_index) if random_state is not None else None,
-        )
-        train_mask = ~group.index.isin(sampled.index)
-        train_rows.append(group.loc[train_mask])
-        test_rows.append(sampled)
+    df["_rand"] = rand_vals
+    df["_rank"] = df.groupby("customer_id", sort=False)["_rand"].rank(method="first", ascending=True)
+    counts = df.groupby("customer_id", sort=False)["customer_id"].transform("count")
 
-    train_df = pd.concat(train_rows, ignore_index=True) if train_rows else pd.DataFrame(columns=interactions.columns)
-    test_df = pd.concat(test_rows, ignore_index=True) if test_rows else pd.DataFrame(columns=interactions.columns)
+    max_test = np.where(counts <= 1, 1, np.minimum(max_test_items_per_customer, counts - 1))
+    is_test = df["_rank"] <= max_test
+
+    test_df = df[is_test].drop(columns=["_rand", "_rank"]).reset_index(drop=True)
+    train_df = df[~is_test].drop(columns=["_rand", "_rank"]).reset_index(drop=True)
 
     return train_df, test_df

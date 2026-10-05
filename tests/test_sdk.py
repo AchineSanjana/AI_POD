@@ -270,5 +270,32 @@ def test_hm_fashion_demo_page(client):
     assert "not persisted" in html
 
 
+def test_telco_portal_demo_page(client):
+    """Verify demo/telco_portal.html meets the Telco / Mobitel simulation requirements."""
+    for path in ["/telco", "/mobitel"]:
+        res = client.get(path)
+        assert res.status_code == 200
+        html = res.text
+
+        # Header and Brand
+        assert "Mobitel" in html or "MobitelConnect" in html
+        assert "Broadband" in html or "5G" in html
+
+        # Subscriber Selection
+        assert "subscriberSelect" in html
+        assert "7590-VHVEG" in html
+
+        # Recommended for You section and SDK integration
+        assert "Recommended Plans" in html or "Recommended" in html
+        assert "AIPod.getRecommendations(" in html
+        assert "AIPod.track(" in html
+        assert "AIPod.identify(" in html
+
+        # Digital Services and Plans
+        assert "Internet - Fiber Optic" in html or "InternetService_Fiber" in html
+        assert "Online Security" in html or "OnlineSecurity" in html
+
+
+
 
 

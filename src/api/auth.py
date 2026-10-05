@@ -43,14 +43,7 @@ def is_request_allowed_for_key(key_type: str, method: str, path: str) -> bool:
         norm_path = path.rstrip("/")
         if not norm_path:
             norm_path = "/"
-        if (norm_method, norm_path) in PUBLIC_KEY_ALLOWED_ACTIONS:
-            return True
-        if norm_method == "GET" and (
-            norm_path.startswith("/v1/recommendations")
-            or norm_path.startswith("/recommendations")
-        ):
-            return True
-        return False
+        return (norm_method, norm_path) in PUBLIC_KEY_ALLOWED_ACTIONS
 
     return False
 

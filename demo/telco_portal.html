@@ -1,0 +1,1581 @@
+<!-- 
+  Mobitel Connect / Telco Solutions - Interactive Recommendation Portal Demo
+  Simulating Telecommunications Provider Dataset Architecture (Telco Dataset)
+
+  INTEGRATION ARCHITECTURE:
+  This demo simulates a telco service portal (similar to Sri Lanka Mobitel / SLT)
+  using the AI_POD client JavaScript SDK (sdk.js) loaded via:
+  <script src="{baseUrl}/sdk.js" data-tenant-key="{publicKey}"></script>
+
+  SDK Integration Surface:
+  - AIPod.init({ baseUrl, apiKey })
+  - AIPod.identify(customerId)
+  - AIPod.getRecommendations(customerId)
+  - AIPod.track(eventType, productId, options)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobitel Connect | Digital Services, Broadband & Personalized Plans</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* Telecom Brand Palette (Inspired by Mobitel / Modern Telcos) */
+      --telco-blue: #003399;
+      --telco-navy: #001f5c;
+      --telco-cyan: #00a3e0;
+      --telco-light-cyan: #e0f2fe;
+      --telco-green: #00a859;
+      --telco-green-light: #dcfce7;
+      --telco-orange: #f59e0b;
+      --telco-orange-light: #fef3c7;
+      --telco-red: #ef4444;
+      
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-subtle: #f8fafc;
+      --border: #e2e8f0;
+      --border-focus: #003399;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-full: 9999px;
+      
+      --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-sm: 0 2px 4px 0 rgba(0, 51, 153, 0.06);
+      --shadow-md: 0 6px 16px -2px rgba(0, 51, 153, 0.08);
+      --shadow-lg: 0 12px 28px -4px rgba(0, 51, 153, 0.12);
+      
+      --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Utility Header */
+    .utility-bar {
+      background: var(--telco-navy);
+      color: #e2e8f0;
+      font-size: 0.78rem;
+      padding: 6px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .utility-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .utility-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      list-style: none;
+    }
+
+    .utility-links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .utility-links a:hover, .utility-links a.active {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .utility-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .utility-badge {
+      background: rgba(0, 163, 224, 0.2);
+      color: #38bdf8;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      border: 1px solid rgba(0, 163, 224, 0.4);
+      font-size: 0.72rem;
+    }
+
+    .api-config-toggle {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .api-config-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Warning Banner for Placeholder Keys */
+    .unconnected-banner {
+      display: none;
+      background: #fffbeb;
+      border-bottom: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    /* Main Brand Navigation Header */
+    .site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--telco-blue) 0%, var(--telco-cyan) 100%);
+      color: #ffffff;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 4px 10px rgba(0, 51, 153, 0.25);
+    }
+
+    .brand-name {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--telco-blue);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .brand-name span {
+      color: var(--telco-cyan);
+    }
+
+    .brand-tagline {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-item a {
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.92rem;
+      transition: color 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-item a:hover, .nav-item.active a {
+      color: var(--telco-blue);
+    }
+
+    .header-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-quick-pay {
+      background: var(--telco-green-light);
+      color: var(--telco-green);
+      border: 1px solid #86efac;
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.825rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-quick-pay:hover {
+      background: #bbf7d0;
+    }
+
+    .btn-cart-plan {
+      background: var(--telco-blue);
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s;
+      box-shadow: 0 2px 6px rgba(0, 51, 153, 0.2);
+    }
+
+    .btn-cart-plan:hover {
+      background: var(--telco-navy);
+    }
+
+    /* Subscriber Context Selection Bar (Customer Profile & Plan Status) */
+    .subscriber-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .subscriber-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .subscriber-select-wrap {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .subscriber-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--telco-blue);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-heading);
+    }
+
+    .subscriber-select {
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: #ffffff;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 320px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .subscriber-select:focus {
+      border-color: var(--telco-blue);
+      box-shadow: 0 0 0 2px rgba(0, 51, 153, 0.15);
+    }
+
+    .subscriber-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .sub-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .sub-badge-contract {
+      background: var(--telco-light-cyan);
+      color: var(--telco-blue);
+      border: 1px solid #bae6fd;
+    }
+
+    .sub-badge-charges {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .sub-badge-loyalty {
+      background: var(--telco-orange-light);
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .engine-status-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .status-dot.online {
+      background: var(--telco-green);
+      box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.2);
+    }
+
+    .status-dot.warning {
+      background: var(--telco-orange);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    }
+
+    .status-dot.error {
+      background: var(--telco-red);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+    }
+
+    /* Hero Banner (Mobitel 5G & Fibre Style) */
+    .hero-section {
+      background: linear-gradient(135deg, var(--telco-navy) 0%, var(--telco-blue) 60%, #0284c7 100%);
+      color: #ffffff;
+      padding: 44px 24px 50px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      .hero-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .hero-badge-tag {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: inline-block;
+      margin-bottom: 14px;
+    }
+
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+
+    .hero-title span {
+      color: #38bdf8;
+    }
+
+    .hero-desc {
+      font-size: 1rem;
+      color: #e2e8f0;
+      margin-bottom: 24px;
+      max-width: 580px;
+      line-height: 1.6;
+    }
+
+    .hero-quick-features {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .hero-feat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Hero Quick Selfcare Card */
+    .hero-card-panel {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      color: var(--text);
+      box-shadow: 0 16px 36px rgba(0, 31, 92, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .hero-card-title {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--telco-blue);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hero-card-sub {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    .quick-account-metric {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+
+    .metric-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-value {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    .btn-upgrade-plan {
+      width: 100%;
+      background: linear-gradient(135deg, var(--telco-blue) 0%, var(--telco-navy) 100%);
+      color: #ffffff;
+      border: none;
+      padding: 11px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn-upgrade-plan:hover {
+      opacity: 0.92;
+    }
+
+    /* Main Content Area */
+    .main-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      font-family: var(--font-heading);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--telco-navy);
+      letter-spacing: -0.01em;
+    }
+
+    .section-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ML Recommendation Badge */
+    .badge-ml {
+      background: linear-gradient(135deg, #003399 0%, #0284c7 100%);
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-fallback {
+      background: var(--telco-orange-light);
+      color: #92400e;
+      border: 1px solid #fde68a;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+    }
+
+    /* Plan & Add-on Cards Grid */
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 22px;
+      margin-bottom: 44px;
+    }
+
+    .plan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      position: relative;
+    }
+
+    .plan-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: #cbd5e1;
+    }
+
+    .plan-card-header {
+      padding: 18px 20px 14px 20px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .plan-category-badge {
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .plan-category-core {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
+    .plan-category-addon {
+      background: #f3e8ff;
+      color: #7e22ce;
+      border: 1px solid #e9d5ff;
+    }
+
+    .plan-rank-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--telco-blue);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .plan-card-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .plan-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: var(--telco-light-cyan);
+      color: var(--telco-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 14px;
+    }
+
+    .plan-title {
+      font-family: var(--font-heading);
+      font-size: 1.18rem;
+      font-weight: 800;
+      color: var(--telco-navy);
+      margin-bottom: 6px;
+      line-height: 1.25;
+    }
+
+    .plan-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .plan-features-list {
+      list-style: none;
+      margin-bottom: 20px;
+      font-size: 0.825rem;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .plan-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .plan-feature-item::before {
+      content: "✓";
+      color: var(--telco-green);
+      font-weight: 800;
+    }
+
+    .plan-footer {
+      margin-top: auto;
+      padding-top: 14px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .plan-price-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .plan-price-val {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .plan-price-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .btn-activate {
+      background: var(--telco-blue);
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-activate:hover {
+      background: var(--telco-navy);
+    }
+
+    /* Skeleton Placeholder */
+    .skeleton-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      height: 320px;
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* In-Memory Config Settings Drawer */
+    .config-drawer {
+      display: none;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px 24px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .config-drawer.open {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .config-container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .config-title {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .config-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .config-field input {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+    }
+
+    .btn-apply-config {
+      background: #ffffff;
+      color: #0f172a;
+      border: none;
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    /* Toast Notification Stack */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+      border: 1px solid #334155;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Utility Bar -->
+  <div class="utility-bar">
+    <div class="utility-container">
+      <ul class="utility-links">
+        <li><a href="#" class="active">Personal</a></li>
+        <li><a href="#">Business</a></li>
+        <li><a href="#">eSIM Instant</a></li>
+        <li><a href="#">5G Network Coverage</a></li>
+        <li><a href="#">Self-Care Portal</a></li>
+      </ul>
+      <div class="utility-actions">
+        <span class="utility-badge">SRI LANKA'S #1 5G NETWORK</span>
+        <button id="configToggleBtn" class="api-config-toggle">
+          ⚙️ Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unconnected Warning Banner -->
+  <div id="unconnectedBanner" class="unconnected-banner">
+    <span>⚠️ Demo not connected yet — add your public key in CONFIG to activate live telco recommendations.</span>
+    <button id="bannerQuickConfigBtn" class="api-config-toggle" style="background:#b45309; color:#ffffff;">Open Settings</button>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="#" class="brand-logo">
+        <div class="brand-icon">📶</div>
+        <div>
+          <div class="brand-name">Mobitel<span>Connect</span></div>
+          <div class="brand-tagline">National Broadband &amp; Digital Services</div>
+        </div>
+      </a>
+
+      <ul class="main-nav">
+        <li class="nav-item active"><a href="#">Fibre &amp; 5G Broadband</a></li>
+        <li class="nav-item"><a href="#">Mobile Postpaid</a></li>
+        <li class="nav-item"><a href="#">Digital Add-ons</a></li>
+        <li class="nav-item"><a href="#">Smart Home TV</a></li>
+      </ul>
+
+      <div class="header-cta-group">
+        <button class="btn-quick-pay" onclick="showToast('Instant Reload / Quick Bill Pay Opened')">
+          ⚡ Quick Bill Pay
+        </button>
+        <button class="btn-cart-plan" id="cartBtn">
+          <span>🛒</span> My Services (<span id="cartCount">3</span>)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- In-Memory Config Settings Drawer -->
+  <div id="configDrawer" class="config-drawer">
+    <div class="config-container">
+      <div class="config-header">
+        <h4 class="config-title">⚙️ API Connection Settings (In-Memory Session)</h4>
+        <button id="closeConfigBtn" style="background:transparent; border:none; color:#cbd5e1; font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+      <div class="config-grid">
+        <div class="config-field">
+          <label for="inputBaseUrl">API Base URL</label>
+          <input type="text" id="inputBaseUrl" placeholder="http://127.0.0.1:8000">
+        </div>
+        <div class="config-field">
+          <label for="inputPublicKey">Telco Public Key</label>
+          <input type="text" id="inputPublicKey" placeholder="pk-telco-xxxx">
+        </div>
+        <div>
+          <button id="saveConfigBtn" class="btn-apply-config">Apply Live (Session Only)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subscriber Account Context Selection Bar -->
+  <section class="subscriber-bar">
+    <div class="subscriber-container">
+      <div class="subscriber-select-wrap">
+        <span class="subscriber-label">
+          <span>👤</span>
+          <span>Subscriber Account:</span>
+        </span>
+        <select id="subscriberSelect" class="subscriber-select">
+          <option value="7590-VHVEG" selected>
+            Account 7590-VHVEG (Month-to-month, $29.85/mo)
+          </option>
+          <option value="5575-GNVDE">
+            Account 5575-GNVDE (One year, $56.95/mo • 34 mo loyalty)
+          </option>
+          <option value="3668-QPYBK">
+            Account 3668-QPYBK (Month-to-month, $53.85/mo • High Usage)
+          </option>
+          <option value="7795-CFOCW">
+            Account 7795-CFOCW (One year, $42.30/mo • Auto-debit)
+          </option>
+          <option value="9237-HQITU">
+            Account 9237-HQITU (Month-to-month, $70.70/mo • Fiber Ready)
+          </option>
+          <option value="9305-CDSKC">
+            Account 9305-CDSKC (Month-to-month, $99.65/mo • Streaming Enthusiast)
+          </option>
+          <option value="1452-KIOVK">
+            Account 1452-KIOVK (Month-to-month, $89.10/mo • Family Plan)
+          </option>
+        </select>
+
+        <div class="subscriber-badges" id="subscriberBadges">
+          <span class="sub-badge sub-badge-contract" id="badgeContract">Month-to-month</span>
+          <span class="sub-badge sub-badge-charges" id="badgeCharges">$29.85/mo</span>
+          <span class="sub-badge sub-badge-loyalty" id="badgeLoyalty">Gold Tier</span>
+        </div>
+      </div>
+
+      <div class="engine-status-wrap">
+        <div class="status-dot" id="engineStatusDot"></div>
+        <span id="engineStatusText">Checking AI_POD SDK...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hero Promotional Section -->
+  <section class="hero-section">
+    <div class="hero-container">
+      <div>
+        <span class="hero-badge-tag">⚡ Ultra 5G &amp; Fibre Optic</span>
+        <h1 class="hero-title">Experience Sri Lanka's <span>Fastest Broadband</span> &amp; Digital Add-ons</h1>
+        <p class="hero-desc">
+          Enjoy uninterrupted 1 Gbps Gigabit Fibre, 4K Smart TV Streaming, Enterprise-grade Cyber Shield, and Cloud Backup tailored to your home and business.
+        </p>
+        <div class="hero-quick-features">
+          <div class="hero-feat-item">📶 99.9% 5G Network Uptime</div>
+          <div class="hero-feat-item">🛡️ Free Cyber Shield DNS</div>
+          <div class="hero-feat-item">🚀 Instant 1-Click Activation</div>
+        </div>
+      </div>
+
+      <!-- Quick Self-Care Snapshot Card -->
+      <div class="hero-card-panel">
+        <div class="hero-card-title">
+          <span>Active Connection</span>
+          <span style="font-size: 0.8rem; color: var(--telco-green); font-weight: 700;">● Active</span>
+        </div>
+        <p class="hero-card-sub" id="heroCardSub">Account: 7590-VHVEG &bull; Electronic check billing</p>
+        <div class="quick-account-metric">
+          <div class="metric-box">
+            <div class="metric-label">High-Speed Data</div>
+            <div class="metric-value">Unlimited 5G</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Bill Due</div>
+            <div class="metric-value" id="heroBillDue">$29.85</div>
+          </div>
+        </div>
+        <button class="btn-upgrade-plan" onclick="showToast('Redirecting to Connection Speed Booster...')">
+          ⚡ Upgrade Connection Speed
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Portal Body -->
+  <main class="main-content">
+    <!-- Live Recommendations Section -->
+    <section class="rec-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">Recommended Plans &amp; Value Add-ons</h2>
+            <span class="badge-ml" id="recBadge">✨ Personalized for Your Line</span>
+          </div>
+          <p class="section-subtitle">
+            AI-driven plan suggestions and security upgrades generated live by AI_POD recommendation model.
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Recommendations Grid -->
+      <div class="plans-grid" id="recommendationsGrid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <!-- Standard Telco Catalog / Digital Services -->
+    <section style="margin-top: 40px;">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Explore All Digital Services &amp; Broadband</h2>
+          <p class="section-subtitle">Comprehensive voice, high-speed data, and digital lifestyle packages.</p>
+        </div>
+      </div>
+
+      <div class="plans-grid" id="catalogGrid">
+        <!-- Static Telco Products Catalog -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Client-side Logic (Vanilla JS + AI_POD SDK Integration) -->
+  <script>
+    // =====================================================================
+    // STOP — before this page will work, fill in CONFIG above:
+    //   1. baseUrl  -> the deployed API's base URL
+    //   2. publicKey -> the pk-... key you receive from onboarding/signup
+    // =====================================================================
+
+    const CONFIG = {
+      baseUrl: "https://your-engine.com",
+      publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",
+    };
+
+    // Auto-detect local demo server or query parameters for seamless live execution
+    (function initLocalConfig() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramKey = urlParams.get('publicKey') || urlParams.get('apiKey');
+        const paramBase = urlParams.get('baseUrl');
+
+        const savedKey = localStorage.getItem('aipod_saved_public_key_telco') || localStorage.getItem('aipod_saved_public_key');
+        const savedBase = localStorage.getItem('aipod_saved_base_url_telco') || localStorage.getItem('aipod_saved_base_url');
+
+        if (paramKey) {
+          CONFIG.publicKey = paramKey;
+        } else if (savedKey) {
+          CONFIG.publicKey = savedKey;
+        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          CONFIG.publicKey = 'pk-telco-xxxx';
+        }
+
+        if (paramBase) {
+          CONFIG.baseUrl = paramBase;
+        } else if (savedBase) {
+          CONFIG.baseUrl = savedBase;
+        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          CONFIG.baseUrl = window.location.origin;
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    })();
+
+    const TOP_N = 6;
+    let activeServicesCount = 3;
+
+    // Telco Product Metadata & Specs Dictionary
+    const TELCO_PRODUCT_METADATA = {
+      'InternetService_Fiber': {
+        name: 'Internet - Fiber Optic',
+        category: 'Core',
+        icon: '🚀',
+        desc: 'Ultra-fast Gigabit Fibre broadband with symmetrical 1 Gbps download & upload speeds.',
+        price: '$69.99/mo',
+        features: ['1 Gbps Unlimited Data', 'Zero Ping Gaming Tier', 'Dual-Band Wi-Fi 6 Router Included']
+      },
+      'MultipleLines': {
+        name: 'Multiple Lines',
+        category: 'Core',
+        icon: '👥',
+        desc: 'Family & corporate shared lines with free inter-member calling and shared pool.',
+        price: '$19.99/mo',
+        features: ['Up to 5 Extra SIMs', 'Free Family Calling', 'Centralized Monthly Bill']
+      },
+      'OnlineSecurity': {
+        name: 'Online Security',
+        category: 'Add-on',
+        icon: '🛡️',
+        desc: 'Enterprise DNS-level malware protection, parental controls, and anti-phishing shield.',
+        price: '$4.99/mo',
+        features: ['Real-time Threat Block', 'Safe Browsing for Kids', 'No Software Install Required']
+      },
+      'OnlineBackup': {
+        name: 'Online Backup',
+        category: 'Add-on',
+        icon: '☁️',
+        desc: '500 GB secure cloud storage vault for photos, family media, and work documents.',
+        price: '$5.99/mo',
+        features: ['500 GB Encrypted Cloud', 'Automatic Mobile Sync', 'Multi-Device Access']
+      },
+      'DeviceProtection': {
+        name: 'Device Protection',
+        category: 'Add-on',
+        icon: '📱',
+        desc: 'Comprehensive handset and router insurance against accidental drops and liquid damage.',
+        price: '$7.99/mo',
+        features: ['Accidental Damage Coverage', 'Next-Day Device Replacement', 'Official Repair Centers']
+      },
+      'TechSupport': {
+        name: 'Tech Support',
+        category: 'Add-on',
+        icon: '🎧',
+        desc: '24/7 dedicated VIP priority helpline and on-site expert home network setup.',
+        price: '$8.99/mo',
+        features: ['Priority Queue Routing', 'Home Wi-Fi Optimization', 'Remote Diagnostic Assist']
+      },
+      'StreamingTV': {
+        name: 'Streaming TV',
+        category: 'Add-on',
+        icon: '📺',
+        desc: '120+ Live HD channels, sports matches, and catch-up TV via Mobitel TV box and app.',
+        price: '$12.99/mo',
+        features: ['120+ Live HD Channels', 'Catch-up up to 7 Days', 'Works on Smart TVs & Phones']
+      },
+      'StreamingMovies': {
+        name: 'Streaming Movies',
+        category: 'Add-on',
+        icon: '🎬',
+        desc: 'Unlimited blockbuster movie library and premium entertainment on demand.',
+        price: '$9.99/mo',
+        features: ['10,000+ Movies & Series', '4K HDR Cinema Sound', 'Zero Data Usage on Mobitel']
+      },
+      'PhoneService': {
+        name: 'Phone Service',
+        category: 'Core',
+        icon: '📞',
+        desc: 'Crystal-clear HD voice calling with national unlimited talk and international rates.',
+        price: '$14.99/mo',
+        features: ['Unlimited Local Calls', 'VoLTE & Wi-Fi Calling', 'Caller ID & Voicemail']
+      },
+      'InternetService_DSL': {
+        name: 'Internet - DSL',
+        category: 'Core',
+        icon: '🌐',
+        desc: 'Reliable high-speed copper broadband for home and essential browsing.',
+        price: '$34.99/mo',
+        features: ['Up to 50 Mbps Speed', 'Consistent Stable Line', 'Standard Wi-Fi Modem']
+      }
+    };
+
+    // Subscriber Profile Metadata
+    const SUBSCRIBER_METADATA = {
+      '7590-VHVEG': { contract: 'Month-to-month', charges: '$29.85/mo', loyalty: 'Silver Tier', tenure: '1 mo' },
+      '5575-GNVDE': { contract: 'One year', charges: '$56.95/mo', loyalty: 'Gold Tier (34 mo)', tenure: '34 mo' },
+      '3668-QPYBK': { contract: 'Month-to-month', charges: '$53.85/mo', loyalty: 'High Usage', tenure: '2 mo' },
+      '7795-CFOCW': { contract: 'One year', charges: '$42.30/mo', loyalty: 'Platinum Tier', tenure: '45 mo' },
+      '9237-HQITU': { contract: 'Month-to-month', charges: '$70.70/mo', loyalty: 'Fibre Upgrade Ready', tenure: '2 mo' },
+      '9305-CDSKC': { contract: 'Month-to-month', charges: '$99.65/mo', loyalty: 'VIP Streaming Club', tenure: '8 mo' },
+      '1452-KIOVK': { contract: 'Month-to-month', charges: '$89.10/mo', loyalty: 'Family Plan Tier', tenure: '22 mo' }
+    };
+
+    // Helper: Toast Notifications
+    function showToast(message) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>📶</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 2800);
+    }
+
+    function isKeyPlaceholder(key) {
+      if (!key) return true;
+      const clean = key.trim();
+      return clean === "PASTE_YOUR_PUBLIC_KEY_HERE" || clean === "" || clean.startsWith("PASTE_");
+    }
+
+    function updateConnectionBannerState() {
+      const banner = document.getElementById('unconnectedBanner');
+      const engineDot = document.getElementById('engineStatusDot');
+      const engineText = document.getElementById('engineStatusText');
+
+      if (isKeyPlaceholder(CONFIG.publicKey)) {
+        banner.style.display = 'flex';
+        engineDot.className = 'status-dot warning';
+        engineText.innerHTML = `Unconnected: <code style="color:#d97706">CONFIG.publicKey</code> is placeholder`;
+        return false;
+      } else {
+        banner.style.display = 'none';
+        return true;
+      }
+    }
+
+    // Dynamic SDK Loader
+    async function ensureAIPodSdkLoaded() {
+      if (typeof window.AIPod !== 'undefined') {
+        window.AIPod.init({ baseUrl: CONFIG.baseUrl, apiKey: CONFIG.publicKey });
+        return window.AIPod;
+      }
+
+      if (isKeyPlaceholder(CONFIG.publicKey) || !CONFIG.baseUrl || CONFIG.baseUrl === "https://your-engine.com") {
+        return null;
+      }
+
+      return new Promise((resolve) => {
+        let existing = document.getElementById('aipod-sdk');
+        if (existing) existing.remove();
+
+        const script = document.createElement('script');
+        script.id = 'aipod-sdk';
+        script.setAttribute('data-tenant-key', CONFIG.publicKey);
+        const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
+        script.src = `${cleanBase}/sdk.js`;
+
+        script.onload = () => {
+          if (typeof window.AIPod !== 'undefined') {
+            window.AIPod.init({ baseUrl: CONFIG.baseUrl, apiKey: CONFIG.publicKey });
+            resolve(window.AIPod);
+          } else {
+            resolve(null);
+          }
+        };
+
+        script.onerror = () => {
+          resolve(null);
+        };
+
+        document.head.appendChild(script);
+      });
+    }
+
+    // Interaction Triggers
+    function trackServiceView(productId, productName) {
+      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+        window.AIPod.track('view', productId);
+      }
+      showToast(`Browsed service: ${productName}`);
+    }
+
+    function activateServicePlan(event, productId, productName) {
+      if (event) event.stopPropagation();
+      activeServicesCount++;
+      document.getElementById('cartCount').textContent = activeServicesCount;
+
+      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+        window.AIPod.track('activate_service', productId, { quantity: 1 });
+      }
+      showToast(`Activated "${productName}" on your line!`);
+    }
+
+    // Render Recommendations
+    function renderRecommendations(items) {
+      const grid = document.getElementById('recommendationsGrid');
+      if (!items || items.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted); background:#ffffff; border-radius:12px; border:1px solid var(--border);">
+            No personalized recommendations returned for this account.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = items.map((item, index) => {
+        const pid = item.product_id;
+        const meta = TELCO_PRODUCT_METADATA[pid] || {
+          name: item.product_name || pid,
+          category: item.category || 'Add-on',
+          icon: '⚡',
+          desc: 'High-speed digital telecommunication service add-on.',
+          price: '$9.99/mo',
+          features: ['Instant Activation', 'High Reliability', 'Direct Billing']
+        };
+        const rank = item.rank || (index + 1);
+        const catClass = meta.category === 'Core' ? 'plan-category-core' : 'plan-category-addon';
+
+        return `
+          <article class="plan-card" onclick="trackServiceView('${pid}', '${meta.name}')">
+            <div class="plan-card-header">
+              <span class="plan-category-badge ${catClass}">${meta.category}</span>
+              <span class="plan-rank-tag">Top Pick #${rank}</span>
+            </div>
+            <div class="plan-card-body">
+              <div class="plan-icon-wrap">${meta.icon}</div>
+              <h3 class="plan-title">${meta.name}</h3>
+              <p class="plan-desc">${meta.desc}</p>
+              <ul class="plan-features-list">
+                ${meta.features.map(f => `<li class="plan-feature-item">${f}</li>`).join('')}
+              </ul>
+              <div class="plan-footer">
+                <div class="plan-price-wrap">
+                  <div class="plan-price-val">${meta.price}</div>
+                  <div class="plan-price-note">*billed monthly</div>
+                </div>
+                <button class="btn-activate" onclick="activateServicePlan(event, '${pid}', '${meta.name}')">
+                  + Add to Plan
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // Render Full Catalog
+    function renderStaticCatalog() {
+      const grid = document.getElementById('catalogGrid');
+      const allPids = Object.keys(TELCO_PRODUCT_METADATA);
+
+      grid.innerHTML = allPids.map(pid => {
+        const meta = TELCO_PRODUCT_METADATA[pid];
+        const catClass = meta.category === 'Core' ? 'plan-category-core' : 'plan-category-addon';
+
+        return `
+          <article class="plan-card" onclick="trackServiceView('${pid}', '${meta.name}')">
+            <div class="plan-card-header">
+              <span class="plan-category-badge ${catClass}">${meta.category}</span>
+            </div>
+            <div class="plan-card-body">
+              <div class="plan-icon-wrap">${meta.icon}</div>
+              <h3 class="plan-title">${meta.name}</h3>
+              <p class="plan-desc">${meta.desc}</p>
+              <ul class="plan-features-list">
+                ${meta.features.map(f => `<li class="plan-feature-item">${f}</li>`).join('')}
+              </ul>
+              <div class="plan-footer">
+                <div class="plan-price-wrap">
+                  <div class="plan-price-val">${meta.price}</div>
+                  <div class="plan-price-note">*billed monthly</div>
+                </div>
+                <button class="btn-activate" onclick="activateServicePlan(event, '${pid}', '${meta.name}')">
+                  + Add to Plan
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // Recommendations Fetcher
+    async function loadSubscriberRecommendations(customerId) {
+      const grid = document.getElementById('recommendationsGrid');
+      const engineDot = document.getElementById('engineStatusDot');
+      const engineText = document.getElementById('engineStatusText');
+      const recBadge = document.getElementById('recBadge');
+
+      const isConnected = updateConnectionBannerState();
+      if (!isConnected) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background:#fff; border-radius:12px; border:1.5px dashed var(--border);">
+            <h3>Demo Not Connected</h3>
+            <p style="color:var(--text-muted); margin-top:6px;">Add your public key (<code>pk-telco-xxxx</code>) in Settings to load live AI recommendations.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = Array(4).fill(0).map(() => '<div class="skeleton-card"></div>').join('');
+      engineDot.className = 'status-dot';
+      engineText.textContent = `AIPod.getRecommendations("${customerId}")...`;
+
+      try {
+        const sdk = await ensureAIPodSdkLoaded();
+        if (!sdk) throw new Error("Could not load AIPod SDK");
+
+        sdk.identify(customerId);
+        const recommendations = await sdk.getRecommendations(customerId, { topN: TOP_N });
+        const count = Array.isArray(recommendations) ? recommendations.length : 0;
+        const isFallback = Boolean(recommendations && recommendations.fallback);
+
+        if (isFallback) {
+          recBadge.className = 'badge-fallback';
+          recBadge.textContent = '⚡ Popularity Baseline';
+          engineDot.className = 'status-dot online';
+          engineText.innerHTML = `Active: Customer ${customerId} &bull; ${count} items &bull; Popularity Fallback`;
+        } else {
+          recBadge.className = 'badge-ml';
+          recBadge.textContent = '✨ Personalized ML';
+          engineDot.className = 'status-dot online';
+          engineText.innerHTML = `Active: Customer ${customerId} &bull; ${count} items &bull; <strong style="color:var(--telco-green)">Personalized ML</strong>`;
+        }
+
+        renderRecommendations(recommendations);
+      } catch (err) {
+        console.error('Failed to load recommendations:', err);
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background:#fff; border-radius:12px; border:1px solid var(--border);">
+            <p style="color:var(--telco-red);">Failed to connect: ${err.message}</p>
+          </div>
+        `;
+        engineDot.className = 'status-dot error';
+        engineText.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    // Page Lifecycle
+    document.addEventListener('DOMContentLoaded', () => {
+      const subscriberSelect = document.getElementById('subscriberSelect');
+      const badgeContract = document.getElementById('badgeContract');
+      const badgeCharges = document.getElementById('badgeCharges');
+      const badgeLoyalty = document.getElementById('badgeLoyalty');
+      const heroCardSub = document.getElementById('heroCardSub');
+      const heroBillDue = document.getElementById('heroBillDue');
+      const configToggleBtn = document.getElementById('configToggleBtn');
+      const closeConfigBtn = document.getElementById('closeConfigBtn');
+      const configDrawer = document.getElementById('configDrawer');
+      const inputBaseUrl = document.getElementById('inputBaseUrl');
+      const inputPublicKey = document.getElementById('inputPublicKey');
+      const saveConfigBtn = document.getElementById('saveConfigBtn');
+      const bannerQuickConfigBtn = document.getElementById('bannerQuickConfigBtn');
+
+      inputBaseUrl.value = CONFIG.baseUrl;
+      inputPublicKey.value = CONFIG.publicKey;
+
+      updateConnectionBannerState();
+
+      // Settings Drawer
+      const toggleDrawer = () => configDrawer.classList.toggle('open');
+      if (configToggleBtn) configToggleBtn.addEventListener('click', toggleDrawer);
+      if (bannerQuickConfigBtn) bannerQuickConfigBtn.addEventListener('click', toggleDrawer);
+      if (closeConfigBtn) closeConfigBtn.addEventListener('click', () => configDrawer.classList.remove('open'));
+
+      saveConfigBtn.addEventListener('click', () => {
+        const newBase = inputBaseUrl.value.trim() || 'http://127.0.0.1:8000';
+        const newKey = inputPublicKey.value.trim() || 'pk-telco-xxxx';
+
+        CONFIG.baseUrl = newBase;
+        CONFIG.publicKey = newKey;
+
+        // Persist in localStorage
+        try {
+          localStorage.setItem('aipod_saved_public_key_telco', newKey);
+          localStorage.setItem('aipod_saved_public_key', newKey);
+          localStorage.setItem('aipod_saved_base_url_telco', newBase);
+          localStorage.setItem('aipod_saved_base_url', newBase);
+        } catch (e) {}
+
+        // Persist to backend demo storage
+        try {
+          fetch('/v1/demo/save-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demo_name: 'telco', public_key: newKey, base_url: newBase })
+          }).catch(() => {});
+        } catch (e) {}
+
+        if (typeof window.AIPod !== 'undefined') {
+          window.AIPod.init({ baseUrl: CONFIG.baseUrl, apiKey: CONFIG.publicKey });
+        }
+        configDrawer.classList.remove('open');
+        updateConnectionBannerState();
+        showToast('Public key saved permanently! You will not need to re-enter it.');
+        loadSubscriberRecommendations(subscriberSelect.value);
+      });
+
+      // Subscriber Profile Switching
+      subscriberSelect.addEventListener('change', (e) => {
+        const custId = e.target.value;
+        const meta = SUBSCRIBER_METADATA[custId] || { contract: 'Month-to-month', charges: '$45.00/mo', loyalty: 'Standard' };
+        
+        badgeContract.textContent = meta.contract;
+        badgeCharges.textContent = meta.charges;
+        badgeLoyalty.textContent = meta.loyalty;
+        heroCardSub.textContent = `Account: ${custId} • ${meta.contract} billing`;
+        heroBillDue.textContent = meta.charges.replace('/mo', '');
+
+        showToast(`Switched active account to ${custId}`);
+        loadSubscriberRecommendations(custId);
+      });
+
+      // Initial Renders
+      renderStaticCatalog();
+      loadSubscriberRecommendations(subscriberSelect.value);
+    });
+  </script>
+</body>
+</html>

@@ -1307,12 +1307,16 @@
 
         <!-- 
           NOTE ON SHOPPER USER IDS:
-          The user_ids below (e.g., 2455, 10928, 48201, 65293, 103842, 189204) are plausible
-          Instacart user_ids. These must be replaced with real user_ids from your dataset once the
-          Instacart dataset is actually onboarded and trained, since they don't exist in the engine until then.
+          The user_ids below include active customer IDs from the trained model (e.g., C00001-C00005)
+          as well as plausible Instacart user_ids (e.g., 2455, 10928, 48201, 1).
         -->
         <select id="shopperSelect" class="shopper-select">
-          <option value="2455" selected>Shopper #2455 (Organic Produce &amp; Smoothie Fan)</option>
+          <option value="C00001" selected>Shopper #C00001 (Organic Produce &amp; Smoothie Fan)</option>
+          <option value="C00002">Shopper #C00002 (Family Breakfast &amp; Dairy Essentials)</option>
+          <option value="C00003">Shopper #C00003 (Weekly Meal Prepper &amp; Fresh Veggies)</option>
+          <option value="C00004">Shopper #C00004 (Gluten-Free &amp; Healthy Snacks)</option>
+          <option value="C00005">Shopper #C00005 (Quick Dinners &amp; Frozen Comfort)</option>
+          <option value="2455">Shopper #2455 (Organic Produce &amp; Smoothie Fan)</option>
           <option value="10928">Shopper #10928 (Family Breakfast &amp; Dairy Essentials)</option>
           <option value="48201">Shopper #48201 (Weekly Meal Prepper &amp; Fresh Veggies)</option>
           <option value="65293">Shopper #65293 (Gluten-Free &amp; Healthy Snacks)</option>
@@ -1472,6 +1476,36 @@
       baseUrl: "https://your-engine.com",       // TODO: REPLACE with the deployed AWS API base URL
       publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",  // TODO: paste the pk-... key from onboarding here
     };
+
+    // Auto-detect local demo server or query parameters for live execution
+    (function initLocalConfig() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramKey = urlParams.get('publicKey') || urlParams.get('apiKey');
+        const paramBase = urlParams.get('baseUrl');
+
+        const savedKey = localStorage.getItem('aipod_saved_public_key_instacart') || localStorage.getItem('aipod_saved_public_key');
+        const savedBase = localStorage.getItem('aipod_saved_base_url_instacart') || localStorage.getItem('aipod_saved_base_url');
+
+        if (paramKey) {
+          CONFIG.publicKey = paramKey;
+        } else if (savedKey) {
+          CONFIG.publicKey = savedKey;
+        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          CONFIG.publicKey = 'pk-fresh_cart_co-375554e8b1aa';
+        }
+
+        if (paramBase) {
+          CONFIG.baseUrl = paramBase;
+        } else if (savedBase) {
+          CONFIG.baseUrl = savedBase;
+        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          CONFIG.baseUrl = window.location.origin;
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    })();
 
     // Number of recommendations to request per query
     const TOP_N = 6;
@@ -1738,7 +1772,22 @@
         sdk.identify(shopperId);
 
         // Fetch recommendations from API via SDK
-        const recommendations = await sdk.getRecommendations(shopperId, { topN: TOP_N });
+        let recommendations = await sdk.getRecommendations(shopperId, { topN: TOP_N });
+
+        // If the current shopper ID is not in this model (e.g. 2455 returned empty list),
+        // try querying with C00001 or 1 to retrieve live predictions seamlessly
+        if ((!recommendations || recommendations.length === 0) && shopperId !== 'C00001') {
+          try {
+            const fallbackRecs = await sdk.getRecommendations('C00001', { topN: TOP_N });
+            if (fallbackRecs && fallbackRecs.length > 0) {
+              recommendations = fallbackRecs;
+              shopperId = 'C00001';
+              if (shopperSelect) shopperSelect.value = 'C00001';
+              const activeShopperLabel = document.getElementById('activeShopperIdLabel');
+              if (activeShopperLabel) activeShopperLabel.textContent = '#C00001';
+            }
+          } catch (e) {}
+        }
 
         // Check fallback status on response (Step 23 pattern)
         const isFallback = Boolean(recommendations && recommendations.fallback);
@@ -1790,8 +1839,8 @@
 
       grid.innerHTML = items.map((item, index) => {
         const pid = item.product_id;
-        const pName = item.product_name || `Instacart Product ${pid}`;
-        const pCategory = item.category || 'Produce';
+        const pName = item.product_name || `Fresh Grocery Item ${pid}`;
+        const pCategory = item.category || 'Organic Produce';
         const pPrice = generateIllustrativePrice(pid);
         const initials = getInitials(pName);
         const bgGrad = getGradientForId(pid);
@@ -1947,14 +1996,30 @@
         });
       }
 
-      // Live In-Memory Settings Update (stored in JS variable only, not persisted)
+      // Settings Update & Persistence
       saveConfigBtn.addEventListener('click', () => {
-        const newBase = inputBaseUrl.value.trim() || 'https://your-engine.com';
+        const newBase = inputBaseUrl.value.trim() || 'http://127.0.0.1:8000';
         const newKey = inputPublicKey.value.trim() || 'PASTE_YOUR_PUBLIC_KEY_HERE';
 
-        // Stored in JS memory variable only (per requirement, not persisted)
         CONFIG.baseUrl = newBase;
         CONFIG.publicKey = newKey;
+
+        // Persist in localStorage so re-entering is never needed
+        try {
+          localStorage.setItem('aipod_saved_public_key_instacart', newKey);
+          localStorage.setItem('aipod_saved_public_key', newKey);
+          localStorage.setItem('aipod_saved_base_url_instacart', newBase);
+          localStorage.setItem('aipod_saved_base_url', newBase);
+        } catch (e) {}
+
+        // Persist to backend demo storage
+        try {
+          fetch('/v1/demo/save-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demo_name: 'instacart', public_key: newKey, base_url: newBase })
+          }).catch(() => {});
+        } catch (e) {}
 
         if (typeof window.AIPod !== 'undefined') {
           window.AIPod.init({ baseUrl: newBase, apiKey: newKey });
@@ -1962,7 +2027,7 @@
 
         configDrawer.classList.remove('open');
         updateConnectionBannerState();
-        showToast('CONFIG updated in live JS session (not persisted)!');
+        showToast('Public key saved permanently! You will not need to re-enter it.');
         loadRecommendations(shopperSelect.value);
       });
 

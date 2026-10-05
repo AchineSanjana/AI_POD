@@ -526,13 +526,14 @@ def get_tenant_auth_records(config: dict | None = None) -> dict[str, dict[str, A
 
     Reads from SSM Parameter Store / Secrets Manager in AWS mode, or local YAML in local mode.
     """
-    if config is None:
+    if config is None or not isinstance(config, dict):
         try:
-            config = load_config()
+            loaded = load_config()
+            config = loaded if isinstance(loaded, dict) else {}
         except Exception:
             config = {}
 
-    storage_cfg = config.get("storage", {})
+    storage_cfg = config.get("storage", {}) if isinstance(config, dict) else {}
     backend = os.environ.get(
         "STORAGE_BACKEND", storage_cfg.get("backend", "local")
     ).strip().lower()

@@ -1333,26 +1333,26 @@
           These must be replaced with real customer IDs once the dataset is onboarded into AI_POD.
         -->
         <select id="shopperSelect" class="shopper-select">
-          <option value="00000dbacae5abe5e2351e4719c6eef9d527dbadc2ddceda1126726533ac78b4" selected>
-            Customer 00000dba... (32, Active member)
+          <option value="a3ab708684132c6bbd3dad7aa41f9b9c7d1c95d7d5cb1a3a052905191e858566" selected>
+            Customer a3ab7086... (35, Active member)
           </option>
-          <option value="0000423b00ade91418cceaf3b26c6af3dd342b51fd051eec9c12fb36984420fa">
-            Customer 0000423b... (24, Active member)
+          <option value="29faf622c66c95935e11709b28bc3252de560ec9fcb76e53e82bd877f3a7f447">
+            Customer 29faf622... (37, Active member)
           </option>
-          <option value="000058a12d5b43e67d225668fa1f8d618c13dc232df0cad8ffe7ad4a1091e318">
-            Customer 000058a1... (48, Regular member)
+          <option value="1426b606af826fa9568b6fe75629d10bb6ff7ea40f93908c43113d991e512bd5">
+            Customer 1426b606... (24, Active member)
           </option>
-          <option value="00007579c32f16d63d112541f120daac861777da179386426714f593322e1a02">
-            Customer 00007579... (21, Club VIP)
+          <option value="65cb62c794232651e2ac711faa11c2b4e3d41d5f3b59b50bee3ffde1d5776644">
+            Customer 65cb62c7... (21, Active member)
           </option>
-          <option value="00009d946eec3ea54add5ba56d5210ea898da4b7b0f3bed3735f5d860e66b86c">
-            Customer 00009d94... (36, Active member)
+          <option value="b637a3e7d8b0caa947aaefd609b8d84a9ee962cf0a52a51bac507ffc2bf1b741">
+            Customer b637a3e7... (43, Active member)
           </option>
-          <option value="0000b2f1829e23b24feec422ef13df90ece7e48b2da6b5b1422720ff804f72c2">
-            Customer 0000b2f1... (54, Regular member)
+          <option value="d1c5629d6d7e39067cef9d1092e44016ea94889fa36624fad0123c39de72edb1">
+            Customer d1c5629d... (30, Active member)
           </option>
-          <option value="0000f1c71aa0351076b543b170e19e2e8c014fb3645a974e2a994787023843f6">
-            Customer 0000f1c7... (29, Active member)
+          <option value="a65f77281a528bf5c1e9f270141d601d116e1df33bf9df512f495ee06647a9cc">
+            Customer a65f7728... (61, Active member)
           </option>
         </select>
 
@@ -1508,6 +1508,36 @@
       publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",  // TODO: paste the pk-... key from onboarding here
     };
 
+    // Auto-detect local demo server or query parameters for live execution
+    (function initLocalConfig() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramKey = urlParams.get('publicKey') || urlParams.get('apiKey');
+        const paramBase = urlParams.get('baseUrl');
+
+        const savedKey = localStorage.getItem('aipod_saved_public_key_hm') || localStorage.getItem('aipod_saved_public_key');
+        const savedBase = localStorage.getItem('aipod_saved_base_url_hm') || localStorage.getItem('aipod_saved_base_url');
+
+        if (paramKey) {
+          CONFIG.publicKey = paramKey;
+        } else if (savedKey) {
+          CONFIG.publicKey = savedKey;
+        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          CONFIG.publicKey = 'pk-thread_co-xxxx';
+        }
+
+        if (paramBase) {
+          CONFIG.baseUrl = paramBase;
+        } else if (savedBase) {
+          CONFIG.baseUrl = savedBase;
+        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          CONFIG.baseUrl = window.location.origin;
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    })();
+
     // Number of recommendations to request per query
     const TOP_N = 6;
 
@@ -1517,7 +1547,6 @@
     // Palette of authentic H&M garment color mappings with realistic hex values
     const COLOR_PALETTE = {
       'Black': '#18181b',
-      'Dark Blue': '#1e293b',
       'White': '#f8fafc',
       'Light Beige': '#f5f5dc',
       'Beige': '#e8dfcf',
@@ -1547,7 +1576,7 @@
       // 1. Dresses
       { id: '0706016001', name: 'Solide Flounce Midi Dress', garment_group: 'Dresses', colour: 'Black', hex: '#18181b', price: '$49.99' },
       { id: '0706016002', name: 'Ribbed Knit Bodycon Dress', garment_group: 'Dresses', colour: 'Light Beige', hex: '#f5f5dc', price: '$39.99' },
-      { id: '0685608003', name: 'Floral Tiered Wrap Maxi Dress', garment_group: 'Dresses', colour: 'Dark Blue', hex: '#1e293b', price: '$59.99' },
+      { id: '0685608003', name: 'Floral Tiered Wrap Maxi Dress', garment_group: 'Dresses', colour: 'Burgundy', hex: '#7f1d1d', price: '$59.99' },
       { id: '0751471001', name: 'Satin Bias-Cut Slip Dress', garment_group: 'Dresses', colour: 'Burgundy', hex: '#7f1d1d', price: '$44.99' },
       { id: '0562245046', name: 'Linen Blend A-Line Shirt Dress', garment_group: 'Dresses', colour: 'Sage Green', hex: '#9caf88', price: '$54.99' },
       { id: '0108775015', name: 'Pleated Chiffon Party Dress', garment_group: 'Dresses', colour: 'Dusty Pink', hex: '#f472b6', price: '$69.99' },
@@ -1556,13 +1585,13 @@
       { id: '0610776002', name: 'Fine-knit Roll-Neck Jumper', garment_group: 'Knitwear', colour: 'Off White', hex: '#fafaf9', price: '$29.99' },
       { id: '0714790020', name: 'Oversized Wool-Blend Cardigan', garment_group: 'Knitwear', colour: 'Camel', hex: '#b45309', price: '$49.99' },
       { id: '0579541001', name: 'Alpaca-Blend Cable Knit Sweater', garment_group: 'Knitwear', colour: 'Grey', hex: '#9ca3af', price: '$59.99' },
-      { id: '0759871003', name: 'Rib-knit Polo Collar Sweater', garment_group: 'Knitwear', colour: 'Dark Blue', hex: '#1e293b', price: '$34.99' },
+      { id: '0759871003', name: 'Rib-knit Polo Collar Sweater', garment_group: 'Knitwear', colour: 'Off White', hex: '#fafaf9', price: '$34.99' },
       { id: '0811907001', name: 'Fluffy Crew-Neck Pullover', garment_group: 'Knitwear', colour: 'Sage Green', hex: '#9caf88', price: '$39.99' },
       { id: '0821336001', name: 'Textured Boxy Knit Top', garment_group: 'Knitwear', colour: 'Black', hex: '#18181b', price: '$24.99' },
 
       // 3. Trousers & Denim
       { id: '0751472001', name: 'Wide Tailored High-Waist Slacks', garment_group: 'Trousers', colour: 'Black', hex: '#18181b', price: '$39.99' },
-      { id: '0685608001', name: 'Slim Mom High Ankle Denim Jeans', garment_group: 'Trousers', colour: 'Dark Blue', hex: '#1e293b', price: '$49.99' },
+      { id: '0685608001', name: 'Slim Mom High Ankle Denim Jeans', garment_group: 'Trousers', colour: 'Light Blue', hex: '#93c5fd', price: '$49.99' },
       { id: '0706016003', name: 'Relaxed Linen-Blend Pull-On Pants', garment_group: 'Trousers', colour: 'Beige', hex: '#e8dfcf', price: '$34.99' },
       { id: '0562245001', name: 'Straight Regular High Waist Jeans', garment_group: 'Trousers', colour: 'Light Blue', hex: '#93c5fd', price: '$44.99' },
       { id: '0811907002', name: 'Pleated Crepe Cigarette Trousers', garment_group: 'Trousers', colour: 'Burgundy', hex: '#7f1d1d', price: '$39.99' },
@@ -1570,7 +1599,7 @@
 
       // 4. Tops & Blouses
       { id: '0610776001', name: 'Oversized Crisp Poplin Cotton Shirt', garment_group: 'Tops', colour: 'White', hex: '#f8fafc', price: '$29.99' },
-      { id: '0706016004', name: 'Satin Drape Long Sleeve Blouse', garment_group: 'Tops', colour: 'Dark Blue', hex: '#1e293b', price: '$34.99' },
+      { id: '0706016004', name: 'Satin Drape Long Sleeve Blouse', garment_group: 'Tops', colour: 'White', hex: '#f8fafc', price: '$34.99' },
       { id: '0108775044', name: 'Essential Fitted Ribbed Tank Top', garment_group: 'Tops', colour: 'Black', hex: '#18181b', price: '$14.99' },
       { id: '0759871001', name: 'Puff-Sleeve Tie-Collar Chiffon Top', garment_group: 'Tops', colour: 'Dusty Pink', hex: '#f472b6', price: '$29.99' },
       { id: '0579541002', name: 'Pure Linen Relaxed Resort Shirt', garment_group: 'Tops', colour: 'Light Beige', hex: '#f5f5dc', price: '$39.99' },
@@ -1590,23 +1619,26 @@
       '00000dbacae5abe5e2351e4719c6eef9d527dbadc2ddceda1126726533ac78b4': {
         age: 32, status: 'Active member', aesthetic: 'Contemporary Workwear & Tailoring'
       },
-      '0000423b00ade91418cceaf3b26c6af3dd342b51fd051eec9c12fb36984420fa': {
-        age: 24, status: 'Active member', aesthetic: 'Trendy Denim & Casual Knitwear'
+      'a3ab708684132c6bbd3dad7aa41f9b9c7d1c95d7d5cb1a3a052905191e858566': {
+        age: 35, status: 'Active member', aesthetic: 'Contemporary Workwear & Tailoring'
       },
-      '000058a12d5b43e67d225668fa1f8d618c13dc232df0cad8ffe7ad4a1091e318': {
-        age: 48, status: 'Regular member', aesthetic: 'Timeless Outerwear & Linen'
+      '29faf622c66c95935e11709b28bc3252de560ec9fcb76e53e82bd877f3a7f447': {
+        age: 37, status: 'Active member', aesthetic: 'Timeless Outerwear & Knitwear'
       },
-      '00007579c32f16d63d112541f120daac861777da179386426714f593322e1a02': {
-        age: 21, status: 'Club VIP', aesthetic: 'Youth Divided, Party & Festival Tops'
+      '1426b606af826fa9568b6fe75629d10bb6ff7ea40f93908c43113d991e512bd5': {
+        age: 24, status: 'Active member', aesthetic: 'Trendy Denim & Casual Tops'
       },
-      '00009d946eec3ea54add5ba56d5210ea898da4b7b0f3bed3735f5d860e66b86c': {
-        age: 36, status: 'Active member', aesthetic: 'Athleisure & Weekend Loungewear'
+      '65cb62c794232651e2ac711faa11c2b4e3d41d5f3b59b50bee3ffde1d5776644': {
+        age: 21, status: 'Active member', aesthetic: 'Youth Divided & Streetwear'
       },
-      '0000b2f1829e23b24feec422ef13df90ece7e48b2da6b5b1422720ff804f72c2': {
-        age: 54, status: 'Regular member', aesthetic: 'Classic Knitwear & Flared Slacks'
+      'b637a3e7d8b0caa947aaefd609b8d84a9ee962cf0a52a51bac507ffc2bf1b741': {
+        age: 43, status: 'Active member', aesthetic: 'Tailored Classics & Linen'
       },
-      '0000f1c71aa0351076b543b170e19e2e8c014fb3645a974e2a994787023843f6': {
-        age: 29, status: 'Active member', aesthetic: 'Minimalist Monochrome Wardrobe'
+      'd1c5629d6d7e39067cef9d1092e44016ea94889fa36624fad0123c39de72edb1': {
+        age: 30, status: 'Active member', aesthetic: 'Minimalist Monochrome Essentials'
+      },
+      'a65f77281a528bf5c1e9f270141d601d116e1df33bf9df512f495ee06647a9cc': {
+        age: 61, status: 'Active member', aesthetic: 'Classic Knitwear & Outerwear'
       }
     };
 
@@ -1867,7 +1899,7 @@
         const rank = item.rank || (index + 1);
 
         // Extract color and garment information
-        const colorName = item.colour || item.color || 'Dark Blue';
+        const colorName = item.colour || item.color || 'Black';
         const swatchHex = item.hex || getGarmentColorHex(colorName);
         const icon = getGarmentIcon(pCategory);
 
@@ -2044,14 +2076,30 @@
         });
       }
 
-      // Live In-Memory Settings Update (stored in JS variable only, not persisted)
+      // Settings Update & Persistence
       saveConfigBtn.addEventListener('click', () => {
-        const newBase = inputBaseUrl.value.trim() || 'https://your-engine.com';
+        const newBase = inputBaseUrl.value.trim() || 'http://127.0.0.1:8000';
         const newKey = inputPublicKey.value.trim() || 'PASTE_YOUR_PUBLIC_KEY_HERE';
 
-        // Stored in JS memory variable only (not persisted)
         CONFIG.baseUrl = newBase;
         CONFIG.publicKey = newKey;
+
+        // Persist in localStorage so re-entering is never needed
+        try {
+          localStorage.setItem('aipod_saved_public_key_hm', newKey);
+          localStorage.setItem('aipod_saved_public_key', newKey);
+          localStorage.setItem('aipod_saved_base_url_hm', newBase);
+          localStorage.setItem('aipod_saved_base_url', newBase);
+        } catch (e) {}
+
+        // Persist to backend demo storage
+        try {
+          fetch('/v1/demo/save-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demo_name: 'hm', public_key: newKey, base_url: newBase })
+          }).catch(() => {});
+        } catch (e) {}
 
         if (typeof window.AIPod !== 'undefined') {
           window.AIPod.init({ baseUrl: newBase, apiKey: newKey });
@@ -2059,7 +2107,7 @@
 
         configDrawer.classList.remove('open');
         updateConnectionBannerState();
-        showToast('CONFIG updated in live JS session (not persisted)!');
+        showToast('Public key saved permanently! You will not need to re-enter it.');
         loadRecommendations(shopperSelect.value);
       });
 

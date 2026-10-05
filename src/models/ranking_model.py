@@ -183,8 +183,6 @@ class LearnedRankingRecommender:
         if self.customers_ is None or self.interactions_ is None or self.products_ is None:
             raise RuntimeError("Call fit() before recommend().")
 
-        # Bind to locals so Pyright narrows pd.DataFrame | None → pd.DataFrame.
-        # Instance attributes are not narrowed across method calls; locals are.
         customers = self.customers_
         interactions = self.interactions_
         products = self.products_
@@ -199,20 +197,26 @@ class LearnedRankingRecommender:
             interactions.loc[interactions["customer_id"].astype(str) == str(customer_id), "product_id"].astype(str)
         )
 
-        candidate_rows = []
-        for _, product in products.iterrows():
-            product_id = str(product["product_id"])
-            if product_id in known_products:
-                continue
-            candidate_rows.append(self._build_candidate_row(customer_row, product))
+        if not hasattr(self, "_encoded_products_df") or self._encoded_products_df is None:
+            prod_encoded_list = [
+                encode_features(p_row, self._product_specs, prefix="product_")
+                for _, p_row in products.iterrows()
+            ]
+            self._encoded_products_df = pd.DataFrame(prod_encoded_list, index=products["product_id"].astype(str))
+            self._encoded_products_df["product_id"] = products["product_id"].astype(str).values
 
-        if not candidate_rows:
+        candidate_prod_df = self._encoded_products_df[~self._encoded_products_df.index.isin(known_products)]
+        if candidate_prod_df.empty:
             return []
 
-        candidate_frame = pd.DataFrame(candidate_rows)
-        candidate_pids = [str(pid) for pid in candidate_frame["product_id"]]
+        cust_encoded = encode_features(customer_row, self._customer_specs, prefix="customer_")
+        
+        feature_frame = candidate_prod_df.copy()
+        for k, v in cust_encoded.items():
+            feature_frame[k] = v
+
         feature_frame = (
-            candidate_frame.reindex(columns=self.feature_columns_, fill_value=0)
+            feature_frame.reindex(columns=self.feature_columns_, fill_value=0)
             .drop(columns=["product_id", "customer_id"], errors="ignore")
         )
         proba = self.model_.predict_proba(feature_frame)
@@ -223,7 +227,7 @@ class LearnedRankingRecommender:
         else:
             scores = proba[:, 0]
 
-        ranked = pd.Series(data=scores, index=candidate_pids)
+        ranked = pd.Series(data=scores, index=candidate_prod_df.index)
         top_candidates = (
             ranked.groupby(level=0)
             .max()

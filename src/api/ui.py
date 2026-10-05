@@ -336,11 +336,10 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
         <h1>Recommendation Demo</h1>
         <p class="subtext">Select a Tenant ID from the dropdown and choose or enter a Customer ID to fetch recommendations from the model.</p>
         <div class="simple-row" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-          <a class="pill" href="/onboarding" style="text-decoration: none; background: #6366f1; color: #fff; font-weight: bold;">🚀 Dataset Onboarding Portal</a>
-          <a class="pill" href="http://localhost:3000/storefront.html" target="_blank" style="text-decoration: none; background: #10b981; color: #fff; font-weight: bold;">🎁 Gift &amp; Home Co. Storefront</a>
-          <span class="pill">FastAPI</span>
-          <span class="pill">Multi-Tenant</span>
-          <span class="pill">Model-backed</span>
+          <a class="pill" href="/telco" style="text-decoration: none; background: #003399; color: #fff; font-weight: bold;">📶 Mobitel Telco Portal</a>
+          <a class="pill" href="/hm" style="text-decoration: none; background: #18181b; color: #fff; font-weight: bold;">🧵 Thread &amp; Co. Fashion</a>
+          <a class="pill" href="/instacart" style="text-decoration: none; background: #059669; color: #fff; font-weight: bold;">🥑 Fresh Cart Grocery</a>
+          <a class="pill" href="/onboarding" style="text-decoration: none; background: #6366f1; color: #fff; font-weight: bold;">🚀 Dataset Onboarding</a>
         </div>
       </div>
 

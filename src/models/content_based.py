@@ -56,7 +56,9 @@ class ContentBasedRecommender:
             col for col in feature_columns if col not in self.numeric_columns_
         ]
 
-        numeric_frame = feature_frame[self.numeric_columns_].astype(float)
+        import numpy as np
+
+        numeric_frame = feature_frame[self.numeric_columns_].astype(float).fillna(0)
         if self.numeric_columns_:
             numeric_scaled = pd.DataFrame(
                 self.scaler_.fit_transform(numeric_frame),
@@ -76,12 +78,12 @@ class ContentBasedRecommender:
             categorical_dummies = pd.DataFrame(index=feature_frame.index)
             self.categorical_feature_columns_ = []
 
-        transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float)
+        transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float).fillna(0)
         self.transformed_feature_columns_ = list(transformed.columns)
 
         customer_feature_matrix = customers[["customer_id"]].copy().join(transformed)
         merged = interactions.merge(customer_feature_matrix, on="customer_id", how="left")
-        self.product_profiles_ = merged.groupby("product_id")[self.transformed_feature_columns_].mean()
+        self.product_profiles_ = merged.groupby("product_id")[self.transformed_feature_columns_].mean().fillna(0)
         logger.info(f"Fit content-based profiles for {len(self.product_profiles_)} products")
         return self
 
@@ -90,9 +92,15 @@ class ContentBasedRecommender:
         if self.product_profiles_ is None or self.feature_columns_ is None:
             raise RuntimeError("Call fit() before recommend().")
 
+        import numpy as np
+
         row = pd.DataFrame([customer_features[self.feature_columns_].tolist()], columns=self.feature_columns_)
 
-        numeric_frame = row[self.numeric_columns_].astype(float) if self.numeric_columns_ else pd.DataFrame(index=[0])
+        numeric_frame = (
+            row[self.numeric_columns_].astype(float).fillna(0)
+            if self.numeric_columns_
+            else pd.DataFrame(index=[0])
+        )
         if self.numeric_columns_:
             numeric_scaled = pd.DataFrame(
                 self.scaler_.transform(numeric_frame),
@@ -113,11 +121,12 @@ class ContentBasedRecommender:
         else:
             categorical_dummies = pd.DataFrame(index=[0])
 
-        transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float)
+        transformed = pd.concat([numeric_scaled, categorical_dummies], axis=1).astype(float).fillna(0)
         transformed = transformed.reindex(columns=self.transformed_feature_columns_, fill_value=0)
 
-        customer_vec = transformed.to_numpy().reshape(1, -1)
-        similarities = cosine_similarity(customer_vec, self.product_profiles_.values)[0]
+        customer_vec = np.nan_to_num(transformed.to_numpy().reshape(1, -1), nan=0.0)
+        product_vecs = np.nan_to_num(self.product_profiles_.values, nan=0.0)
+        similarities = cosine_similarity(customer_vec, product_vecs)[0]
 
         ranked = (
             pd.Series(similarities, index=self.product_profiles_.index)

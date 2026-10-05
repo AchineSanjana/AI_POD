@@ -93,23 +93,27 @@ def generate_tenant_config(
     # Detect transactional column candidates
     product_id_candidates = [
         c.name for c in profile_report
-        if any(tok in c.name.lower() for tok in ("stock", "product", "item", "sku", "asin"))
+        if any(tok in c.name.lower() for tok in ("stock", "product", "item", "sku", "asin", "article"))
         and c.name != id_column
+        and c.null_percentage < 99.0
     ]
     invoice_candidates = [
         c.name for c in profile_report
         if any(tok in c.name.lower() for tok in ("invoice", "transaction", "order", "receipt"))
         and c.name != id_column
+        and c.null_percentage < 99.0
     ]
     desc_candidates = [
         c.name for c in profile_report
-        if any(tok in c.name.lower() for tok in ("description", "product_name", "productname", "title"))
+        if any(tok in c.name.lower() for tok in ("description", "product_name", "productname", "title", "name"))
         and c.name != id_column
+        and c.null_percentage < 99.0
     ]
     qty_candidates = [
         c.name for c in profile_report
         if any(tok in c.name.lower() for tok in ("quantity", "qty", "units", "count"))
         and c.name != id_column
+        and c.null_percentage < 99.0
     ]
 
     is_transactional = bool(
@@ -140,7 +144,7 @@ def generate_tenant_config(
                 excluded_from_cust.add(col.name)
 
         for col in profile_report:
-            if col.name in excluded_from_cust:
+            if col.name in excluded_from_cust or col.null_percentage >= 99.0:
                 continue
 
             dtype = "numeric" if col.suggested_dtype == "numeric" else "categorical"

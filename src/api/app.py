@@ -1,10 +1,11 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from src.api.auth import (
     get_current_tenant,
@@ -107,6 +108,47 @@ if static_dir.exists():
 
 app.include_router(v1_router)
 
+
+class DemoConfigPayload(BaseModel):
+    demo_name: str
+    public_key: str
+    base_url: str | None = None
+
+
+@app.post("/v1/demo/save-config", include_in_schema=False)
+@app.post("/demo/save-config", include_in_schema=False)
+def save_demo_config(payload: DemoConfigPayload):
+    """Persist demo public keys so they survive refreshes and server restarts."""
+    import json
+    saved_file = PROJECT_ROOT / "config" / "demo_saved_keys.json"
+    data = {}
+    if saved_file.exists():
+        try:
+            data = json.loads(saved_file.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+    data[payload.demo_name] = {
+        "public_key": payload.public_key,
+        "base_url": payload.base_url or "http://127.0.0.1:8000",
+    }
+    saved_file.parent.mkdir(parents=True, exist_ok=True)
+    saved_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return {"status": "saved", "demo_name": payload.demo_name}
+
+
+@app.get("/v1/demo/saved-config", include_in_schema=False)
+@app.get("/demo/saved-config", include_in_schema=False)
+def get_saved_demo_config(demo: str = Query("instacart")):
+    import json
+    saved_file = PROJECT_ROOT / "config" / "demo_saved_keys.json"
+    if saved_file.exists():
+        try:
+            data = json.loads(saved_file.read_text(encoding="utf-8"))
+            return data.get(demo, {})
+        except Exception:
+            pass
+    return {}
+
 # ---------------------------------------------------------------------------
 # Legacy & UI Routers (Backward Compatibility)
 # ---------------------------------------------------------------------------
@@ -173,6 +215,18 @@ def hm_fashion_portal():
     if fashion_file.exists():
         return HTMLResponse(fashion_file.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>Fashion Storefront Not Found</h1>", status_code=404)
+
+
+@app.get("/telco", response_class=HTMLResponse)
+@app.get("/mobitel", response_class=HTMLResponse)
+@app.get("/telco.html", response_class=HTMLResponse)
+@app.get("/telco_portal.html", response_class=HTMLResponse)
+@app.get("/demo/telco_portal.html", response_class=HTMLResponse)
+def telco_portal():
+    telco_file = PROJECT_ROOT / "demo" / "telco_portal.html"
+    if telco_file.exists():
+        return HTMLResponse(telco_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Telco Portal Not Found</h1>", status_code=404)
 
 
 @app.get("/test-sdk", response_class=HTMLResponse)

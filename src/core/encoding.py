@@ -34,8 +34,9 @@ def encode_features(
     """
     encoded: dict[str, object] = {}
 
+    row_keys = row.index if hasattr(row, "index") else row
     for spec in specs:
-        if spec.name not in row.index:
+        if spec.name not in row_keys:
             continue
 
         value = row[spec.name]
@@ -54,14 +55,12 @@ def encode_features(
                     f"FeatureSpec '{spec.name}' requires allowed_values for one_hot encoding"
                 )
             for allowed in spec.allowed_values:
-                # Slugify the feature name too so column names are stable,
-                # lower-cased, and consistent regardless of the schema's
-                # capitalisation convention (e.g. 'Contract' → 'contract').
                 column_name = (
                     f"{prefix}{slugify_feature_value(spec.name)}"
                     f"_{slugify_feature_value(allowed)}"
                 )
-                encoded[column_name] = int(value == allowed)
+                is_match = bool(pd.notna(value) and str(value) == str(allowed))
+                encoded[column_name] = int(is_match)
             continue
 
         raise ValueError(f"Unsupported encoding '{spec.encoding}' for feature '{spec.name}'")

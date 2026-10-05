@@ -488,6 +488,116 @@ tenants:
     segmentation:
       field: Country
       split: categorical
+  thread_co:
+    data_source:
+      type: csv
+      path: data/raw/thread_co_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: age
+        dtype: numeric
+      - name: club_member_status
+        dtype: categorical
+        allowed_values:
+        - ACTIVE
+        - LEFT CLUB
+        - PRE-CREATE
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: article_id
+      name_column: article_id
+    interactions:
+      source: transactional
+      customer_id_column: customer_id
+      product_id_column: article_id
+      product_name_column: article_id
+      transaction_id_column: transaction_date
+      exclude_invoice_prefix: C
+    segmentation:
+      field: age
+      split: median
+  fresh_cart_co:
+    data_source:
+      type: csv
+      path: data/raw/fresh_cart_co_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: aisle_name
+        dtype: categorical
+        allowed_values:
+        - Bagels & Buns
+        - Baking Supplies
+        - Beef
+        - Bread
+        - Butter & Spreads
+        - Candy & Chocolate
+        - Canned Goods
+        - Cereal
+        - Cheese
+        - Chips & Pretzels
+        - Cleaning Supplies
+        - Coffee
+        - Condiments
+        - Crackers
+        - Eggs
+        - Fresh Fruits
+        - Fresh Vegetables
+        - Frozen Meals
+        - Frozen Pizza
+        - Frozen Vegetables
+        - Hair Care
+        - Ice Cream
+        - Juice
+        - Laundry
+        - Milk
+        - Nuts & Seeds
+        - Oral Care
+        - Packaged Produce
+        - Paper Goods
+        - Pasta & Rice
+        - Pastries
+        - Pork
+        - Poultry
+        - Seafood
+        - Skin Care
+        - Soft Drinks
+        - Tea
+        - Tortillas
+        - Water
+        - Yogurt
+        encoding: one_hot
+      - name: department_name
+        dtype: categorical
+        allowed_values:
+        - bakery
+        - beverages
+        - dairy eggs
+        - frozen
+        - household
+        - meat seafood
+        - pantry
+        - personal care
+        - produce
+        - snacks
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: product_id
+      name_column: product_name
+    interactions:
+      source: transactional
+      customer_id_column: customer_id
+      product_id_column: product_id
+      product_name_column: product_name
+      quantity_column: quantity
+      transaction_id_column: transaction_date
+      exclude_invoice_prefix: C
+    segmentation:
+      field: aisle_name
+      split: categorical
 model:
   content_based:
     similarity_metric: cosine
