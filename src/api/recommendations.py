@@ -259,10 +259,8 @@ def _recommend_for_customer(
     customer_ids = set(customers["customer_id"].astype(str))
 
     if str(customer_id) not in customer_ids:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Customer '{customer_id}' not found for tenant '{tenant_id}'",
-        )
+        # Gracefully return popularity fallback for cold-start visitors or unknown demo customer IDs
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True
 
     customer_lookup = customers.set_index("customer_id")
     customer_row = (

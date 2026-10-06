@@ -125,14 +125,16 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
                 TENANT_AUTH_MAPPING[api_key] = t
                 return rec
 
-        # Generic pattern check: pk-<tenant_id>-xxxx or sk-<tenant_id>-xxxx
+        # Generic pattern check: pk-<tenant_id>-xxxx or sk-<tenant_id>-xxxx (supports both hyphens and underscores)
         if (api_key.startswith("pk-") or api_key.startswith("sk-")) and api_key.endswith("-xxxx"):
-            t = api_key[3:-5]
-            if t in tenants:
+            raw_t = api_key[3:-5]
+            t = raw_t.replace("-", "_")
+            if raw_t in tenants or t in tenants or (raw_t == "telco" or t == "telco"):
+                resolved_tenant = "telco_default" if (raw_t == "telco" or t == "telco") else (raw_t if raw_t in tenants else t)
                 k_type = "public" if api_key.startswith("pk-") else "private"
-                rec = {"tenant_id": t, "key_type": k_type, "created_at": None}
+                rec = {"tenant_id": resolved_tenant, "key_type": k_type, "created_at": None}
                 TENANT_KEY_RECORDS[api_key] = rec
-                TENANT_AUTH_MAPPING[api_key] = t
+                TENANT_AUTH_MAPPING[api_key] = resolved_tenant
                 return rec
     except Exception:
         pass
