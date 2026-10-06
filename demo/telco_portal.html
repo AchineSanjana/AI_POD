@@ -1126,11 +1126,11 @@
     // =====================================================================
 
     const CONFIG = {
-      baseUrl: "https://your-engine.com",
-      publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",
+      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) ? window.location.origin : "http://localhost:8000",
+      publicKey: "pk-telco-xxxx",
     };
 
-    // Auto-detect local demo server or query parameters for seamless live execution
+    // Auto-detect live server, saved localStorage, or query parameters for seamless live execution
     (function initLocalConfig() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -1144,7 +1144,7 @@
           CONFIG.publicKey = paramKey;
         } else if (savedKey) {
           CONFIG.publicKey = savedKey;
-        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        } else {
           CONFIG.publicKey = 'pk-telco-xxxx';
         }
 
@@ -1152,7 +1152,7 @@
           CONFIG.baseUrl = paramBase;
         } else if (savedBase) {
           CONFIG.baseUrl = savedBase;
-        } else if (window.location.origin && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        } else if (window.location.origin && window.location.protocol.startsWith('http')) {
           CONFIG.baseUrl = window.location.origin;
         }
       } catch (e) {
