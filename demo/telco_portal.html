@@ -1152,10 +1152,10 @@
 
         if (paramBase) {
           CONFIG.baseUrl = paramBase;
-        } else if (savedBase) {
-          CONFIG.baseUrl = savedBase;
         } else if (window.location.origin && window.location.protocol.startsWith('http')) {
           CONFIG.baseUrl = window.location.origin;
+        } else if (savedBase) {
+          CONFIG.baseUrl = savedBase;
         }
       } catch (e) {
         // Fallback gracefully

@@ -1040,7 +1040,7 @@
     // Configuration & State
     // ---------------------------------------------------------------------------
     const CONFIG = {
-      baseUrl: localStorage.getItem('storefront_api_base') || (window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8000'),
+      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin.startsWith('http')) ? window.location.origin : (localStorage.getItem('storefront_api_base') || 'http://localhost:8000'),
       apiKey: localStorage.getItem('storefront_api_key') || 'pk-online-retail-xxxx',
       topN: 5
     };
