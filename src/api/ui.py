@@ -563,7 +563,13 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
         const response = await fetch(`/v1/recommendations?customer_id=${{encodeURIComponent(customerId)}}&top_n=${{topN}}&tenant_id=${{encodeURIComponent(tenantId)}}`, {{
           headers: headers
         }});
-        const payload = await response.json();
+        const text = await response.text();
+        let payload;
+        try {{
+          payload = JSON.parse(text);
+        }} catch (e) {{
+          throw new Error(`Server returned HTTP ${{response.status}}: ${{text.substring(0, 100)}}`);
+        }}
 
         if (!response.ok) {{
           throw new Error(payload.detail || 'Request failed');

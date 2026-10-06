@@ -252,10 +252,9 @@ def _recommend_for_customer(
 
     try:
         customers, products = _get_model_tables(tenant_id, storage=storage)
-    except HTTPException as exc:
-        if exc.status_code == 404:
-            return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True
-        raise
+    except Exception as exc:
+        logger.warning("Could not load model tables for tenant '%s' (%s). Falling back.", tenant_id, exc)
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True
 
     customer_ids = set(customers["customer_id"].astype(str))
 
