@@ -19,7 +19,7 @@ TENANT_AUTH_MAPPING: dict[str, str] = {}
 # In-memory mapping of api_key -> key record dict
 TENANT_KEY_RECORDS: dict[str, dict[str, Any]] = {}
 
-# Endpoints and HTTP methods permitted for public API keys
+# Endpoints and HTTP methods permitted for public API keys (exact match)
 PUBLIC_KEY_ALLOWED_ACTIONS: set[tuple[str, str]] = {
     ("POST", "/v1/track"),
     ("POST", "/track"),
@@ -27,12 +27,19 @@ PUBLIC_KEY_ALLOWED_ACTIONS: set[tuple[str, str]] = {
     ("GET", "/recommendations"),
 }
 
+# Path prefixes also permitted for public API keys (covers /{customer_id} SDK variant)
+PUBLIC_KEY_ALLOWED_PREFIXES: list[tuple[str, str]] = [
+    ("GET", "/v1/recommendations/"),
+    ("GET", "/recommendations/"),
+]
+
 
 def is_request_allowed_for_key(key_type: str, method: str, path: str) -> bool:
     """Check whether an HTTP request (method + path) is permitted for a given key type.
 
     - Private keys: Permitted everywhere across the entire API.
-    - Public keys: Permitted strictly for POST /v1/track and GET /v1/recommendations.
+    - Public keys: Permitted strictly for POST /v1/track and GET /v1/recommendations
+      (including the /{customer_id} path variant used by the JS SDK).
     """
     clean_type = str(key_type).strip().lower()
     if clean_type == "private":
@@ -43,9 +50,17 @@ def is_request_allowed_for_key(key_type: str, method: str, path: str) -> bool:
         norm_path = path.rstrip("/")
         if not norm_path:
             norm_path = "/"
-        return (norm_method, norm_path) in PUBLIC_KEY_ALLOWED_ACTIONS
+        # Exact match
+        if (norm_method, norm_path) in PUBLIC_KEY_ALLOWED_ACTIONS:
+            return True
+        # Prefix match for /{customer_id} variants
+        for allowed_method, allowed_prefix in PUBLIC_KEY_ALLOWED_PREFIXES:
+            if norm_method == allowed_method and path.startswith(allowed_prefix):
+                return True
+        return False
 
     return False
+
 
 
 def load_tenant_auth(config: dict[str, Any] | None = None) -> dict[str, str]:
