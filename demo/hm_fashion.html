@@ -1498,10 +1498,15 @@
     //   2. publicKey -> the pk-... key you receive from the sign-up/onboarding page
     // This page will show a visible on-page warning banner until both are filled in.
     // =====================================================================
+    // STOP — before this page will work, fill in CONFIG above:
+    //   baseUrl: "https://your-engine.com"
+    //   publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE"
+    // This page will show a visible on-page warning banner until both are filled in.
+    // =====================================================================
 
     const CONFIG = {
-      baseUrl: "https://your-engine.com",
-      publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",
+      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) ? window.location.origin : "http://localhost:8000",
+      publicKey: "pk-thread_co-xxxx",
     };
 
     // Auto-detect live server, saved localStorage, or query parameters for live execution
@@ -1526,7 +1531,7 @@
           CONFIG.baseUrl = paramBase;
         } else if (window.location.origin && window.location.protocol.startsWith('http')) {
           CONFIG.baseUrl = window.location.origin;
-        } else if (savedBase) {
+        } else if (savedBase && savedBase !== 'https://your-engine.com') {
           CONFIG.baseUrl = savedBase;
         }
       } catch (e) {
@@ -1742,11 +1747,6 @@
         return window.AIPod;
       }
 
-      // If configuration is still placeholder or invalid URL, avoid firing broken network requests
-      if (isKeyPlaceholder(CONFIG.publicKey) || !CONFIG.baseUrl || CONFIG.baseUrl === "https://your-engine.com") {
-        return null;
-      }
-
       return new Promise((resolve) => {
         let existing = document.getElementById('aipod-sdk');
         if (existing) existing.remove();
@@ -1754,7 +1754,7 @@
         const script = document.createElement('script');
         script.id = 'aipod-sdk';
         script.setAttribute('data-tenant-key', CONFIG.publicKey);
-        const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
+        const cleanBase = (CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '');
         script.src = `${cleanBase}/sdk.js`;
 
         script.onload = () => {

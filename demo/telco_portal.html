@@ -1304,10 +1304,6 @@
         return window.AIPod;
       }
 
-      if (isKeyPlaceholder(CONFIG.publicKey) || !CONFIG.baseUrl || CONFIG.baseUrl === "https://your-engine.com") {
-        return null;
-      }
-
       return new Promise((resolve) => {
         let existing = document.getElementById('aipod-sdk');
         if (existing) existing.remove();
@@ -1315,7 +1311,7 @@
         const script = document.createElement('script');
         script.id = 'aipod-sdk';
         script.setAttribute('data-tenant-key', CONFIG.publicKey);
-        const cleanBase = CONFIG.baseUrl.replace(/\/+$/, '');
+        const cleanBase = (CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '');
         script.src = `${cleanBase}/sdk.js`;
 
         script.onload = () => {
