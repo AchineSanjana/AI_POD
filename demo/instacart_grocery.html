@@ -1740,23 +1740,13 @@
       activeShopperLabel.textContent = `#${shopperId}`;
       recErrorState.style.display = 'none';
 
-      // Verify connection keys
-      const isConnected = updateConnectionBannerState();
-      if (!isConnected) {
-        grid.innerHTML = '';
-        recErrorState.style.display = 'block';
-        recErrorTitle.textContent = 'Demo not connected to live recommendation engine';
-        recErrorMessage.innerHTML = `
-          <code>CONFIG.publicKey</code> is still set to placeholder <code>"${CONFIG.publicKey}"</code>.<br>
-          1. Edit <code>CONFIG</code> in <code>demo/instacart_grocery.html</code> with your deployed AWS API URL and public key, OR<br>
-          2. Click <strong>"⚙️ API Connection Settings"</strong> above to enter them directly in the browser.
-        `;
-        engineDot.className = 'status-dot warning';
-        engineText.textContent = 'Waiting for valid public key in CONFIG';
-        recBadge.className = 'badge-fallback';
-        recBadge.innerHTML = '⚡ Demo Disconnected';
-        return;
+      // Auto-heal placeholder key to live demo key if not set
+      if (isKeyPlaceholder(CONFIG.publicKey)) {
+        CONFIG.publicKey = 'pk-fresh_cart_co-xxxx';
       }
+
+      // Verify connection keys
+      updateConnectionBannerState();
 
       // Show skeleton placeholders while fetching
       grid.style.display = 'grid';

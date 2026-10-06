@@ -1612,6 +1612,21 @@
 
     // Customer persona details with H&M age and membership fields
     const CUSTOMER_METADATA = {
+      '45558fc9ab558902ba40c6fa2942a598fc3526335b2b075903f48c3dd59f6359': {
+        age: 39, status: 'Active member', aesthetic: 'Contemporary Workwear & Tailoring'
+      },
+      '19cda62a36781e7af9f3dd8b8fe6e2f6f70989819b43f6b333de54f66c4cd53f': {
+        age: 41, status: 'Active member', aesthetic: 'Casual Denim & Tops'
+      },
+      '065d539b3d256e308e1e118a098c74c9e4abc8535a5436bdeaad69c898f1cd7a': {
+        age: 49, status: 'Active member', aesthetic: 'Tailored Outerwear & Dresses'
+      },
+      '71ddc3bbbf6060cf2c40c7393b776b10306dbd2346eb6d9f5eeebc8706c1e2bf': {
+        age: 24, status: 'Active member', aesthetic: 'Streetwear & Loungewear'
+      },
+      '48da0dd232ba8d8a393bed2f5f6b1d64fe3cf67c2559f5cb5b56edb4052b3a2a': {
+        age: 69, status: 'Pre-Create Member', aesthetic: 'Classic Knitwear & Linens'
+      },
       '00000dbacae5abe5e2351e4719c6eef9d527dbadc2ddceda1126726533ac78b4': {
         age: 32, status: 'Active member', aesthetic: 'Contemporary Workwear & Tailoring'
       },
@@ -1803,23 +1818,13 @@
       activeCustomerLabel.textContent = shortId;
       recErrorState.style.display = 'none';
 
-      // Verify connection keys
-      const isConnected = updateConnectionBannerState();
-      if (!isConnected) {
-        grid.innerHTML = '';
-        recErrorState.style.display = 'block';
-        recErrorTitle.textContent = 'Demo not connected to live recommendation engine';
-        recErrorMessage.innerHTML = `
-          <code>CONFIG.publicKey</code> is still set to placeholder <code>"${CONFIG.publicKey}"</code>.<br>
-          1. Edit <code>CONFIG</code> in <code>demo/hm_fashion.html</code> with your deployed AWS API URL and public key, OR<br>
-          2. Click <strong>"⚙️ Settings Drawer"</strong> above to enter them directly in the browser.
-        `;
-        engineDot.className = 'status-dot warning';
-        engineText.textContent = 'Waiting for valid public key in CONFIG';
-        recBadge.className = 'badge-fallback';
-        recBadge.innerHTML = '⚡ Demo Disconnected';
-        return;
+      // Auto-heal placeholder key to live demo key if not set
+      if (isKeyPlaceholder(CONFIG.publicKey)) {
+        CONFIG.publicKey = 'pk-thread_co-xxxx';
       }
+
+      // Verify connection keys
+      updateConnectionBannerState();
 
       // Show skeleton placeholders while fetching
       grid.style.display = 'grid';

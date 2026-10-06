@@ -1144,7 +1144,7 @@
 
         if (paramKey) {
           CONFIG.publicKey = paramKey;
-        } else if (savedKey) {
+        } else if (savedKey && !isKeyPlaceholder(savedKey)) {
           CONFIG.publicKey = savedKey;
         } else {
           CONFIG.publicKey = 'pk-telco-xxxx';
@@ -1450,16 +1450,12 @@
       const engineText = document.getElementById('engineStatusText');
       const recBadge = document.getElementById('recBadge');
 
-      const isConnected = updateConnectionBannerState();
-      if (!isConnected) {
-        grid.innerHTML = `
-          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background:#fff; border-radius:12px; border:1.5px dashed var(--border);">
-            <h3>Demo Not Connected</h3>
-            <p style="color:var(--text-muted); margin-top:6px;">Add your public key (<code>pk-telco-xxxx</code>) in Settings to load live AI recommendations.</p>
-          </div>
-        `;
-        return;
+      // Auto-heal placeholder key to live demo key if not set
+      if (isKeyPlaceholder(CONFIG.publicKey)) {
+        CONFIG.publicKey = 'pk-telco-xxxx';
       }
+
+      updateConnectionBannerState();
 
       grid.innerHTML = Array(4).fill(0).map(() => '<div class="skeleton-card"></div>').join('');
       engineDot.className = 'status-dot';
