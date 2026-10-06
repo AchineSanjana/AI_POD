@@ -1497,16 +1497,16 @@
     //   1. baseUrl  -> the deployed API's base URL
     //   2. publicKey -> the pk-... key you receive from the sign-up/onboarding page
     // This page will show a visible on-page warning banner until both are filled in.
-    // =====================================================================
-    // STOP — before this page will work, fill in CONFIG above:
-    //   baseUrl: "https://your-engine.com"
-    //   publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE"
-    // This page will show a visible on-page warning banner until both are filled in.
-    // =====================================================================
+    function sanitizeHmKey(k) {
+      if (!k || typeof k !== 'string') return 'pk-thread_co-xxxx';
+      const clean = k.trim();
+      if (clean.startsWith('pk-thread') || clean.startsWith('pk_thread')) return clean;
+      return 'pk-thread_co-xxxx';
+    }
 
     const CONFIG = {
-      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) ? window.location.origin : "http://localhost:8000",
-      publicKey: "pk-thread_co-xxxx",
+      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) ? window.location.origin : (localStorage.getItem('hm_api_base') || 'http://localhost:8000'),
+      publicKey: sanitizeHmKey(localStorage.getItem('hm_api_key')),
     };
 
     // Auto-detect live server, saved localStorage, or query parameters for live execution
@@ -1516,23 +1516,14 @@
         const paramKey = urlParams.get('publicKey') || urlParams.get('apiKey');
         const paramBase = urlParams.get('baseUrl');
 
-        const savedKey = localStorage.getItem('aipod_saved_public_key_hm') || localStorage.getItem('aipod_saved_public_key');
-        const savedBase = localStorage.getItem('aipod_saved_base_url_hm') || localStorage.getItem('aipod_saved_base_url');
-
-        if (paramKey) {
-          CONFIG.publicKey = paramKey;
-        } else if (savedKey && !isKeyPlaceholder(savedKey)) {
-          CONFIG.publicKey = savedKey;
-        } else {
-          CONFIG.publicKey = 'pk-thread_co-xxxx';
+        if (paramKey && !isKeyPlaceholder(paramKey)) {
+          CONFIG.publicKey = sanitizeHmKey(paramKey);
         }
 
         if (paramBase) {
           CONFIG.baseUrl = paramBase;
-        } else if (window.location.origin && window.location.protocol.startsWith('http')) {
+        } else if (window.location.origin && window.location.origin.startsWith('http')) {
           CONFIG.baseUrl = window.location.origin;
-        } else if (savedBase && savedBase !== 'https://your-engine.com') {
-          CONFIG.baseUrl = savedBase;
         }
       } catch (e) {
         // Fallback gracefully
@@ -1734,57 +1725,11 @@
     }
 
     // ---------------------------------------------------------------------------
-    // SDK Loader & Initializer
-    // Dynamically loads {baseUrl}/sdk.js with data-tenant-key={CONFIG.publicKey}
-    // ---------------------------------------------------------------------------
-    async function ensureAIPodSdkLoaded() {
-      // If already initialized on window
-      if (typeof window.AIPod !== 'undefined') {
-        window.AIPod.init({
-          baseUrl: CONFIG.baseUrl,
-          apiKey: CONFIG.publicKey
-        });
-        return window.AIPod;
-      }
-
-      return new Promise((resolve) => {
-        let existing = document.getElementById('aipod-sdk');
-        if (existing) existing.remove();
-
-        const script = document.createElement('script');
-        script.id = 'aipod-sdk';
-        script.setAttribute('data-tenant-key', CONFIG.publicKey);
-        const cleanBase = (CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '');
-        script.src = `${cleanBase}/sdk.js`;
-
-        script.onload = () => {
-          if (typeof window.AIPod !== 'undefined') {
-            window.AIPod.init({
-              baseUrl: CONFIG.baseUrl,
-              apiKey: CONFIG.publicKey
-            });
-            console.log('[Thread & Co.] AIPod SDK successfully loaded from ' + script.src);
-            resolve(window.AIPod);
-          } else {
-            resolve(null);
-          }
-        };
-
-        script.onerror = () => {
-          console.warn('[Thread & Co.] Could not load sdk.js from ' + script.src);
-          resolve(null);
-        };
-
-        document.head.appendChild(script);
-      });
-    }
-
-    // ---------------------------------------------------------------------------
     // Telemetry Interaction Triggers (AIPod.track pattern)
     // ---------------------------------------------------------------------------
     function trackProductClick(productId, productName) {
       console.log(`[Telemetry] AIPod.track('view', '${productId}')`);
-      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+      if (typeof window.AIPod !== 'undefined') {
         window.AIPod.track('view', productId);
       }
       showToast(`Viewed "${productName}" &bull; AIPod.track('view', '${productId}')`);
@@ -1795,7 +1740,7 @@
       updateCartBadge(cartCount + 1);
 
       console.log(`[Telemetry] AIPod.track('add_to_cart', '${productId}')`);
-      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+      if (typeof window.AIPod !== 'undefined') {
         window.AIPod.track('add_to_cart', productId, { quantity: 1 });
       }
       showToast(`Added "${productName}" to bag! &bull; AIPod.track('add_to_cart', '${productId}')`);
@@ -1818,10 +1763,8 @@
       activeCustomerLabel.textContent = shortId;
       recErrorState.style.display = 'none';
 
-      // Auto-heal placeholder key to live demo key if not set
-      if (isKeyPlaceholder(CONFIG.publicKey)) {
-        CONFIG.publicKey = 'pk-thread_co-xxxx';
-      }
+      // Ensure active tenant key
+      CONFIG.publicKey = sanitizeHmKey(CONFIG.publicKey);
 
       // Verify connection keys
       updateConnectionBannerState();
@@ -1833,16 +1776,21 @@
       engineText.textContent = `AIPod.getRecommendations("${shortId}")...`;
 
       try {
-        const sdk = await ensureAIPodSdkLoaded();
-        if (!sdk) {
-          throw new Error(`Unable to load AIPod SDK from ${CONFIG.baseUrl}/sdk.js. Ensure the API server is reachable.`);
+        if (typeof window.AIPod === 'undefined') {
+          throw new Error(`AIPod SDK is not loaded. Verify sdk.js is served at ${CONFIG.baseUrl}/sdk.js`);
         }
 
+        // Initialize SDK with configured base URL and public key
+        window.AIPod.init({
+          baseUrl: CONFIG.baseUrl,
+          apiKey: CONFIG.publicKey
+        });
+
         // Set customer context via SDK identify
-        sdk.identify(customerId);
+        window.AIPod.identify(customerId);
 
         // Fetch recommendations from API via SDK
-        const recommendations = await sdk.getRecommendations(customerId, { topN: TOP_N });
+        const recommendations = await window.AIPod.getRecommendations(customerId, { topN: TOP_N });
 
         // Check fallback status on response
         const isFallback = Boolean(recommendations && recommendations.fallback);
@@ -2079,18 +2027,16 @@
 
       // Settings Update & Persistence
       saveConfigBtn.addEventListener('click', () => {
-        const newBase = inputBaseUrl.value.trim() || 'http://127.0.0.1:8000';
-        const newKey = inputPublicKey.value.trim() || 'PASTE_YOUR_PUBLIC_KEY_HERE';
+        const newBase = inputBaseUrl.value.trim() || window.location.origin;
+        const newKey = sanitizeHmKey(inputPublicKey.value);
 
         CONFIG.baseUrl = newBase;
         CONFIG.publicKey = newKey;
 
-        // Persist in localStorage so re-entering is never needed
+        // Persist in isolated localStorage
         try {
-          localStorage.setItem('aipod_saved_public_key_hm', newKey);
-          localStorage.setItem('aipod_saved_public_key', newKey);
-          localStorage.setItem('aipod_saved_base_url_hm', newBase);
-          localStorage.setItem('aipod_saved_base_url', newBase);
+          localStorage.setItem('hm_api_key', newKey);
+          localStorage.setItem('hm_api_base', newBase);
         } catch (e) {}
 
         // Persist to backend demo storage
@@ -2108,7 +2054,7 @@
 
         configDrawer.classList.remove('open');
         updateConnectionBannerState();
-        showToast('Public key saved permanently! You will not need to re-enter it.');
+        showToast('Public key saved successfully!');
         loadRecommendations(shopperSelect.value);
       });
 

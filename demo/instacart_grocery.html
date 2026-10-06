@@ -1472,11 +1472,16 @@
     //   1. baseUrl  -> the deployed API's base URL (e.g. baseUrl: "https://your-engine.com")
     //   2. publicKey -> the pk-... key you receive from the sign-up/onboarding page (e.g. publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE")
     // This page will show a visible on-page warning banner until both are filled in.
-    // =====================================================================
+    function sanitizeInstacartKey(k) {
+      if (!k || typeof k !== 'string') return 'pk-fresh_cart_co-xxxx';
+      const clean = k.trim();
+      if (clean.startsWith('pk-fresh') || clean.startsWith('pk_fresh')) return clean;
+      return 'pk-fresh_cart_co-xxxx';
+    }
 
     const CONFIG = {
-      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) ? window.location.origin : "http://localhost:8000",
-      publicKey: "pk-fresh_cart_co-xxxx",
+      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) ? window.location.origin : (localStorage.getItem('instacart_api_base') || 'http://localhost:8000'),
+      publicKey: sanitizeInstacartKey(localStorage.getItem('instacart_api_key')),
     };
 
     // Auto-detect live server, saved localStorage, or query parameters for live execution
@@ -1486,23 +1491,14 @@
         const paramKey = urlParams.get('publicKey') || urlParams.get('apiKey');
         const paramBase = urlParams.get('baseUrl');
 
-        const savedKey = localStorage.getItem('aipod_saved_public_key_instacart') || localStorage.getItem('aipod_saved_public_key');
-        const savedBase = localStorage.getItem('aipod_saved_base_url_instacart') || localStorage.getItem('aipod_saved_base_url');
-
-        if (paramKey) {
-          CONFIG.publicKey = paramKey;
-        } else if (savedKey && !isKeyPlaceholder(savedKey)) {
-          CONFIG.publicKey = savedKey;
-        } else {
-          CONFIG.publicKey = 'pk-fresh_cart_co-xxxx';
+        if (paramKey && !isKeyPlaceholder(paramKey)) {
+          CONFIG.publicKey = sanitizeInstacartKey(paramKey);
         }
 
         if (paramBase) {
           CONFIG.baseUrl = paramBase;
-        } else if (window.location.origin && window.location.protocol.startsWith('http')) {
+        } else if (window.location.origin && window.location.origin.startsWith('http')) {
           CONFIG.baseUrl = window.location.origin;
-        } else if (savedBase && savedBase !== 'https://your-engine.com') {
-          CONFIG.baseUrl = savedBase;
         }
       } catch (e) {
         // Fallback gracefully
@@ -1652,57 +1648,24 @@
     }
 
     // ---------------------------------------------------------------------------
-    // SDK Loader & Initializer
-    // Dynamically loads {baseUrl}/sdk.js with data-tenant-key={CONFIG.publicKey}
+    // Helper Utilities
     // ---------------------------------------------------------------------------
-    async function ensureAIPodSdkLoaded() {
-      // If already initialized on window
-      if (typeof window.AIPod !== 'undefined') {
-        window.AIPod.init({
-          baseUrl: CONFIG.baseUrl,
-          apiKey: CONFIG.publicKey
-        });
-        return window.AIPod;
-      }
-
-      return new Promise((resolve) => {
-        let existing = document.getElementById('aipod-sdk');
-        if (existing) existing.remove();
-
-        const script = document.createElement('script');
-        script.id = 'aipod-sdk';
-        script.setAttribute('data-tenant-key', CONFIG.publicKey);
-        const cleanBase = (CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '');
-        script.src = `${cleanBase}/sdk.js`;
-
-        script.onload = () => {
-          if (typeof window.AIPod !== 'undefined') {
-            window.AIPod.init({
-              baseUrl: CONFIG.baseUrl,
-              apiKey: CONFIG.publicKey
-            });
-            console.log('[Fresh Cart Co.] AIPod SDK successfully loaded from ' + script.src);
-            resolve(window.AIPod);
-          } else {
-            resolve(null);
-          }
-        };
-
-        script.onerror = () => {
-          console.warn('[Fresh Cart Co.] Could not load sdk.js from ' + script.src);
-          resolve(null);
-        };
-
-        document.head.appendChild(script);
-      });
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     // ---------------------------------------------------------------------------
-    // Telemetry Interaction Triggers (Exercises AIPod.track pattern from Step 23)
+    // Telemetry Interaction Triggers (Exercises AIPod.track pattern)
     // ---------------------------------------------------------------------------
     function trackProductClick(productId, productName) {
       console.log(`[Telemetry] AIPod.track('view', '${productId}')`);
-      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+      if (typeof window.AIPod !== 'undefined') {
         window.AIPod.track('view', productId);
       }
       showToast(`Viewed "${productName}" &bull; AIPod.track('view', '${productId}')`);
@@ -1713,7 +1676,7 @@
       updateCartBadge(cartCount + 1);
 
       console.log(`[Telemetry] AIPod.track('add_to_cart', '${productId}')`);
-      if (typeof window.AIPod !== 'undefined' && !isKeyPlaceholder(CONFIG.publicKey)) {
+      if (typeof window.AIPod !== 'undefined') {
         window.AIPod.track('add_to_cart', productId, { quantity: 1 });
       }
       showToast(`Added "${productName}" to cart! &bull; AIPod.track('add_to_cart', '${productId}')`);
@@ -1735,10 +1698,8 @@
       activeShopperLabel.textContent = `#${shopperId}`;
       recErrorState.style.display = 'none';
 
-      // Auto-heal placeholder key to live demo key if not set
-      if (isKeyPlaceholder(CONFIG.publicKey)) {
-        CONFIG.publicKey = 'pk-fresh_cart_co-xxxx';
-      }
+      // Ensure active tenant key
+      CONFIG.publicKey = sanitizeInstacartKey(CONFIG.publicKey);
 
       // Verify connection keys
       updateConnectionBannerState();
@@ -1750,33 +1711,37 @@
       engineText.textContent = `AIPod.getRecommendations("${shopperId}")...`;
 
       try {
-        const sdk = await ensureAIPodSdkLoaded();
-        if (!sdk) {
-          throw new Error(`Unable to load AIPod SDK from ${CONFIG.baseUrl}/sdk.js. Ensure the API server is reachable.`);
+        if (typeof window.AIPod === 'undefined') {
+          throw new Error(`AIPod SDK is not loaded. Verify sdk.js is served at ${CONFIG.baseUrl}/sdk.js`);
         }
 
+        // Initialize SDK with configured base URL and public key
+        window.AIPod.init({
+          baseUrl: CONFIG.baseUrl,
+          apiKey: CONFIG.publicKey
+        });
+
         // Set shopper context via SDK identify
-        sdk.identify(shopperId);
+        window.AIPod.identify(shopperId);
 
         // Fetch recommendations from API via SDK
-        let recommendations = await sdk.getRecommendations(shopperId, { topN: TOP_N });
+        let recommendations = await window.AIPod.getRecommendations(shopperId, { topN: TOP_N });
 
         // If the current shopper ID is not in this model (e.g. 2455 returned empty list),
-        // try querying with C00001 or 1 to retrieve live predictions seamlessly
+        // try querying with C00001 to retrieve live predictions seamlessly
         if ((!recommendations || recommendations.length === 0) && shopperId !== 'C00001') {
           try {
-            const fallbackRecs = await sdk.getRecommendations('C00001', { topN: TOP_N });
+            const fallbackRecs = await window.AIPod.getRecommendations('C00001', { topN: TOP_N });
             if (fallbackRecs && fallbackRecs.length > 0) {
               recommendations = fallbackRecs;
               shopperId = 'C00001';
               if (shopperSelect) shopperSelect.value = 'C00001';
-              const activeShopperLabel = document.getElementById('activeShopperIdLabel');
               if (activeShopperLabel) activeShopperLabel.textContent = '#C00001';
             }
           } catch (e) {}
         }
 
-        // Check fallback status on response (Step 23 pattern)
+        // Check fallback status on response
         const isFallback = Boolean(recommendations && recommendations.fallback);
         const count = Array.isArray(recommendations) ? recommendations.length : 0;
 
@@ -1825,16 +1790,18 @@
       }
 
       grid.innerHTML = items.map((item, index) => {
-        const pid = item.product_id;
-        const pName = item.product_name || `Fresh Grocery Item ${pid}`;
-        const pCategory = item.category || 'Organic Produce';
+        const pid = String(item.product_id || item.item_id || item.id || `P${index + 1}`);
+        const rawName = item.product_name || item.name || `Fresh Grocery Item ${pid}`;
+        const pName = escapeHtml(rawName);
+        const rawCategory = item.category || 'Organic Produce';
+        const pCategory = escapeHtml(rawCategory);
         const pPrice = generateIllustrativePrice(pid);
-        const initials = getInitials(pName);
+        const initials = getInitials(rawName);
         const bgGrad = getGradientForId(pid);
         const rank = item.rank || (index + 1);
 
         return `
-          <article class="product-card" onclick="trackProductClick('${pid}', '${pName.replace(/'/g, "\\'")}')">
+          <article class="product-card" onclick="trackProductClick('${pid}', '${escapeHtml(rawName)}')">
             <span class="card-top-tag tag-rec">Top Pick #${rank}</span>
             <div class="card-image-box">
               <div class="grocery-placeholder-canvas" style="background: ${bgGrad}">
@@ -1850,7 +1817,7 @@
                   <div class="card-price">${pPrice}<span class="price-asterisk" title="Illustrative placeholder price">*</span></div>
                   <div class="card-price-note">*illustrative</div>
                 </div>
-                <button class="btn-add-cart" onclick="addProductToCart(event, '${pid}', '${pName.replace(/'/g, "\\'")}')">
+                <button class="btn-add-cart" onclick="addProductToCart(event, '${pid}', '${escapeHtml(rawName)}')">
                   <span>+</span> Add
                 </button>
               </div>
@@ -1985,18 +1952,16 @@
 
       // Settings Update & Persistence
       saveConfigBtn.addEventListener('click', () => {
-        const newBase = inputBaseUrl.value.trim() || 'http://127.0.0.1:8000';
-        const newKey = inputPublicKey.value.trim() || 'PASTE_YOUR_PUBLIC_KEY_HERE';
+        const newBase = inputBaseUrl.value.trim() || window.location.origin;
+        const newKey = sanitizeInstacartKey(inputPublicKey.value);
 
         CONFIG.baseUrl = newBase;
         CONFIG.publicKey = newKey;
 
-        // Persist in localStorage so re-entering is never needed
+        // Persist in isolated localStorage
         try {
-          localStorage.setItem('aipod_saved_public_key_instacart', newKey);
-          localStorage.setItem('aipod_saved_public_key', newKey);
-          localStorage.setItem('aipod_saved_base_url_instacart', newBase);
-          localStorage.setItem('aipod_saved_base_url', newBase);
+          localStorage.setItem('instacart_api_key', newKey);
+          localStorage.setItem('instacart_api_base', newBase);
         } catch (e) {}
 
         // Persist to backend demo storage
@@ -2014,7 +1979,7 @@
 
         configDrawer.classList.remove('open');
         updateConnectionBannerState();
-        showToast('Public key saved permanently! You will not need to re-enter it.');
+        showToast('Public key saved successfully!');
         loadRecommendations(shopperSelect.value);
       });
 

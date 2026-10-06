@@ -1039,9 +1039,16 @@
     // ---------------------------------------------------------------------------
     // Configuration & State
     // ---------------------------------------------------------------------------
+    function sanitizeStorefrontKey(k) {
+      if (!k || typeof k !== 'string') return 'pk-online-retail-xxxx';
+      const clean = k.trim();
+      if (clean.startsWith('pk-online') || clean.startsWith('pk_online')) return clean;
+      return 'pk-online-retail-xxxx';
+    }
+
     const CONFIG = {
       baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin.startsWith('http')) ? window.location.origin : (localStorage.getItem('storefront_api_base') || 'http://localhost:8000'),
-      apiKey: localStorage.getItem('storefront_api_key') || 'pk-online-retail-xxxx',
+      apiKey: sanitizeStorefrontKey(localStorage.getItem('storefront_api_key')),
       topN: 5
     };
 
