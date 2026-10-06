@@ -28,6 +28,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <!-- Load AI_POD Client Tracking & Recommendation SDK with Demo Public Key -->
+  <script src="/sdk.js" data-tenant-key="pk-thread_co-xxxx" id="aipod-sdk"></script>
   
   <style>
     :root {
@@ -1304,7 +1306,7 @@
         </div>
         <div class="config-field">
           <label for="inputPublicKey">Tenant Public Key (pk-... received at onboarding)</label>
-          <input type="text" id="inputPublicKey" placeholder="PASTE_YOUR_PUBLIC_KEY_HERE">
+          <input type="text" id="inputPublicKey" value="pk-thread_co-xxxx" placeholder="pk-thread_co-xxxx">
         </div>
         <div>
           <button id="saveConfigBtn" class="btn-apply-config">Apply Live (Session Only)</button>
@@ -1333,26 +1335,20 @@
           These must be replaced with real customer IDs once the dataset is onboarded into AI_POD.
         -->
         <select id="shopperSelect" class="shopper-select">
-          <option value="a3ab708684132c6bbd3dad7aa41f9b9c7d1c95d7d5cb1a3a052905191e858566" selected>
-            Customer a3ab7086... (35, Active member)
+          <option value="45558fc9ab558902ba40c6fa2942a598fc3526335b2b075903f48c3dd59f6359" selected>
+            Customer 45558fc9... (35, Active Member &bull; Contemporary Workwear)
           </option>
-          <option value="29faf622c66c95935e11709b28bc3252de560ec9fcb76e53e82bd877f3a7f447">
-            Customer 29faf622... (37, Active member)
+          <option value="19cda62a36781e7af9f3dd8b8fe6e2f6f70989819b43f6b333de54f66c4cd53f">
+            Customer 19cda62a... (28, Active Member &bull; Casual Denim &amp; Tops)
           </option>
-          <option value="1426b606af826fa9568b6fe75629d10bb6ff7ea40f93908c43113d991e512bd5">
-            Customer 1426b606... (24, Active member)
+          <option value="065d539b3d256e308e1e118a098c74c9e4abc8535a5436bdeaad69c898f1cd7a">
+            Customer 065d539b... (42, Active Member &bull; Tailored Outerwear)
           </option>
-          <option value="65cb62c794232651e2ac711faa11c2b4e3d41d5f3b59b50bee3ffde1d5776644">
-            Customer 65cb62c7... (21, Active member)
+          <option value="71ddc3bbbf6060cf2c40c7393b776b10306dbd2346eb6d9f5eeebc8706c1e2bf">
+            Customer 71ddc3bb... (23, Active Member &bull; Streetwear &amp; Loungewear)
           </option>
-          <option value="b637a3e7d8b0caa947aaefd609b8d84a9ee962cf0a52a51bac507ffc2bf1b741">
-            Customer b637a3e7... (43, Active member)
-          </option>
-          <option value="d1c5629d6d7e39067cef9d1092e44016ea94889fa36624fad0123c39de72edb1">
-            Customer d1c5629d... (30, Active member)
-          </option>
-          <option value="a65f77281a528bf5c1e9f270141d601d116e1df33bf9df512f495ee06647a9cc">
-            Customer a65f7728... (61, Active member)
+          <option value="48da0dd232ba8d8a393bed2f5f6b1d64fe3cf67c2559f5cb5b56edb4052b3a2a">
+            Customer 48da0dd2... (50, Active Member &bull; Classic Knitwear &amp; Linens)
           </option>
         </select>
 
@@ -1520,7 +1516,7 @@
 
         if (paramKey) {
           CONFIG.publicKey = paramKey;
-        } else if (savedKey) {
+        } else if (savedKey && !isKeyPlaceholder(savedKey)) {
           CONFIG.publicKey = savedKey;
         } else {
           CONFIG.publicKey = 'pk-thread_co-xxxx';

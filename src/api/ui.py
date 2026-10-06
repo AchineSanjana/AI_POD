@@ -23,26 +23,62 @@ router = APIRouter(tags=["ui"])
 
 
 def get_available_tenants() -> list[str]:
-    """Retrieve list of configured tenant IDs from config.yaml."""
+    """Retrieve list of configured and discoverable tenant IDs."""
+    tenants: set[str] = set()
     try:
         cfg = load_config()
         if "tenants" in cfg and isinstance(cfg["tenants"], dict):
-            return list(cfg["tenants"].keys())
+            tenants.update(cfg["tenants"].keys())
     except Exception:
         pass
-    return ["telco_default", "fixture_ecommerce", "movielens_demo", "movielens_small"]
+
+    try:
+        from src.utils.config import get_tenant_auth_records
+        records = get_tenant_auth_records()
+        for rec in records.values():
+            t = rec.get("tenant_id")
+            if t:
+                tenants.add(str(t))
+    except Exception:
+        pass
+
+    for default_t in ["telco_default", "fresh_cart_co", "thread_co", "online_retail", "movielens_demo", "movielens_small", "fixture_ecommerce"]:
+        tenants.add(default_t)
+
+    ordered_primary = ["telco_default", "fresh_cart_co", "thread_co", "online_retail", "movielens_demo", "movielens_small", "fixture_ecommerce"]
+    result = [t for t in ordered_primary if t in tenants]
+    result.extend(sorted(t for t in tenants if t not in ordered_primary))
+    return result
+
+
+KNOWN_TENANT_CUSTOMER_SAMPLES: dict[str, list[str]] = {
+    "fresh_cart_co": ["C00001", "C00002", "C00003", "C00004", "C00005", "C00006", "C00007", "C00008"],
+    "thread_co": [
+        "45558fc9ab558902ba40c6fa2942a598fc3526335b2b075903f48c3dd59f6359",
+        "19cda62a36781e7af9f3dd8b8fe6e2f6f70989819b43f6b333de54f66c4cd53f",
+        "065d539b3d256e308e1e118a098c74c9e4abc8535a5436bdeaad69c898f1cd7a",
+        "71ddc3bbbf6060cf2c40c7393b776b10306dbd2346eb6d9f5eeebc8706c1e2bf",
+        "48da0dd232ba8d8a393bed2f5f6b1d64fe3cf67c2559f5cb5b56edb4052b3a2a",
+    ],
+    "telco_default": ["7590-VHVEG", "5575-GNVDE", "3668-QPYBK", "7795-CFOCW", "9237-HQITU"],
+    "online_retail": ["13313", "18097", "16656", "16875", "13094"],
+    "movielens_demo": ["1", "2", "3", "4", "5"],
+    "movielens_small": ["1", "2", "3", "4", "5"],
+    "fixture_ecommerce": ["usr_1", "usr_2", "usr_3", "usr_4", "usr_5"],
+}
 
 
 def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 25) -> list[str]:
-    """Get sample customer IDs for a tenant either from loaded model or processed CSV."""
+    """Get sample customer IDs for a tenant from model, processed CSV, raw data, or known samples."""
     try:
         model = get_model_for_tenant(tenant_id)
         customers = getattr(model, "customers_", None)
         if customers is not None and not customers.empty:
-            if "customerID" in customers.columns:
-                customers = customers.rename(columns={"customerID": "customer_id"})
-            if "customer_id" in customers.columns:
-                return customers["customer_id"].dropna().astype(str).head(limit).tolist()
+            for candidate in ["customerID", "customer_id", "customerId", "user_id", "id", "ShopperID"]:
+                if candidate in customers.columns:
+                    samples = customers[candidate].dropna().astype(str).unique().tolist()
+                    if samples:
+                        return samples[:limit]
     except Exception:
         pass
 
@@ -51,17 +87,25 @@ def get_sample_customer_ids(tenant_id: str = "telco_default", limit: int = 25) -
         import io
 
         storage = get_storage_backend()
-        cust_key = f"data/processed/{tenant_id}/customers.csv"
-        if storage.exists(cust_key):
-            df = pd.read_csv(io.BytesIO(storage.read_file(cust_key)))
-            if "customerID" in df.columns:
-                df = df.rename(columns={"customerID": "customer_id"})
-            if "customer_id" in df.columns:
-                return df["customer_id"].dropna().astype(str).head(limit).tolist()
+        for cust_key in [
+            f"data/processed/{tenant_id}/customers.csv",
+            f"data/processed/{tenant_id}/interactions.csv",
+        ]:
+            if storage.exists(cust_key):
+                df = pd.read_csv(io.BytesIO(storage.read_file(cust_key)), nrows=200)
+                for candidate in ["customerID", "customer_id", "customerId", "user_id", "id"]:
+                    if candidate in df.columns:
+                        samples = df[candidate].dropna().astype(str).unique().tolist()
+                        if samples:
+                            return samples[:limit]
     except Exception:
         pass
 
-    return []
+    # Check known tenant customer samples fallback
+    if tenant_id in KNOWN_TENANT_CUSTOMER_SAMPLES:
+        return KNOWN_TENANT_CUSTOMER_SAMPLES[tenant_id][:limit]
+
+    return ["C00001", "1", "user_1"]
 
 
 def build_home_page(tenant_id: str | None = None, default_customer_id: str | None = None) -> str:
@@ -74,7 +118,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
     # Preload sample IDs for each tenant for fast switching in UI
     tenant_samples_map = {t: get_sample_customer_ids(t, limit=25) for t in available_tenants}
     current_samples = tenant_samples_map.get(selected_tenant, [])
-    effective_customer_id = default_customer_id or (current_samples[0] if current_samples else "")
+    effective_customer_id = default_customer_id or (current_samples[0] if current_samples else "C00001")
 
     try:
         from src.utils.config import get_tenant_auth_records
@@ -84,10 +128,16 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
         for key, rec in records.items():
             t = rec.get("tenant_id")
             if t:
-                if t not in tenant_keys_map or rec.get("key_type") == "private":
+                # Prefer public keys for browser UI calls
+                if t not in tenant_keys_map or rec.get("key_type") == "public" or key.startswith("pk-"):
                     tenant_keys_map[t] = key
     except Exception:
         tenant_keys_map = {}
+
+    # Guarantee a valid public key is permanently mapped for EVERY tenant
+    for t in available_tenants:
+        if t not in tenant_keys_map:
+            tenant_keys_map[t] = f"pk-{t}-xxxx"
 
     tenant_options_html = "\n".join(
         f'<option value="{t}" {"selected" if t == selected_tenant else ""}>{t}</option>'
@@ -96,6 +146,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
     customer_options_html = "".join(f'<option value="{cid}"></option>' for cid in current_samples)
     tenant_samples_json = json.dumps(tenant_samples_map)
     tenant_keys_json = json.dumps(tenant_keys_map)
+    active_pub_key = tenant_keys_map.get(selected_tenant, f"pk-{selected_tenant}-xxxx")
 
     return f"""<!doctype html>
 <html lang="en">
@@ -103,6 +154,8 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Recommendations UI</title>
+  <!-- Load AI_POD Client Tracking & Recommendation SDK with Active Public Key -->
+  <script src="/sdk.js" data-tenant-key="{active_pub_key}" id="aipod-sdk"></script>
   <style>
     :root {{
       color-scheme: light;
@@ -339,6 +392,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
           <a class="pill" href="/telco" style="text-decoration: none; background: #003399; color: #fff; font-weight: bold;">📶 Mobitel Telco Portal</a>
           <a class="pill" href="/hm" style="text-decoration: none; background: #18181b; color: #fff; font-weight: bold;">🧵 Thread &amp; Co. Fashion</a>
           <a class="pill" href="/instacart" style="text-decoration: none; background: #059669; color: #fff; font-weight: bold;">🥑 Fresh Cart Grocery</a>
+          <a class="pill" href="/storefront" style="text-decoration: none; background: #d97706; color: #fff; font-weight: bold;">🛍️ Gift &amp; Home Retail</a>
           <a class="pill" href="/onboarding" style="text-decoration: none; background: #6366f1; color: #fff; font-weight: bold;">🚀 Dataset Onboarding</a>
         </div>
       </div>
@@ -356,10 +410,12 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
 
             <div class="field">
               <label for="customer_id">Customer ID</label>
-              <input id="customer_id" name="customer_id" list="customer-suggestions" value="{effective_customer_id}" placeholder="e.g. 7590-VHVEG or 1" required />
+              <input id="customer_id" name="customer_id" list="customer-suggestions" value="{effective_customer_id}" placeholder="e.g. 7590-VHVEG or C00001" required />
               <datalist id="customer-suggestions">
                 {customer_options_html}
               </datalist>
+              <div style="margin-top: 8px; font-size: 0.8rem; color: var(--muted); font-weight: 600;">Sample Customers:</div>
+              <div id="sample-chips" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;"></div>
             </div>
 
             <div class="field">
@@ -368,12 +424,15 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
             </div>
 
             <div class="actions">
-              <button type="submit">Get recommendations</button>
+              <button type="submit" id="submit-btn">Get recommendations</button>
               <a class="link-button" href="/docs" target="_blank" rel="noreferrer">API docs</a>
             </div>
           </form>
 
           <div id="status" class="status" aria-live="polite">Ready to fetch recommendations.</div>
+          <div style="margin-top: 10px; padding: 8px 10px; background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 0.78rem; color: var(--muted); font-family: monospace; word-break: break-all;">
+            🔑 Active Public Key: <span id="active-key-label">{active_pub_key}</span>
+          </div>
           <div class="meta">Known customer samples for '<span id="sample-tenant">{selected_tenant}</span>': <span id="sample-count">{len(current_samples)}</span></div>
           <div class="meta"><a href="/health" target="_blank" rel="noreferrer">Health check</a></div>
         </div>
@@ -382,7 +441,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
           <div class="results-header">
             <div>
               <h2>Recommendations</h2>
-              <p id="results-meta">Results will appear here after you search.</p>
+              <p id="results-meta">Loading recommendations automatically...</p>
             </div>
           </div>
 
@@ -393,7 +452,7 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
                   <tr><th>Rank</th><th>Product</th><th>Product ID</th><th>Category</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td colspan="4" style="color: var(--muted);">No recommendations loaded yet. Select a customer and click 'Get recommendations'.</td></tr>
+                  <tr><td colspan="4" style="color: var(--muted); padding: 20px 14px;">Loading recommendations...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -409,42 +468,49 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
     const tenantSelect = document.getElementById('tenant_id');
     const customerInput = document.getElementById('customer_id');
     const customerSuggestions = document.getElementById('customer-suggestions');
+    const sampleChipsContainer = document.getElementById('sample-chips');
     const sampleTenantEl = document.getElementById('sample-tenant');
     const sampleCountEl = document.getElementById('sample-count');
+    const activeKeyLabel = document.getElementById('active-key-label');
     const form = document.getElementById('recommendation-form');
     const statusEl = document.getElementById('status');
     const resultsEl = document.getElementById('results');
     const resultsMetaEl = document.getElementById('results-meta');
+
+    function renderSampleChips(samples) {{
+      if (!sampleChipsContainer) return;
+      sampleChipsContainer.innerHTML = '';
+      (samples || []).slice(0, 6).forEach(id => {{
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-block; padding:3px 8px; background:#eef6ff; color:#0d73c9; border:1px solid #d0e4f7; border-radius:6px; font-size:0.76rem; cursor:pointer; font-weight:600; font-family:monospace;';
+        chip.textContent = id.length > 14 ? id.substring(0, 10) + '...' : id;
+        chip.title = id;
+        chip.addEventListener('click', () => {{
+          customerInput.value = id;
+          fetchAndRenderRecommendations();
+        }});
+        sampleChipsContainer.appendChild(chip);
+      }});
+    }}
 
     function updateCustomerSuggestions(tenantId, autoSelectFirst = true) {{
       const samples = tenantSamplesMap[tenantId] || [];
       customerSuggestions.innerHTML = samples.map(id => `<option value="${{id}}"></option>`).join('');
       if (sampleCountEl) sampleCountEl.textContent = samples.length;
       if (sampleTenantEl) sampleTenantEl.textContent = tenantId;
+      
+      const key = tenantKeysMap[tenantId] || ('pk-' + tenantId + '-xxxx');
+      if (activeKeyLabel) activeKeyLabel.textContent = key;
+      if (typeof window.AIPod !== 'undefined') {{
+        window.AIPod.init({{ apiKey: key }});
+      }}
 
-      if (autoSelectFirst) {{
-        customerInput.value = samples.length > 0 ? samples[0] : '';
+      renderSampleChips(samples);
+
+      if (autoSelectFirst && samples.length > 0) {{
+        customerInput.value = samples[0];
       }}
     }}
-
-    tenantSelect.addEventListener('change', (e) => {{
-      const newTenant = e.target.value;
-      updateCustomerSuggestions(newTenant, true);
-      setStatus(`Switched to tenant '${{newTenant}}'. Ready to fetch recommendations.`, '');
-      resultsMetaEl.textContent = `Select or enter a Customer ID for '${{newTenant}}'.`;
-      resultsEl.innerHTML = `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Rank</th><th>Product</th><th>Product ID</th><th>Category</th></tr>
-            </thead>
-            <tbody>
-              <tr><td colspan="4" style="color: var(--muted);">No recommendations loaded yet. Click 'Get recommendations' to fetch for tenant '${{newTenant}}'.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `;
-    }});
 
     function setStatus(message, kind = '') {{
       statusEl.textContent = message;
@@ -457,10 +523,10 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
           <td><span class="rank-badge">${{item.rank}}</span></td>
           <td>
             <div class="product-name">${{item.product_name || item.product_id}}</div>
-            <div class="product-id">${{item.product_name ? 'Recommended from model' : 'No display name found'}}</div>
+            <div class="product-id">${{item.product_name ? 'ID: ' + item.product_id : 'Recommended from model'}}</div>
           </td>
-          <td>${{item.product_id}}</td>
-          <td>${{item.category ? `<span class="category-tag">${{item.category}}</span>` : ''}}</td>
+          <td><code>${{item.product_id}}</code></td>
+          <td>${{item.category ? `<span class="category-tag">${{item.category}}</span>` : '<span style="color:#94a3b8;">&mdash;</span>'}}</td>
         </tr>
       `).join('');
 
@@ -470,15 +536,15 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
             <thead>
               <tr><th>Rank</th><th>Product</th><th>Product ID</th><th>Category</th></tr>
             </thead>
-            <tbody>${{rows || '<tr><td colspan="4">No recommendations found.</td></tr>'}}</tbody>
+            <tbody>${{rows || '<tr><td colspan="4" style="padding:16px;">No recommendations found for this customer.</td></tr>'}}</tbody>
           </table>
         </div>
       `;
-      resultsMetaEl.textContent = `Recommendations for ${{payload.customer_id}} (Tenant: ${{payload.tenant_id || 'default'}})`;
+      const fallbackNotice = payload.fallback ? ' (Popularity Fallback)' : ' (Personalized ML)';
+      resultsMetaEl.textContent = `Recommendations for '${{payload.customer_id}}' on tenant '${{payload.tenant_id || 'default'}}'${{fallbackNotice}}`;
     }}
 
-    form.addEventListener('submit', async (event) => {{
-      event.preventDefault();
+    async function fetchAndRenderRecommendations() {{
       const tenantId = tenantSelect.value.trim();
       const customerId = customerInput.value.trim();
       const topN = Number(document.getElementById('top_n').value || 5);
@@ -489,11 +555,11 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
       }}
 
       setStatus(`Loading recommendations for '${{customerId}}' (${{tenantId}})...`, '');
-      resultsMetaEl.textContent = 'Fetching fresh recommendations...';
+      resultsMetaEl.textContent = 'Fetching recommendations from model...';
 
       try {{
-        const apiKey = tenantKeysMap[tenantId] || '';
-        const headers = apiKey ? {{ 'X-API-Key': apiKey }} : {{}};
+        const apiKey = tenantKeysMap[tenantId] || ('pk-' + tenantId + '-xxxx');
+        const headers = {{ 'X-API-Key': apiKey }};
         const response = await fetch(`/v1/recommendations?customer_id=${{encodeURIComponent(customerId)}}&top_n=${{topN}}&tenant_id=${{encodeURIComponent(tenantId)}}`, {{
           headers: headers
         }});
@@ -503,13 +569,31 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
           throw new Error(payload.detail || 'Request failed');
         }}
 
-        setStatus(`Loaded recommendations for ${{customerId}} (Tenant: ${{tenantId}}).`, 'success');
+        setStatus(`Loaded ${{payload.recommendations ? payload.recommendations.length : 0}} recommendations for ${{customerId}} (Tenant: ${{tenantId}}).`, 'success');
         renderRecommendations(payload);
       }} catch (error) {{
         resultsMetaEl.textContent = 'Unable to load recommendations.';
         setStatus(error.message, 'error');
       }}
+    }}
+
+    tenantSelect.addEventListener('change', (e) => {{
+      const newTenant = e.target.value;
+      updateCustomerSuggestions(newTenant, true);
+      fetchAndRenderRecommendations();
     }});
+
+    form.addEventListener('submit', async (event) => {{
+      event.preventDefault();
+      fetchAndRenderRecommendations();
+    }});
+
+    // Initialize sample chips and automatically fetch recommendations as soon as site launches
+    const initialSamples = tenantSamplesMap[tenantSelect.value] || [];
+    renderSampleChips(initialSamples);
+    if (customerInput.value) {{
+      fetchAndRenderRecommendations();
+    }}
   </script>
 </body>
 </html>

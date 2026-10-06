@@ -28,6 +28,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Load AI_POD Client Tracking & Recommendation SDK with Demo Public Key -->
+  <script src="/sdk.js" data-tenant-key="pk-fresh_cart_co-xxxx" id="aipod-sdk"></script>
   
   <style>
     :root {
@@ -1284,7 +1286,7 @@
         </div>
         <div class="config-field">
           <label for="inputPublicKey">Tenant Public Key (pk-... received at onboarding)</label>
-          <input type="text" id="inputPublicKey" placeholder="PASTE_YOUR_PUBLIC_KEY_HERE">
+          <input type="text" id="inputPublicKey" value="pk-fresh_cart_co-xxxx" placeholder="pk-fresh_cart_co-xxxx">
         </div>
         <div>
           <button id="saveConfigBtn" class="btn-apply-config">Apply Live (Session Only)</button>
@@ -1489,10 +1491,10 @@
 
         if (paramKey) {
           CONFIG.publicKey = paramKey;
-        } else if (savedKey) {
+        } else if (savedKey && !isKeyPlaceholder(savedKey)) {
           CONFIG.publicKey = savedKey;
         } else {
-          CONFIG.publicKey = 'pk-fresh_cart_co-375554e8b1aa';
+          CONFIG.publicKey = 'pk-fresh_cart_co-xxxx';
         }
 
         if (paramBase) {

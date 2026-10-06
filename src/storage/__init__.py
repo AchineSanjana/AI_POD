@@ -31,11 +31,15 @@ def get_storage_backend(config: dict | None = None) -> StorageBackend:
     Raises:
         ValueError: If backend is unknown or required settings are missing.
     """
-    if config is None:
-        from src.utils.config import load_config
-        config = load_config()
+    if not isinstance(config, dict):
+        try:
+            from src.utils.config import load_config
+            loaded = load_config()
+            config = loaded if isinstance(loaded, dict) else {}
+        except Exception:
+            config = {}
 
-    storage_cfg = config.get("storage", {})
+    storage_cfg = config.get("storage", {}) if isinstance(config, dict) else {}
     backend = os.environ.get(
         "STORAGE_BACKEND", storage_cfg.get("backend", "local")
     ).strip().lower()

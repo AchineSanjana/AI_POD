@@ -101,22 +101,39 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
         TENANT_KEY_RECORDS[api_key] = rec
         return rec
 
-    # Auto-generation fallback for demo/test tenants in config['tenants']
+    # Auto-generation fallback for demo/test tenants in config['tenants'] or discoverable tenants
     try:
         cfg = load_config()
-        tenants = cfg.get("tenants", {})
-        if isinstance(tenants, dict):
-            for t in tenants.keys():
-                if api_key == f"sk-{t}-xxxx":
-                    rec = {"tenant_id": t, "key_type": "private", "created_at": None}
-                    TENANT_KEY_RECORDS[api_key] = rec
-                    TENANT_AUTH_MAPPING[api_key] = t
-                    return rec
-                if api_key == f"pk-{t}-xxxx":
-                    rec = {"tenant_id": t, "key_type": "public", "created_at": None}
-                    TENANT_KEY_RECORDS[api_key] = rec
-                    TENANT_AUTH_MAPPING[api_key] = t
-                    return rec
+        tenants = set(cfg.get("tenants", {}).keys()) if isinstance(cfg.get("tenants"), dict) else set()
+        tenants.update(["telco_default", "fresh_cart_co", "thread_co", "online_retail", "movielens_demo", "movielens_small", "fixture_ecommerce"])
+        if api_key in ("sk-ecommerce-xxxx", "pk-ecommerce-xxxx"):
+            k_type = "public" if api_key.startswith("pk-") else "private"
+            rec = {"tenant_id": "fixture_ecommerce", "key_type": k_type, "created_at": None}
+            TENANT_KEY_RECORDS[api_key] = rec
+            TENANT_AUTH_MAPPING[api_key] = "fixture_ecommerce"
+            return rec
+
+        for t in tenants:
+            if api_key == f"sk-{t}-xxxx":
+                rec = {"tenant_id": t, "key_type": "private", "created_at": None}
+                TENANT_KEY_RECORDS[api_key] = rec
+                TENANT_AUTH_MAPPING[api_key] = t
+                return rec
+            if api_key == f"pk-{t}-xxxx":
+                rec = {"tenant_id": t, "key_type": "public", "created_at": None}
+                TENANT_KEY_RECORDS[api_key] = rec
+                TENANT_AUTH_MAPPING[api_key] = t
+                return rec
+
+        # Generic pattern check: pk-<tenant_id>-xxxx or sk-<tenant_id>-xxxx
+        if (api_key.startswith("pk-") or api_key.startswith("sk-")) and api_key.endswith("-xxxx"):
+            t = api_key[3:-5]
+            if t in tenants:
+                k_type = "public" if api_key.startswith("pk-") else "private"
+                rec = {"tenant_id": t, "key_type": k_type, "created_at": None}
+                TENANT_KEY_RECORDS[api_key] = rec
+                TENANT_AUTH_MAPPING[api_key] = t
+                return rec
     except Exception:
         pass
 

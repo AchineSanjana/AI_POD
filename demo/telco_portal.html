@@ -22,6 +22,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Load AI_POD Client Tracking & Recommendation SDK with Demo Public Key -->
+  <script src="/sdk.js" data-tenant-key="pk-telco-xxxx" id="aipod-sdk"></script>
   
   <style>
     :root {
@@ -979,7 +981,7 @@
         </div>
         <div class="config-field">
           <label for="inputPublicKey">Telco Public Key</label>
-          <input type="text" id="inputPublicKey" placeholder="pk-telco-xxxx">
+          <input type="text" id="inputPublicKey" value="pk-telco-xxxx" placeholder="pk-telco-xxxx">
         </div>
         <div>
           <button id="saveConfigBtn" class="btn-apply-config">Apply Live (Session Only)</button>
