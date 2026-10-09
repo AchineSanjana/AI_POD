@@ -1479,8 +1479,32 @@
       return 'pk-fresh_cart_co-xxxx';
     }
 
+    const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+    if (isHttp) {
+      try { localStorage.removeItem('instacart_api_base'); } catch (e) {}
+    }
+
+    function resolveApiBase(customUrl) {
+      const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+      const defaultOrigin = isHttp ? window.location.origin : 'http://localhost:8000';
+      const inputEl = document.getElementById('inputBaseUrl');
+      const val = (customUrl !== undefined ? customUrl : (inputEl ? inputEl.value : '')).trim();
+
+      if (val && val !== defaultOrigin) {
+        return val;
+      }
+      if (isHttp) {
+        return window.location.origin;
+      }
+      try {
+        const stored = localStorage.getItem('instacart_api_base');
+        if (stored) return stored;
+      } catch (e) {}
+      return 'http://localhost:8000';
+    }
+
     const CONFIG = {
-      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) ? window.location.origin : (localStorage.getItem('instacart_api_base') || 'http://localhost:8000'),
+      baseUrl: resolveApiBase(),
       publicKey: sanitizeInstacartKey(localStorage.getItem('instacart_api_key')),
     };
 
@@ -1496,8 +1520,8 @@
         }
 
         if (paramBase) {
-          CONFIG.baseUrl = paramBase;
-        } else if (window.location.origin && window.location.origin.startsWith('http')) {
+          CONFIG.baseUrl = resolveApiBase(paramBase);
+        } else if (isHttp) {
           CONFIG.baseUrl = window.location.origin;
         }
       } catch (e) {
@@ -1952,7 +1976,7 @@
 
       // Settings Update & Persistence
       saveConfigBtn.addEventListener('click', () => {
-        const newBase = inputBaseUrl.value.trim() || window.location.origin;
+        const newBase = resolveApiBase(inputBaseUrl.value);
         const newKey = sanitizeInstacartKey(inputPublicKey.value);
 
         CONFIG.baseUrl = newBase;
@@ -1961,7 +1985,9 @@
         // Persist in isolated localStorage
         try {
           localStorage.setItem('instacart_api_key', newKey);
-          localStorage.setItem('instacart_api_base', newBase);
+          if (!isHttp) {
+            localStorage.setItem('instacart_api_base', newBase);
+          }
         } catch (e) {}
 
         // Persist to backend demo storage

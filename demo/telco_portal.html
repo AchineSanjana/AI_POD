@@ -977,7 +977,7 @@
       <div class="config-grid">
         <div class="config-field">
           <label for="inputBaseUrl">API Base URL</label>
-          <input type="text" id="inputBaseUrl" placeholder="http://127.0.0.1:8000">
+          <input type="text" id="inputBaseUrl" placeholder="https://your-engine.com or http://localhost:8000">
         </div>
         <div class="config-field">
           <label for="inputPublicKey">Telco Public Key</label>
@@ -1134,8 +1134,32 @@
       return 'pk-telco-xxxx';
     }
 
+    const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+    if (isHttp) {
+      try { localStorage.removeItem('telco_api_base'); } catch (e) {}
+    }
+
+    function resolveApiBase(customUrl) {
+      const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+      const defaultOrigin = isHttp ? window.location.origin : 'http://localhost:8000';
+      const inputEl = document.getElementById('inputBaseUrl');
+      const val = (customUrl !== undefined ? customUrl : (inputEl ? inputEl.value : '')).trim();
+
+      if (val && val !== defaultOrigin) {
+        return val;
+      }
+      if (isHttp) {
+        return window.location.origin;
+      }
+      try {
+        const stored = localStorage.getItem('telco_api_base');
+        if (stored) return stored;
+      } catch (e) {}
+      return 'http://localhost:8000';
+    }
+
     const CONFIG = {
-      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) ? window.location.origin : (localStorage.getItem('telco_api_base') || 'http://localhost:8000'),
+      baseUrl: resolveApiBase(),
       publicKey: sanitizeTelcoKey(localStorage.getItem('telco_api_key')),
     };
 
@@ -1151,8 +1175,8 @@
         }
 
         if (paramBase) {
-          CONFIG.baseUrl = paramBase;
-        } else if (window.location.origin && window.location.protocol.startsWith('http')) {
+          CONFIG.baseUrl = resolveApiBase(paramBase);
+        } else if (isHttp) {
           CONFIG.baseUrl = window.location.origin;
         }
       } catch (e) {
@@ -1507,7 +1531,7 @@
       if (closeConfigBtn) closeConfigBtn.addEventListener('click', () => configDrawer.classList.remove('open'));
 
       saveConfigBtn.addEventListener('click', () => {
-        const newBase = inputBaseUrl.value.trim() || window.location.origin;
+        const newBase = resolveApiBase(inputBaseUrl.value);
         const newKey = sanitizeTelcoKey(inputPublicKey.value);
 
         CONFIG.baseUrl = newBase;
@@ -1516,7 +1540,9 @@
         // Persist in isolated localStorage
         try {
           localStorage.setItem('telco_api_key', newKey);
-          localStorage.setItem('telco_api_base', newBase);
+          if (!isHttp) {
+            localStorage.setItem('telco_api_base', newBase);
+          }
         } catch (e) {}
 
         // Persist to backend demo storage

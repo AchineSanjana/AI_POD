@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -28,6 +28,10 @@ from src.utils.config import PROJECT_ROOT
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import logging
+    logger = logging.getLogger("src.api.app")
+    logger.info("AI_POD Recommendations API starting up (binding=0.0.0.0:8000)")
+    logger.info("Serving /v1/recommendations, /v1/track, and demo portals")
     load_tenant_auth()
     worker = None
     if os.environ.get("ENABLE_TRACKING_WORKER", "").strip().lower() in ("true", "1", "yes"):
@@ -115,9 +119,29 @@ class DemoConfigPayload(BaseModel):
     base_url: str | None = None
 
 
+def get_request_origin(request: Request) -> str:
+    proto = request.headers.get("x-forwarded-proto")
+    host = request.headers.get("x-forwarded-host")
+    if proto and host:
+        proto = proto.split(",")[0].strip()
+        host = host.split(",")[0].strip()
+        return f"{proto}://{host}".rstrip("/")
+    if host:
+        host = host.split(",")[0].strip()
+        proto = request.url.scheme
+        return f"{proto}://{host}".rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+
 @app.post("/v1/demo/save-config", include_in_schema=False)
 @app.post("/demo/save-config", include_in_schema=False)
-def save_demo_config(payload: DemoConfigPayload):
+@app.post("/api/demo-credentials", include_in_schema=False)
+def save_demo_config(payload: DemoConfigPayload, request: Request):
     """Persist demo public keys so they survive refreshes and server restarts."""
     import json
     saved_file = PROJECT_ROOT / "config" / "demo_saved_keys.json"
@@ -127,9 +151,10 @@ def save_demo_config(payload: DemoConfigPayload):
             data = json.loads(saved_file.read_text(encoding="utf-8"))
         except Exception:
             data = {}
+    origin = get_request_origin(request)
     data[payload.demo_name] = {
         "public_key": payload.public_key,
-        "base_url": payload.base_url or "http://127.0.0.1:8000",
+        "base_url": payload.base_url or origin,
     }
     saved_file.parent.mkdir(parents=True, exist_ok=True)
     saved_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -138,16 +163,28 @@ def save_demo_config(payload: DemoConfigPayload):
 
 @app.get("/v1/demo/saved-config", include_in_schema=False)
 @app.get("/demo/saved-config", include_in_schema=False)
-def get_saved_demo_config(demo: str = Query("instacart")):
+@app.get("/api/demo-credentials", include_in_schema=False)
+def get_saved_demo_config(request: Request, demo: str | None = Query(None)):
     import json
     saved_file = PROJECT_ROOT / "config" / "demo_saved_keys.json"
+    origin = get_request_origin(request)
+    data = {}
     if saved_file.exists():
         try:
             data = json.loads(saved_file.read_text(encoding="utf-8"))
-            return data.get(demo, {})
         except Exception:
-            pass
-    return {}
+            data = {}
+    # Treat missing or empty base_url as request origin
+    processed = {}
+    for k, v in data.items():
+        entry = dict(v) if isinstance(v, dict) else {"public_key": str(v)}
+        if not entry.get("base_url"):
+            entry["base_url"] = origin
+        processed[k] = entry
+
+    if demo:
+        return processed.get(demo, {"base_url": origin})
+    return processed
 
 # ---------------------------------------------------------------------------
 # Legacy & UI Routers (Backward Compatibility)
@@ -180,6 +217,8 @@ def read_root():
 
 @app.get("/onboarding", response_class=HTMLResponse)
 @app.get("/onboarding.html", response_class=HTMLResponse)
+@app.get("/demo/onboarding", response_class=HTMLResponse)
+@app.get("/demo/onboarding.html", response_class=HTMLResponse)
 def onboarding_portal():
     portal_file = PROJECT_ROOT / "demo" / "onboarding.html"
     if portal_file.exists():

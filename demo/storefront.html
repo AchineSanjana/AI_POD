@@ -855,7 +855,7 @@
     <div class="config-grid">
       <div class="config-field">
         <label for="apiBaseUrl">API Base URL (Local or AWS EC2)</label>
-        <input type="text" id="apiBaseUrl" value="http://localhost:8000" placeholder="e.g. http://localhost:8000 or http://<EC2_PUBLIC_IP>:8000">
+        <input type="text" id="apiBaseUrl" placeholder="e.g. http://localhost:8000 or http://<EC2_PUBLIC_IP>:8000">
       </div>
       <div class="config-field">
         <label for="apiKey">Demo Public Tenant Key (sdk.js data-tenant-key)</label>
@@ -1046,8 +1046,32 @@
       return 'pk-online-retail-xxxx';
     }
 
+    const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+    if (isHttp) {
+      try { localStorage.removeItem('storefront_api_base'); } catch (e) {}
+    }
+
+    function resolveApiBase(customUrl) {
+      const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+      const defaultOrigin = isHttp ? window.location.origin : 'http://localhost:8000';
+      const inputEl = document.getElementById('apiBaseUrl');
+      const val = (customUrl !== undefined ? customUrl : (inputEl ? inputEl.value : '')).trim();
+
+      if (val && val !== defaultOrigin) {
+        return val;
+      }
+      if (isHttp) {
+        return window.location.origin;
+      }
+      try {
+        const stored = localStorage.getItem('storefront_api_base');
+        if (stored) return stored;
+      } catch (e) {}
+      return 'http://localhost:8000';
+    }
+
     const CONFIG = {
-      baseUrl: (typeof window !== 'undefined' && window.location && window.location.origin.startsWith('http')) ? window.location.origin : (localStorage.getItem('storefront_api_base') || 'http://localhost:8000'),
+      baseUrl: resolveApiBase(),
       apiKey: sanitizeStorefrontKey(localStorage.getItem('storefront_api_key')),
       topN: 5
     };
@@ -1314,9 +1338,11 @@
 
       // Save config button
       saveConfigBtn.addEventListener('click', () => {
-        CONFIG.baseUrl = apiBaseInput.value.trim() || 'http://localhost:8000';
+        CONFIG.baseUrl = resolveApiBase(apiBaseInput.value);
         CONFIG.apiKey = apiKeyInput.value.trim() || 'pk-online-retail-xxxx';
-        localStorage.setItem('storefront_api_base', CONFIG.baseUrl);
+        if (!isHttp) {
+          try { localStorage.setItem('storefront_api_base', CONFIG.baseUrl); } catch (e) {}
+        }
         localStorage.setItem('storefront_api_key', CONFIG.apiKey);
         if (typeof window.AIPod !== 'undefined') {
           AIPod.init({ baseUrl: CONFIG.baseUrl, apiKey: CONFIG.apiKey });

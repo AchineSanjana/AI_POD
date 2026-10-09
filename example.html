@@ -679,8 +679,15 @@ and interactive demos. It is NOT intended as production client-side integration 
     // -------------------------------------------------------------------------
     // In production, this call is made from YOUR BACKEND SERVER to protect the key.
     // Here we call the local FastAPI backend directly to showcase the visual UI.
+    function resolveApiBase() {
+      if (typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:' || (window.location.origin && window.location.origin.startsWith('http')))) {
+        return window.location.origin;
+      }
+      return 'http://localhost:8000';
+    }
+
     const CONFIG = {
-      apiBaseUrl: window.location.origin.includes('localhost') ? window.location.origin : 'http://localhost:8000',
+      apiBaseUrl: resolveApiBase(),
       apiKey: 'sk-telco-xxxx',       // Demo key mapping to telco_default
       customerId: '7590-VHVEG',      // Known demo customer in telco dataset
       topN: 4,

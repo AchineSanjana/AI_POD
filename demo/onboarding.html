@@ -757,11 +757,11 @@
         <span>🎁</span>
         <span>Storefront Demo</span>
       </a>
-      <a href="http://localhost:8000/" class="top-nav-link" target="_blank" title="Test Recommendations via Admin UI">
+      <a href="/" id="navTesterLink" class="top-nav-link" target="_blank" title="Test Recommendations via Admin UI">
         <span>⚡</span>
         <span>Recommendations Tester</span>
       </a>
-      <a href="http://localhost:8000/docs" class="top-nav-link" target="_blank" title="OpenAPI / Swagger Docs">
+      <a href="/docs" id="navDocsLink" class="top-nav-link" target="_blank" title="OpenAPI / Swagger Docs">
         <span>📖</span>
         <span>API Docs</span>
       </a>
@@ -1271,7 +1271,7 @@
               <span>🎁</span>
               <span>Open Storefront Demo</span>
             </a>
-            <a href="http://localhost:8000/" class="btn btn-secondary" target="_blank" id="testUiBtn">
+            <a href="/" class="btn btn-secondary" target="_blank" id="testUiBtn">
               <span>⚡</span>
               <span>Test Recommendations in Admin UI</span>
             </a>
@@ -1298,12 +1298,24 @@
     // -------------------------------------------------------------------------
     // State & Config
     // -------------------------------------------------------------------------
-    const defaultApiBase = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http'))
-      ? window.location.origin
-      : 'http://localhost:8000';
+    function resolveApiBase() {
+      if (typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+        return window.location.origin;
+      }
+      return 'http://localhost:8000';
+    }
+
+    const API_BASE = resolveApiBase();
+
+    const navTesterLink = document.getElementById('navTesterLink');
+    if (navTesterLink) navTesterLink.href = `${API_BASE}/`;
+    const navDocsLink = document.getElementById('navDocsLink');
+    if (navDocsLink) navDocsLink.href = `${API_BASE}/docs`;
+    const testUiBtn = document.getElementById('testUiBtn');
+    if (testUiBtn) testUiBtn.href = `${API_BASE}/`;
 
     const STATE = {
-      apiBaseUrl: defaultApiBase,
+      apiBaseUrl: API_BASE,
       currentStep: 1,
       tenantId: '',
       apiKey: '',
@@ -2185,7 +2197,7 @@ ${interactionsYaml}
             document.getElementById('trainingSubheading').textContent = `Artifact ready at ${data.model_path || `models/${STATE.tenantId}/final_model.joblib`}`;
 
             document.getElementById('completionActions').style.display = 'flex';
-            document.getElementById('testUiBtn').href = `http://localhost:8000/?tenant_id=${encodeURIComponent(STATE.tenantId)}`;
+            document.getElementById('testUiBtn').href = `${API_BASE}/?tenant_id=${encodeURIComponent(STATE.tenantId)}`;
             showToast('Recommendation model training complete!', '🎉');
           } else if (data.status === 'failed') {
             clearInterval(STATE.pollingTimer);

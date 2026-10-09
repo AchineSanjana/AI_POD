@@ -1,18 +1,18 @@
 {
   "instacart": {
     "public_key": "pk-fresh_cart_co-375554e8b1aa",
-    "base_url": "http://127.0.0.1:8000"
+    "base_url": ""
   },
   "hm": {
-    "public_key": "pk-thread_co-xxxx",
-    "base_url": "http://127.0.0.1:8000"
+    "public_key": "pk-thread_co-7b3e5a10dde6",
+    "base_url": ""
   },
   "telco": {
-    "public_key": "pk-telco-xxxx",
-    "base_url": "http://127.0.0.1:8000"
+    "public_key": "pk-telco_default-b43fec08ef33",
+    "base_url": ""
   },
   "storefront": {
-    "public_key": "pk-online-retail-xxxx",
-    "base_url": "http://127.0.0.1:8000"
+    "public_key": "pk-online_retail-41530ca98f4f",
+    "base_url": ""
   }
 }

@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from src.api.auth import get_current_tenant
+from src.api.auth import get_current_tenant, get_key_record
 from src.api.rate_limiter import check_rate_limit
 from src.api.schemas import RecommendationItem, RecommendationRequest, RecommendationsResponse
 from src.storage import get_storage_backend
@@ -306,6 +306,25 @@ def _recommend_for_customer(
     return recommendations, False
 
 
+def _log_recommendation_request(request: Request, tenant_id: str, is_fallback: bool) -> None:
+    api_key = request.headers.get("x-api-key") or request.headers.get("X-API-Key")
+    key_rec = get_key_record(api_key) if api_key else None
+    key_type = (
+        key_rec.get("key_type")
+        if key_rec and key_rec.get("key_type")
+        else ("public" if str(api_key or "").startswith("pk-") else "private" if str(api_key or "").startswith("sk-") else "unknown")
+    )
+    origin = request.headers.get("origin") or "none"
+    model_or_fallback = "fallback" if is_fallback else "model"
+    logger.info(
+        "Recommendation request: tenant=%s, key_type=%s, origin=%s, result=%s",
+        tenant_id,
+        key_type,
+        origin,
+        model_or_fallback,
+    )
+
+
 @router.get(
     "",
     response_model=RecommendationsResponse,
@@ -313,6 +332,7 @@ def _recommend_for_customer(
     description="Retrieve personalized top-N product recommendations for a customer. The tenant is resolved from the X-API-Key header.",
 )
 def get_recommendations(
+    request: Request,
     customer_id: str = Query(..., description="Customer ID to score"),
     top_n: int = Query(5, ge=1, le=50, description="Number of recommendations to return (1-50)"),
     tenant_id: str = Depends(get_current_tenant),
@@ -322,6 +342,7 @@ def get_recommendations(
         raise HTTPException(status_code=400, detail="customer_id cannot be blank")
 
     recs, is_fallback = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
+    _log_recommendation_request(request, tenant_id, is_fallback)
     return {
         "tenant_id": tenant_id,
         "customer_id": customer_id.strip(),
@@ -338,6 +359,7 @@ def get_recommendations(
 )
 def create_recommendations(
     payload: RecommendationRequest,
+    request: Request,
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     """Retrieve recommendations using a JSON request body."""
@@ -345,6 +367,7 @@ def create_recommendations(
         raise HTTPException(status_code=400, detail="customer_id cannot be blank")
 
     recs, is_fallback = _recommend_for_customer(tenant_id, payload.customer_id.strip(), payload.top_n)
+    _log_recommendation_request(request, tenant_id, is_fallback)
     return {
         "tenant_id": tenant_id,
         "customer_id": payload.customer_id.strip(),
@@ -361,6 +384,7 @@ def create_recommendations(
 )
 def get_recommendations_for_customer(
     customer_id: str,
+    request: Request,
     top_n: int = Query(5, ge=1, le=50, description="Number of recommendations to return (1-50)"),
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
@@ -369,6 +393,7 @@ def get_recommendations_for_customer(
         raise HTTPException(status_code=400, detail="customer_id cannot be blank")
 
     recs, is_fallback = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
+    _log_recommendation_request(request, tenant_id, is_fallback)
     return {
         "tenant_id": tenant_id,
         "customer_id": customer_id.strip(),
