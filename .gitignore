@@ -10,6 +10,7 @@ __pycache__/
 config/tenants_auth.local.yaml
 config/shopify_connections.local.yaml
 config/accounts.local.yaml
+tenants_auth.json*
 
 
 # Data (keep folder structure, ignore actual data files)
