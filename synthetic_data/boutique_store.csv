@@ -1,0 +1,251 @@
+customer_id,product_id,product_name,category,price,quantity,transaction_date
+CUST_141,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-08-15
+CUST_109,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-07
+CUST_128,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-08-15
+CUST_133,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-15
+CUST_142,PROD_11,Designer Sunglasses,Accessories,115.00,1,2026-08-29
+CUST_138,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-14
+CUST_128,PROD_02,Leather Clutch,Accessories,85.00,1,2026-09-18
+CUST_122,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-23
+CUST_123,PROD_04,Merino Wool Sweater,Apparel,95.00,3,2026-08-30
+CUST_135,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-09-05
+CUST_119,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-09-06
+CUST_113,PROD_01,Silk Evening Dress,Apparel,120.00,3,2026-08-15
+CUST_119,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-25
+CUST_107,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-09-23
+CUST_124,PROD_09,Canvas Tote Bag,Accessories,35.00,1,2026-09-12
+CUST_118,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-09-10
+CUST_111,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-08-30
+CUST_125,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-09-13
+CUST_121,PROD_07,Slim Fit Denim,Apparel,75.00,1,2026-09-22
+CUST_103,PROD_11,Designer Sunglasses,Accessories,115.00,1,2026-08-05
+CUST_114,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-08-21
+CUST_114,PROD_12,Leather Crossbody Bag,Accessories,130.00,3,2026-08-30
+CUST_110,PROD_02,Leather Clutch,Accessories,85.00,3,2026-09-05
+CUST_135,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-09-27
+CUST_138,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-09-02
+CUST_132,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-08-10
+CUST_141,PROD_12,Leather Crossbody Bag,Accessories,130.00,2,2026-08-05
+CUST_125,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-08-17
+CUST_136,PROD_01,Silk Evening Dress,Apparel,120.00,3,2026-09-16
+CUST_108,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-19
+CUST_142,PROD_09,Canvas Tote Bag,Accessories,35.00,2,2026-08-11
+CUST_130,PROD_09,Canvas Tote Bag,Accessories,35.00,2,2026-09-18
+CUST_112,PROD_07,Slim Fit Denim,Apparel,75.00,3,2026-08-20
+CUST_141,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-08-24
+CUST_111,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-08
+CUST_121,PROD_07,Slim Fit Denim,Apparel,75.00,1,2026-09-26
+CUST_120,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-09-30
+CUST_106,PROD_11,Designer Sunglasses,Accessories,115.00,1,2026-09-18
+CUST_135,PROD_05,Cashmere Scarf,Accessories,60.00,3,2026-08-31
+CUST_136,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-28
+CUST_114,PROD_13,Oxford Leather Shoes,Footwear,125.00,3,2026-09-14
+CUST_113,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-09-11
+CUST_124,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-08
+CUST_116,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-09-07
+CUST_136,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-08-05
+CUST_141,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-25
+CUST_122,PROD_02,Leather Clutch,Accessories,85.00,1,2026-09-12
+CUST_132,PROD_05,Cashmere Scarf,Accessories,60.00,3,2026-09-29
+CUST_137,PROD_02,Leather Clutch,Accessories,85.00,2,2026-09-21
+CUST_127,PROD_07,Slim Fit Denim,Apparel,75.00,3,2026-08-28
+CUST_123,PROD_12,Leather Crossbody Bag,Accessories,130.00,3,2026-08-04
+CUST_144,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-08-26
+CUST_122,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-08-13
+CUST_113,PROD_02,Leather Clutch,Accessories,85.00,2,2026-08-12
+CUST_118,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-09-21
+CUST_136,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-08-06
+CUST_116,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-08-14
+CUST_126,PROD_03,Stiletto Heels,Footwear,110.00,2,2026-08-01
+CUST_125,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-28
+CUST_145,PROD_13,Oxford Leather Shoes,Footwear,125.00,2,2026-09-12
+CUST_132,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-08-04
+CUST_138,PROD_04,Merino Wool Sweater,Apparel,95.00,3,2026-08-21
+CUST_104,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-09-28
+CUST_134,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-09-24
+CUST_112,PROD_07,Slim Fit Denim,Apparel,75.00,3,2026-09-25
+CUST_116,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-09-07
+CUST_139,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-09-12
+CUST_138,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-08-14
+CUST_143,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-26
+CUST_109,PROD_09,Canvas Tote Bag,Accessories,35.00,2,2026-08-21
+CUST_105,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-07
+CUST_105,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-08-09
+CUST_123,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-08-24
+CUST_119,PROD_15,Gold Plated Watch,Accessories,180.00,3,2026-08-20
+CUST_140,PROD_13,Oxford Leather Shoes,Footwear,125.00,3,2026-09-03
+CUST_101,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-09-29
+CUST_143,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-08
+CUST_107,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-19
+CUST_139,PROD_09,Canvas Tote Bag,Accessories,35.00,1,2026-09-13
+CUST_141,PROD_09,Canvas Tote Bag,Accessories,35.00,2,2026-08-17
+CUST_104,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-03
+CUST_101,PROD_02,Leather Clutch,Accessories,85.00,3,2026-08-17
+CUST_111,PROD_14,Cotton Linen Shirt,Apparel,65.00,3,2026-08-28
+CUST_136,PROD_07,Slim Fit Denim,Apparel,75.00,3,2026-09-27
+CUST_110,PROD_03,Stiletto Heels,Footwear,110.00,2,2026-09-05
+CUST_110,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-08-24
+CUST_103,PROD_04,Merino Wool Sweater,Apparel,95.00,3,2026-08-16
+CUST_143,PROD_15,Gold Plated Watch,Accessories,180.00,2,2026-09-09
+CUST_110,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-21
+CUST_112,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-09-17
+CUST_122,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-09-25
+CUST_116,PROD_01,Silk Evening Dress,Apparel,120.00,2,2026-09-25
+CUST_103,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-22
+CUST_130,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-08-02
+CUST_143,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-09-25
+CUST_105,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-09-11
+CUST_133,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-30
+CUST_102,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-09-07
+CUST_117,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-23
+CUST_121,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-08-25
+CUST_137,PROD_01,Silk Evening Dress,Apparel,120.00,3,2026-08-28
+CUST_101,PROD_15,Gold Plated Watch,Accessories,180.00,3,2026-09-16
+CUST_143,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-09-30
+CUST_143,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-09-12
+CUST_108,PROD_06,Leather Chelsea Boots,Footwear,140.00,2,2026-08-20
+CUST_143,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-08-19
+CUST_136,PROD_11,Designer Sunglasses,Accessories,115.00,3,2026-09-30
+CUST_125,PROD_02,Leather Clutch,Accessories,85.00,2,2026-09-06
+CUST_120,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-08-19
+CUST_114,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-09-11
+CUST_121,PROD_11,Designer Sunglasses,Accessories,115.00,3,2026-08-14
+CUST_133,PROD_08,Classic White Sneakers,Footwear,90.00,3,2026-08-06
+CUST_119,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-08-06
+CUST_116,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-10
+CUST_102,PROD_12,Leather Crossbody Bag,Accessories,130.00,2,2026-09-24
+CUST_105,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-15
+CUST_145,PROD_11,Designer Sunglasses,Accessories,115.00,1,2026-08-10
+CUST_142,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-08-15
+CUST_112,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-04
+CUST_136,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-08-09
+CUST_130,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-21
+CUST_129,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-09-23
+CUST_136,PROD_08,Classic White Sneakers,Footwear,90.00,3,2026-09-25
+CUST_131,PROD_02,Leather Clutch,Accessories,85.00,3,2026-08-18
+CUST_134,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-29
+CUST_105,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-08-22
+CUST_121,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-10
+CUST_115,PROD_08,Classic White Sneakers,Footwear,90.00,3,2026-08-14
+CUST_105,PROD_06,Leather Chelsea Boots,Footwear,140.00,2,2026-08-30
+CUST_127,PROD_11,Designer Sunglasses,Accessories,115.00,2,2026-09-27
+CUST_138,PROD_01,Silk Evening Dress,Apparel,120.00,2,2026-08-25
+CUST_131,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-09-18
+CUST_125,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-09-04
+CUST_135,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-08-15
+CUST_118,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-08-22
+CUST_143,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-08-11
+CUST_130,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-08-02
+CUST_126,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-11
+CUST_128,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-04
+CUST_117,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-08-21
+CUST_122,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-09-18
+CUST_127,PROD_07,Slim Fit Denim,Apparel,75.00,2,2026-08-02
+CUST_135,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-09-11
+CUST_105,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-30
+CUST_116,PROD_01,Silk Evening Dress,Apparel,120.00,2,2026-08-10
+CUST_116,PROD_01,Silk Evening Dress,Apparel,120.00,2,2026-09-30
+CUST_114,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-08-11
+CUST_139,PROD_07,Slim Fit Denim,Apparel,75.00,1,2026-08-20
+CUST_107,PROD_03,Stiletto Heels,Footwear,110.00,2,2026-09-13
+CUST_125,PROD_02,Leather Clutch,Accessories,85.00,1,2026-09-07
+CUST_145,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-09-14
+CUST_120,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-09-20
+CUST_137,PROD_03,Stiletto Heels,Footwear,110.00,2,2026-08-28
+CUST_143,PROD_15,Gold Plated Watch,Accessories,180.00,3,2026-08-22
+CUST_101,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-28
+CUST_124,PROD_11,Designer Sunglasses,Accessories,115.00,3,2026-08-10
+CUST_128,PROD_15,Gold Plated Watch,Accessories,180.00,3,2026-08-18
+CUST_140,PROD_15,Gold Plated Watch,Accessories,180.00,2,2026-08-30
+CUST_128,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-08-21
+CUST_116,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-09-26
+CUST_129,PROD_12,Leather Crossbody Bag,Accessories,130.00,2,2026-09-09
+CUST_143,PROD_01,Silk Evening Dress,Apparel,120.00,2,2026-09-24
+CUST_121,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-09-21
+CUST_117,PROD_14,Cotton Linen Shirt,Apparel,65.00,3,2026-09-26
+CUST_118,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-08-06
+CUST_116,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-09-18
+CUST_116,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-09-20
+CUST_102,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-09-14
+CUST_116,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-08-31
+CUST_136,PROD_11,Designer Sunglasses,Accessories,115.00,3,2026-09-05
+CUST_122,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-20
+CUST_117,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-08-08
+CUST_135,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-08-13
+CUST_114,PROD_06,Leather Chelsea Boots,Footwear,140.00,3,2026-09-07
+CUST_134,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-08-19
+CUST_115,PROD_09,Canvas Tote Bag,Accessories,35.00,1,2026-09-15
+CUST_135,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-05
+CUST_119,PROD_02,Leather Clutch,Accessories,85.00,3,2026-09-25
+CUST_132,PROD_04,Merino Wool Sweater,Apparel,95.00,2,2026-08-19
+CUST_131,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-08-04
+CUST_117,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-09-22
+CUST_105,PROD_04,Merino Wool Sweater,Apparel,95.00,2,2026-09-10
+CUST_144,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-09-30
+CUST_120,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-09-05
+CUST_127,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-19
+CUST_134,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-09-25
+CUST_138,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-09-09
+CUST_104,PROD_01,Silk Evening Dress,Apparel,120.00,1,2026-09-10
+CUST_114,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-08-16
+CUST_112,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-08-27
+CUST_129,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-08-03
+CUST_115,PROD_09,Canvas Tote Bag,Accessories,35.00,3,2026-09-25
+CUST_130,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-09-20
+CUST_141,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-08-08
+CUST_135,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-09-22
+CUST_110,PROD_02,Leather Clutch,Accessories,85.00,1,2026-09-08
+CUST_137,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-08-30
+CUST_145,PROD_11,Designer Sunglasses,Accessories,115.00,1,2026-09-02
+CUST_135,PROD_04,Merino Wool Sweater,Apparel,95.00,2,2026-08-03
+CUST_128,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-08-02
+CUST_106,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-09-30
+CUST_102,PROD_11,Designer Sunglasses,Accessories,115.00,1,2026-09-06
+CUST_103,PROD_08,Classic White Sneakers,Footwear,90.00,2,2026-09-03
+CUST_142,PROD_09,Canvas Tote Bag,Accessories,35.00,1,2026-09-07
+CUST_128,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-31
+CUST_123,PROD_06,Leather Chelsea Boots,Footwear,140.00,3,2026-08-07
+CUST_111,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-09-12
+CUST_126,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-08-30
+CUST_106,PROD_09,Canvas Tote Bag,Accessories,35.00,1,2026-09-19
+CUST_126,PROD_14,Cotton Linen Shirt,Apparel,65.00,1,2026-09-12
+CUST_135,PROD_04,Merino Wool Sweater,Apparel,95.00,1,2026-09-03
+CUST_124,PROD_11,Designer Sunglasses,Accessories,115.00,3,2026-08-29
+CUST_104,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-09-29
+CUST_119,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-02
+CUST_141,PROD_05,Cashmere Scarf,Accessories,60.00,3,2026-08-11
+CUST_120,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-06
+CUST_115,PROD_15,Gold Plated Watch,Accessories,180.00,1,2026-08-30
+CUST_108,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-09-29
+CUST_119,PROD_03,Stiletto Heels,Footwear,110.00,2,2026-09-23
+CUST_131,PROD_04,Merino Wool Sweater,Apparel,95.00,2,2026-09-05
+CUST_110,PROD_15,Gold Plated Watch,Accessories,180.00,2,2026-09-17
+CUST_109,PROD_05,Cashmere Scarf,Accessories,60.00,2,2026-08-22
+CUST_133,PROD_07,Slim Fit Denim,Apparel,75.00,1,2026-09-16
+CUST_120,PROD_14,Cotton Linen Shirt,Apparel,65.00,3,2026-09-01
+CUST_110,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-22
+CUST_136,PROD_11,Designer Sunglasses,Accessories,115.00,2,2026-09-29
+CUST_121,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-09-06
+CUST_125,PROD_10,Tailored Blazer,Apparel,165.00,1,2026-08-21
+CUST_131,PROD_10,Tailored Blazer,Apparel,165.00,2,2026-09-12
+CUST_142,PROD_08,Classic White Sneakers,Footwear,90.00,1,2026-08-09
+CUST_133,PROD_06,Leather Chelsea Boots,Footwear,140.00,1,2026-09-25
+CUST_129,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-09-16
+CUST_110,PROD_02,Leather Clutch,Accessories,85.00,1,2026-08-31
+CUST_117,PROD_12,Leather Crossbody Bag,Accessories,130.00,3,2026-08-06
+CUST_122,PROD_14,Cotton Linen Shirt,Apparel,65.00,2,2026-08-25
+CUST_121,PROD_11,Designer Sunglasses,Accessories,115.00,2,2026-08-03
+CUST_140,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-09-17
+CUST_106,PROD_07,Slim Fit Denim,Apparel,75.00,3,2026-09-15
+CUST_107,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-08-03
+CUST_121,PROD_09,Canvas Tote Bag,Accessories,35.00,1,2026-08-24
+CUST_128,PROD_15,Gold Plated Watch,Accessories,180.00,2,2026-09-06
+CUST_144,PROD_05,Cashmere Scarf,Accessories,60.00,1,2026-08-06
+CUST_140,PROD_10,Tailored Blazer,Apparel,165.00,3,2026-08-16
+CUST_132,PROD_03,Stiletto Heels,Footwear,110.00,1,2026-08-30
+CUST_141,PROD_06,Leather Chelsea Boots,Footwear,140.00,3,2026-08-01
+CUST_130,PROD_11,Designer Sunglasses,Accessories,115.00,2,2026-08-11
+CUST_105,PROD_06,Leather Chelsea Boots,Footwear,140.00,2,2026-08-20
+CUST_141,PROD_12,Leather Crossbody Bag,Accessories,130.00,1,2026-08-30
+CUST_120,PROD_12,Leather Crossbody Bag,Accessories,130.00,2,2026-08-07
+CUST_116,PROD_03,Stiletto Heels,Footwear,110.00,2,2026-08-19
