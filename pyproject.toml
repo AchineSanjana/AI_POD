@@ -13,9 +13,15 @@ select = ["E", "F", "I", "UP"]
 [tool.pytest.ini_options]
 # Add the project root to sys.path so `from src.utils.config import ...` works
 pythonpath = ["."]
+filterwarnings = [
+    "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
+
 markers = [
     "integration: tests that require external resources (e.g. the raw Telco CSV)",
 ]
+
 
 [tool.pyright]
 # Tell Pylance/pyright the project root is the import base (not src/)

@@ -11,10 +11,11 @@ Handles:
 from __future__ import annotations
 
 import logging
+import os
 import re
 import secrets
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
@@ -24,6 +25,18 @@ from src.accounts.storage import (
     get_account_by_id,
     get_accounts_records,
     save_account_record,
+)
+from src.accounts.totp import (
+    generate_backup_codes,
+    generate_totp_secret,
+    get_totp_uri,
+    hash_backup_code,
+    verify_and_consume_backup_code,
+    verify_totp_code,
+)
+from src.accounts.verification import (
+    issue_verification_for_account,
+    verify_account_email,
 )
 from src.utils.config import get_tenant_auth_records, load_config
 from src.utils.key_manager import (
@@ -62,6 +75,18 @@ class AuthenticationFailedError(AccountError):
 
 class InvalidCompanyNameError(AccountError):
     """Raised when company name is empty or invalid."""
+
+
+class AccountLockedError(AccountError):
+    """Raised when account is temporarily locked due to too many failed login attempts."""
+
+
+class EmailNotVerifiedError(AccountError):
+    """Raised when email verification is required before login."""
+
+
+class InvalidMfaCodeError(AccountError):
+    """Raised when 2FA TOTP code or backup code is invalid."""
 
 
 def validate_company_name(company_name: str) -> str:
@@ -220,9 +245,14 @@ def signup_company_account(
         "password_hash": hashed_pwd,
         "created_at": now_iso,
         "email_verified": False,
+        "failed_login_attempts": 0,
+        "mfa_enabled": False,
     }
 
     save_account_record(account_id, record, config=cfg)
+
+    # Issue email verification code / token
+    verif_info = issue_verification_for_account(account_id, config=cfg)
 
     # Automatically issue private (sk-...) and public (pk-...) tenant API keys.
     # Note: The private key is shown here once upon signup and will not be
@@ -252,6 +282,8 @@ def signup_company_account(
         "email": clean_email,
         "created_at": now_iso,
         "email_verified": False,
+        "verification_sent": True,
+        "verification_code": verif_info.get("verification_code"),
         "private_key": sk,
         "public_key": pk,
         "note": security_note,
@@ -266,10 +298,21 @@ def login_company_account(
 ) -> dict[str, Any]:
     """Authenticate company account credentials and issue session JWT.
 
+    Protections:
+    - Account-level lockout: 5 failed attempts locks account for 15 minutes.
+    - Optional Email Verification enforcement.
+    - Two-factor authentication (MFA): returns mfa_ticket if MFA is enabled.
+
     Raises:
+        AccountLockedError: If account is temporarily locked.
+        EmailNotVerifiedError: If email verification is strictly required and missing.
         AuthenticationFailedError: If credentials do not match.
     """
-    from src.accounts.session import DEFAULT_EXPIRY_SECONDS, create_session_token
+    from src.accounts.session import (
+        DEFAULT_EXPIRY_SECONDS,
+        create_mfa_ticket,
+        create_session_token,
+    )
 
     clean_email = (email or "").strip().lower()
     if not clean_email or not password:
@@ -281,11 +324,78 @@ def login_company_account(
         raise AuthenticationFailedError("Invalid email or password")
 
     account_id, record = account_info
+
+    # 1. Account lockout check
+    now = datetime.now(timezone.utc)
+    locked_until_str = record.get("locked_until")
+    if locked_until_str:
+        try:
+            locked_until = datetime.fromisoformat(locked_until_str)
+            if now < locked_until:
+                remaining_sec = int((locked_until - now).total_seconds())
+                remaining_min = max(1, (remaining_sec + 59) // 60)
+                raise AccountLockedError(
+                    f"Account is temporarily locked due to too many failed login attempts. "
+                    f"Please try again in {remaining_min} minutes."
+                )
+            else:
+                record["failed_login_attempts"] = 0
+                record.pop("locked_until", None)
+        except AccountLockedError:
+            raise
+        except Exception:
+            pass
+
+    # 2. Verify password hash
     stored_hash = record.get("password_hash", "")
     if not verify_password(password, stored_hash):
+        failed_attempts = record.get("failed_login_attempts", 0) + 1
+        record["failed_login_attempts"] = failed_attempts
+        if failed_attempts >= 5:
+            lock_expiry = (now + timedelta(minutes=15)).isoformat()
+            record["locked_until"] = lock_expiry
+            save_account_record(account_id, record, config=cfg)
+            raise AccountLockedError(
+                "Account is temporarily locked due to too many failed login attempts. "
+                "Please try again in 15 minutes."
+            )
+        save_account_record(account_id, record, config=cfg)
         raise AuthenticationFailedError("Invalid email or password")
 
+    # Reset failed attempts upon successful password check
+    if record.get("failed_login_attempts", 0) > 0 or "locked_until" in record:
+        record["failed_login_attempts"] = 0
+        record.pop("locked_until", None)
+        save_account_record(account_id, record, config=cfg)
+
+    # 3. Email verification enforcement check
+    enforce_verif = (
+        os.environ.get("ENFORCE_EMAIL_VERIFICATION", "false").lower() == "true"
+    )
+    if enforce_verif and not record.get("email_verified", False):
+        raise EmailNotVerifiedError(
+            "Email has not been verified. Please verify your email before logging in."
+        )
+
     tenant_id = record["tenant_id"]
+
+    # 4. Multi-Factor Authentication (MFA) check
+    if record.get("mfa_enabled", False):
+        mfa_ticket = create_mfa_ticket(
+            account_id=account_id,
+            tenant_id=tenant_id,
+            email=clean_email,
+            expires_in=300,
+        )
+        logger.info("Issued MFA challenge ticket for account '%s'", account_id)
+        return {
+            "mfa_required": True,
+            "mfa_ticket": mfa_ticket,
+            "expires_in": 300,
+            "account_id": account_id,
+            "tenant_id": tenant_id,
+        }
+
     token = create_session_token(
         account_id=account_id,
         tenant_id=tenant_id,
@@ -294,6 +404,207 @@ def login_company_account(
     )
 
     logger.info("Account login successful for '%s' (%s)", account_id, clean_email)
+    return {
+        "access_token": token,
+        "session_token": token,
+        "token_type": "bearer",
+        "expires_in": DEFAULT_EXPIRY_SECONDS,
+        "account_id": account_id,
+        "tenant_id": tenant_id,
+        "mfa_required": False,
+    }
+
+
+def verify_email_for_account(
+    email: str,
+    code: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Verify company account email address using verification code or token."""
+    cfg = config or load_config()
+    try:
+        return verify_account_email(email=email, code=code, config=cfg)
+    except ValueError as exc:
+        raise AccountError(str(exc))
+
+
+def resend_email_verification(
+    email: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Resend email verification code."""
+    clean_email = (email or "").strip().lower()
+    cfg = config or load_config()
+    account_info = get_account_by_email(clean_email, config=cfg)
+    if not account_info:
+        # Avoid account enumeration: return success-like message even if email not found
+        return {
+            "email": clean_email,
+            "verification_sent": True,
+            "message": "If an account with this email exists, a verification code has been dispatched.",
+        }
+
+    account_id, record = account_info
+    if record.get("email_verified"):
+        return {
+            "email": clean_email,
+            "verification_sent": False,
+            "message": "This email is already verified.",
+        }
+
+    info = issue_verification_for_account(account_id, config=cfg)
+    return {
+        "email": clean_email,
+        "verification_sent": True,
+        "verification_code": info.get("verification_code"),
+        "message": "Verification code has been dispatched.",
+    }
+
+
+def setup_account_mfa(
+    account_id: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Initiate TOTP MFA setup by generating a secret and otpauth URI."""
+    cfg = config or load_config()
+    record = get_account_by_id(account_id, config=cfg)
+    if not record:
+        raise AccountError("Account not found")
+
+    secret = generate_totp_secret()
+    record["mfa_pending_secret"] = secret
+    save_account_record(account_id, record, config=cfg)
+
+    otpauth_url = get_totp_uri(secret, email=record.get("email", ""), issuer="AI POD")
+    return {
+        "account_id": account_id,
+        "secret": secret,
+        "otpauth_url": otpauth_url,
+    }
+
+
+def enable_account_mfa(
+    account_id: str,
+    code: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Verify code against pending secret and activate MFA on account."""
+    cfg = config or load_config()
+    record = get_account_by_id(account_id, config=cfg)
+    if not record:
+        raise AccountError("Account not found")
+
+    pending_secret = record.get("mfa_pending_secret")
+    if not pending_secret:
+        raise AccountError("No MFA setup in progress. Call /mfa/setup first.")
+
+    if not verify_totp_code(pending_secret, code):
+        raise InvalidMfaCodeError("Invalid 2FA verification code")
+
+    # Generate 8 backup recovery codes
+    backup_codes = generate_backup_codes(8)
+    hashed_backup_codes = [hash_backup_code(c) for c in backup_codes]
+
+    record["mfa_enabled"] = True
+    record["mfa_secret"] = pending_secret
+    record["mfa_backup_codes"] = hashed_backup_codes
+    record.pop("mfa_pending_secret", None)
+    save_account_record(account_id, record, config=cfg)
+
+    logger.info("MFA enabled for account '%s'", account_id)
+    return {
+        "account_id": account_id,
+        "status": "mfa_enabled",
+        "mfa_enabled": True,
+        "backup_codes": backup_codes,
+        "warning": "Store backup recovery codes in a safe place. They will not be displayed again.",
+    }
+
+
+def disable_account_mfa(
+    account_id: str,
+    password: str,
+    code: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Disable MFA after verifying account password and TOTP or backup code."""
+    cfg = config or load_config()
+    record = get_account_by_id(account_id, config=cfg)
+    if not record:
+        raise AccountError("Account not found")
+
+    if not record.get("mfa_enabled"):
+        raise AccountError("MFA is not enabled on this account")
+
+    stored_hash = record.get("password_hash", "")
+    if not verify_password(password, stored_hash):
+        raise AuthenticationFailedError("Invalid account password")
+
+    secret = record.get("mfa_secret", "")
+    valid_totp = secret and verify_totp_code(secret, code)
+    valid_backup, _ = verify_and_consume_backup_code(
+        code, record.get("mfa_backup_codes", [])
+    )
+
+    if not (valid_totp or valid_backup):
+        raise InvalidMfaCodeError("Invalid 2FA code or backup code")
+
+    record["mfa_enabled"] = False
+    record.pop("mfa_secret", None)
+    record.pop("mfa_backup_codes", None)
+    save_account_record(account_id, record, config=cfg)
+
+    logger.info("MFA disabled for account '%s'", account_id)
+    return {
+        "account_id": account_id,
+        "status": "mfa_disabled",
+        "mfa_enabled": False,
+    }
+
+
+def login_mfa_verify(
+    mfa_ticket: str,
+    code: str,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Validate MFA challenge ticket and second factor code, returning full session token."""
+    from src.accounts.session import (
+        DEFAULT_EXPIRY_SECONDS,
+        create_session_token,
+        verify_mfa_ticket,
+    )
+
+    payload = verify_mfa_ticket(mfa_ticket)
+    account_id = payload["account_id"]
+    tenant_id = payload["tenant_id"]
+    email = payload["email"]
+
+    cfg = config or load_config()
+    record = get_account_by_id(account_id, config=cfg)
+    if not record:
+        raise AuthenticationFailedError("Account not found")
+
+    secret = record.get("mfa_secret", "")
+    valid_totp = secret and verify_totp_code(secret, code)
+    valid_backup, remaining_backup = verify_and_consume_backup_code(
+        code, record.get("mfa_backup_codes", [])
+    )
+
+    if not (valid_totp or valid_backup):
+        raise InvalidMfaCodeError("Invalid 2FA verification code or backup code")
+
+    if valid_backup:
+        record["mfa_backup_codes"] = remaining_backup
+        save_account_record(account_id, record, config=cfg)
+        logger.info("Backup recovery code used for account '%s'", account_id)
+
+    token = create_session_token(
+        account_id=account_id,
+        tenant_id=tenant_id,
+        email=email,
+        expires_in=DEFAULT_EXPIRY_SECONDS,
+    )
+
     return {
         "access_token": token,
         "session_token": token,
@@ -362,5 +673,3 @@ def get_account_me_profile(
         "tenant_id": tenant_id,
         "public_key": public_key,
     }
-
-

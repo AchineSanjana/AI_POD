@@ -896,8 +896,69 @@
           </form>
         </div>
 
+        <!-- 2b. EMAIL VERIFICATION VIEW -->
+        <div id="authVerifyEmailView" style="display: none;">
+          <form id="verifyEmailForm" onsubmit="handleVerifyEmail(event)">
+            <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 18px;">
+              <div style="font-weight: 600; color: #a5b4fc; margin-bottom: 4px;">📧 Verify Your Email Address</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                Enter the 6-digit confirmation code dispatched to <strong id="verifyEmailTarget" style="color: #fff;">your email</strong> to activate account protections.
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="verifyEmailInput">Email Address</label>
+                <input type="email" id="verifyEmailInput" class="form-input" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="verifyCodeInput">6-Digit Verification Code</label>
+                <input type="text" id="verifyCodeInput" class="form-input" placeholder="e.g. 123456" maxlength="6" required style="font-family: var(--font-mono); letter-spacing: 2px; font-size: 1.1rem; text-align: center;" />
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; gap: 10px;">
+                <button type="submit" id="btnVerifyEmailSubmit" class="btn btn-primary">
+                  <span>✅ Verify Email &amp; Activate</span>
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="handleResendVerification()">
+                  <span>🔄 Resend Code</span>
+                </button>
+              </div>
+              <div style="font-size: 0.88rem; color: var(--text-muted);">
+                <a href="javascript:void(0)" onclick="setAuthView('login')" style="color: #818cf8; text-decoration: underline;">Back to Log In</a>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- 2c. MFA 2FA CHALLENGE VIEW -->
+        <div id="authMfaChallengeView" style="display: none;">
+          <form id="mfaChallengeForm" onsubmit="handleMfaChallengeSubmit(event)">
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 18px;">
+              <div style="font-weight: 600; color: #6ee7b7; margin-bottom: 4px;">🔐 Two-Factor Authentication Required</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                This account is protected by 2FA. Enter the 6-digit TOTP code from your mobile authenticator app (or an 8-character backup recovery code).
+              </div>
+            </div>
+            <div class="form-group" style="max-width: 320px; margin: 0 auto;">
+              <label class="form-label" for="mfaChallengeCode" style="text-align: center; display: block;">Authenticator Code</label>
+              <input type="text" id="mfaChallengeCode" class="form-input" placeholder="000000" maxlength="9" required style="font-family: var(--font-mono); font-size: 1.4rem; letter-spacing: 4px; text-align: center;" autofocus />
+              <div class="form-hint" style="text-align: center;">Supports 6-digit code or XXXX-XXXX backup code.</div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: center; margin-top: 20px; gap: 14px;">
+              <button type="submit" id="btnMfaChallengeSubmit" class="btn btn-primary" style="min-width: 180px;">
+                <span>🔓 Verify &amp; Log In</span>
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="setAuthView('login')">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+
         <!-- 3. ONE-TIME KEY DISCLOSURE BANNER (Shown strictly on signup or regeneration) -->
         <div id="keysDisclosureBanner" style="display: none; margin-top: 10px;">
+
           <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 20px;">
             <div style="display: flex; align-items: flex-start; gap: 12px;">
               <span style="font-size: 1.8rem; line-height: 1;">⚠️</span>
@@ -987,8 +1048,62 @@
             </div>
           </div>
 
+          <!-- Two-Factor Authentication Security Card -->
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 16px 18px; margin-top: 18px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>🛡️ Two-Factor Authentication (2FA)</span>
+                  <span id="dashMfaBadge" class="badge badge-amber" style="font-size: 0.72rem;">Disabled</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">
+                  Protect your tenant credentials and models with an authenticator app (TOTP).
+                </div>
+              </div>
+              <div>
+                <button type="button" id="btnToggleMfa" class="btn btn-secondary" onclick="handleToggleMfaClick()" style="font-size: 0.82rem; padding: 6px 14px;">
+                  Setup 2FA
+                </button>
+              </div>
+            </div>
+
+            <!-- MFA Setup Box (Collapsible) -->
+            <div id="mfaSetupBox" style="display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+              <div style="font-size: 0.85rem; color: #a5b4fc; margin-bottom: 8px;">
+                1. Add this secret into Google Authenticator, 1Password, or Authy:
+              </div>
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <input type="text" id="mfaSecretDisplay" class="form-input" readonly style="font-family: var(--font-mono); color: #818cf8; font-weight: bold; letter-spacing: 2px;" />
+                <button type="button" class="btn btn-secondary" onclick="copyTextToClipboard(document.getElementById('mfaSecretDisplay').value, '2FA Secret')" style="white-space: nowrap;">
+                  📋 Copy
+                </button>
+              </div>
+              <div style="font-size: 0.85rem; color: #a5b4fc; margin-bottom: 8px;">
+                2. Enter 6-digit code from authenticator app to activate:
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <input type="text" id="mfaTestCodeInput" class="form-input" placeholder="000000" maxlength="6" style="width: 140px; font-family: var(--font-mono); text-align: center; letter-spacing: 2px;" />
+                <button type="button" class="btn btn-primary" onclick="confirmEnableMfa()">
+                  Activate 2FA
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('mfaSetupBox').style.display = 'none'">
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+            <!-- Backup codes alert box -->
+            <div id="mfaBackupCodesAlert" style="display: none; margin-top: 14px; padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm);">
+              <div style="font-weight: 600; color: #34d399; font-size: 0.88rem; margin-bottom: 6px;">
+                🎉 2FA Activated! Save your single-use backup recovery codes:
+              </div>
+              <pre id="mfaBackupCodesList" style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; font-family: var(--font-mono); color: #a7f3d0; font-size: 0.85rem; line-height: 1.6; margin: 0;"></pre>
+            </div>
+          </div>
+
           <!-- Key Regeneration & Upload Actions -->
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap;">
+
             <div>
               <div style="font-weight: 600; font-size: 0.9rem; color: var(--text);">Need to rotate keys?</div>
               <div style="font-size: 0.78rem; color: var(--text-subtle);">
@@ -1476,37 +1591,28 @@
     }
 
     // -------------------------------------------------------------------------
-    // Step 1: Company Account Registration, Login & Key Management
+    // Step 1: Company Account Registration, Login, Verification & Key Management
     // -------------------------------------------------------------------------
     function setAuthView(view) {
       const tabSignup = document.getElementById('tabSignup');
       const tabLogin = document.getElementById('tabLogin');
       const signupView = document.getElementById('authSignupView');
       const loginView = document.getElementById('authLoginView');
+      const verifyView = document.getElementById('authVerifyEmailView');
+      const mfaView = document.getElementById('authMfaChallengeView');
       const dashView = document.getElementById('authDashboardView');
       const banner = document.getElementById('keysDisclosureBanner');
 
       if (banner) banner.style.display = 'none';
 
-      if (view === 'signup') {
-        if (tabSignup) tabSignup.classList.add('active');
-        if (tabLogin) tabLogin.classList.remove('active');
-        if (signupView) signupView.style.display = 'block';
-        if (loginView) loginView.style.display = 'none';
-        if (dashView) dashView.style.display = 'none';
-      } else if (view === 'login') {
-        if (tabLogin) tabLogin.classList.add('active');
-        if (tabSignup) tabSignup.classList.remove('active');
-        if (signupView) signupView.style.display = 'none';
-        if (loginView) loginView.style.display = 'block';
-        if (dashView) dashView.style.display = 'none';
-      } else if (view === 'dashboard') {
-        if (tabSignup) tabSignup.classList.remove('active');
-        if (tabLogin) tabLogin.classList.add('active');
-        if (signupView) signupView.style.display = 'none';
-        if (loginView) loginView.style.display = 'none';
-        if (dashView) dashView.style.display = 'block';
-      }
+      if (signupView) signupView.style.display = (view === 'signup') ? 'block' : 'none';
+      if (loginView) loginView.style.display = (view === 'login') ? 'block' : 'none';
+      if (verifyView) verifyView.style.display = (view === 'verify') ? 'block' : 'none';
+      if (mfaView) mfaView.style.display = (view === 'mfa') ? 'block' : 'none';
+      if (dashView) dashView.style.display = (view === 'dashboard') ? 'block' : 'none';
+
+      if (tabSignup) tabSignup.classList.toggle('active', view === 'signup');
+      if (tabLogin) tabLogin.classList.toggle('active', view === 'login' || view === 'verify' || view === 'mfa' || view === 'dashboard');
     }
 
     async function handleSignup(e) {
@@ -1549,18 +1655,187 @@
         STATE.apiKey = data.private_key;
         STATE.account = data;
 
+        // Populate verify email target
+        const vEmailEl = document.getElementById('verifyEmailInput');
+        const vTargetEl = document.getElementById('verifyEmailTarget');
+        if (vEmailEl) vEmailEl.value = email;
+        if (vTargetEl) vTargetEl.textContent = email;
+
         // Display keys with single-disclosure warning
         displayKeysDisclosure(data.private_key, data.public_key, data.tenant_id, compName);
 
         // Update active credentials indicator
         updateActiveCredsIndicator(data.tenant_id, data.private_key);
 
-        showToast(`Account created for ${compName}! Keys issued.`, '🎉');
+        showToast(`Account created for ${compName}! Verification code sent to ${email}`, '🎉');
       } catch (err) {
         showToast(err.message, '❌');
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<span>✨ Create Company Account &amp; Issue Keys</span>`;
+      }
+    }
+
+    async function handleVerifyEmail(e) {
+      e.preventDefault();
+      const email = document.getElementById('verifyEmailInput').value.trim();
+      const code = document.getElementById('verifyCodeInput').value.trim();
+      const btn = document.getElementById('btnVerifyEmailSubmit');
+
+      if (!email || !code) {
+        showToast('Please enter both email and verification code.', '⚠️');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Verifying...</span>`;
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/verify-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, code: code })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Failed to verify email');
+        }
+
+        showToast('Email verified successfully! You can now log in.', '✅');
+        const loginEmail = document.getElementById('loginEmail');
+        if (loginEmail) loginEmail.value = email;
+        setAuthView('login');
+      } catch (err) {
+        showToast(err.message, '❌');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>✅ Verify Email &amp; Activate</span>`;
+      }
+    }
+
+    async function handleResendVerification() {
+      const email = document.getElementById('verifyEmailInput').value.trim() || document.getElementById('signupEmail').value.trim();
+      if (!email) {
+        showToast('Enter your email address to resend verification code.', '⚠️');
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/resend-verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+        const data = await resp.json();
+        showToast(data.message || 'Verification code resent.', '📧');
+      } catch (err) {
+        showToast('Failed to resend verification code.', '❌');
+      }
+    }
+
+    async function handleMfaChallengeSubmit(e) {
+      e.preventDefault();
+      const code = document.getElementById('mfaChallengeCode').value.trim();
+      const btn = document.getElementById('btnMfaChallengeSubmit');
+
+      if (!code) {
+        showToast('Please enter your 6-digit TOTP code or backup code.', '⚠️');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ Authenticating 2FA...</span>`;
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/login/mfa`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mfa_ticket: STATE.mfaTicket,
+            code: code
+          })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Invalid 2FA code');
+        }
+
+        STATE.sessionToken = data.access_token || data.session_token;
+        STATE.tenantId = data.tenant_id;
+        document.getElementById('mfaChallengeCode').value = '';
+
+        await loadAccountMe();
+      } catch (err) {
+        showToast(err.message, '❌');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>🔓 Verify &amp; Log In</span>`;
+      }
+    }
+
+    async function handleToggleMfaClick() {
+      if (!STATE.sessionToken) {
+        showToast('Please log in first to manage 2FA.', '⚠️');
+        return;
+      }
+
+      const setupBox = document.getElementById('mfaSetupBox');
+      if (setupBox.style.display === 'block') {
+        setupBox.style.display = 'none';
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/mfa/setup`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${STATE.sessionToken}` }
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Failed to setup MFA');
+
+        document.getElementById('mfaSecretDisplay').value = data.secret;
+        setupBox.style.display = 'block';
+      } catch (err) {
+        showToast(err.message, '❌');
+      }
+    }
+
+    async function confirmEnableMfa() {
+      const code = document.getElementById('mfaTestCodeInput').value.trim();
+      if (!code || code.length !== 6) {
+        showToast('Enter the 6-digit code from your authenticator app.', '⚠️');
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/mfa/enable`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${STATE.sessionToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ code: code })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Invalid code');
+
+        showToast('Two-factor authentication enabled!', '🎉');
+        document.getElementById('mfaSetupBox').style.display = 'none';
+        document.getElementById('mfaTestCodeInput').value = '';
+
+        // Display backup codes
+        if (data.backup_codes && data.backup_codes.length > 0) {
+          const alertBox = document.getElementById('mfaBackupCodesAlert');
+          const preList = document.getElementById('mfaBackupCodesList');
+          preList.textContent = data.backup_codes.join('   ');
+          alertBox.style.display = 'block';
+        }
+
+        await loadAccountMe();
+      } catch (err) {
+        showToast(err.message, '❌');
       }
     }
 
@@ -1615,7 +1890,21 @@
 
         const data = await resp.json();
         if (!resp.ok) {
+          if (resp.status === 403 && data.detail && data.detail.includes('not been verified')) {
+            showToast('Email unverified. Enter the code sent to your email.', '⚠️');
+            const vEmail = document.getElementById('verifyEmailInput');
+            if (vEmail) vEmail.value = email;
+            setAuthView('verify');
+            return;
+          }
           throw new Error(data.detail || 'Invalid email or password');
+        }
+
+        if (data.mfa_required) {
+          STATE.mfaTicket = data.mfa_ticket;
+          setAuthView('mfa');
+          showToast('Two-factor authentication required.', '🔐');
+          return;
         }
 
         STATE.sessionToken = data.access_token || data.session_token;
@@ -1647,6 +1936,23 @@
         document.getElementById('dashTenantId').textContent = meData.tenant_id;
         document.getElementById('dashPublicKey').value = meData.public_key;
 
+        // Update MFA status badge
+        const badge = document.getElementById('dashMfaBadge');
+        const btnMfa = document.getElementById('btnToggleMfa');
+        if (meData.mfa_enabled) {
+          if (badge) {
+            badge.className = 'badge badge-green';
+            badge.textContent = 'Active (2FA Protected)';
+          }
+          if (btnMfa) btnMfa.textContent = 'Manage 2FA';
+        } else {
+          if (badge) {
+            badge.className = 'badge badge-amber';
+            badge.textContent = 'Disabled';
+          }
+          if (btnMfa) btnMfa.textContent = 'Setup 2FA';
+        }
+
         STATE.tenantId = meData.tenant_id;
         updateActiveCredsIndicator(meData.tenant_id, STATE.apiKey);
 
@@ -1656,6 +1962,7 @@
         showToast(err.message, '❌');
       }
     }
+
 
     async function handleRegenerateKeys() {
       if (!STATE.sessionToken) {

@@ -7,6 +7,7 @@ restricting public keys server-side strictly to POST /v1/track and GET /v1/recom
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import Header, HTTPException, Request
@@ -62,7 +63,6 @@ def is_request_allowed_for_key(key_type: str, method: str, path: str) -> bool:
     return False
 
 
-
 def load_tenant_auth(config: dict[str, Any] | None = None) -> dict[str, str]:
     """Load tenants_auth records and mapping into in-memory lookup structures."""
     if config is None:
@@ -93,6 +93,14 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
     if not api_key:
         return None
 
+    # CRITICAL SECURITY: Never allow mock/test wildcard keys in production environments
+    is_prod = os.environ.get("ENV", "").lower() in (
+        "production",
+        "prod",
+    ) or os.environ.get("AI_POD_ENV", "").lower() in ("production", "prod")
+    if is_prod and api_key.endswith("-xxxx"):
+        return None
+
     if api_key in TENANT_KEY_RECORDS:
         return TENANT_KEY_RECORDS[api_key]
 
@@ -117,13 +125,39 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
         return rec
 
     # Auto-generation fallback for demo/test tenants in config['tenants'] or discoverable tenants
+    # CRITICAL SECURITY: Never allow mock/test wildcard keys in production environments
+    is_prod = os.environ.get("ENV", "").lower() in (
+        "production",
+        "prod",
+    ) or os.environ.get("AI_POD_ENV", "").lower() in ("production", "prod")
+    if is_prod:
+        return None
+
     try:
         cfg = load_config()
-        tenants = set(cfg.get("tenants", {}).keys()) if isinstance(cfg.get("tenants"), dict) else set()
-        tenants.update(["telco_default", "fresh_cart_co", "thread_co", "online_retail", "movielens_demo", "movielens_small", "fixture_ecommerce"])
+        tenants = (
+            set(cfg.get("tenants", {}).keys())
+            if isinstance(cfg.get("tenants"), dict)
+            else set()
+        )
+        tenants.update(
+            [
+                "telco_default",
+                "fresh_cart_co",
+                "thread_co",
+                "online_retail",
+                "movielens_demo",
+                "movielens_small",
+                "fixture_ecommerce",
+            ]
+        )
         if api_key in ("sk-ecommerce-xxxx", "pk-ecommerce-xxxx"):
             k_type = "public" if api_key.startswith("pk-") else "private"
-            rec = {"tenant_id": "fixture_ecommerce", "key_type": k_type, "created_at": None}
+            rec = {
+                "tenant_id": "fixture_ecommerce",
+                "key_type": k_type,
+                "created_at": None,
+            }
             TENANT_KEY_RECORDS[api_key] = rec
             TENANT_AUTH_MAPPING[api_key] = "fixture_ecommerce"
             return rec
@@ -141,13 +175,23 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
                 return rec
 
         # Generic pattern check: pk-<tenant_id>-xxxx or sk-<tenant_id>-xxxx (supports both hyphens and underscores)
-        if (api_key.startswith("pk-") or api_key.startswith("sk-")) and api_key.endswith("-xxxx"):
+        if (
+            api_key.startswith("pk-") or api_key.startswith("sk-")
+        ) and api_key.endswith("-xxxx"):
             raw_t = api_key[3:-5]
             t = raw_t.replace("-", "_")
             if raw_t in tenants or t in tenants or (raw_t == "telco" or t == "telco"):
-                resolved_tenant = "telco_default" if (raw_t == "telco" or t == "telco") else (raw_t if raw_t in tenants else t)
+                resolved_tenant = (
+                    "telco_default"
+                    if (raw_t == "telco" or t == "telco")
+                    else (raw_t if raw_t in tenants else t)
+                )
                 k_type = "public" if api_key.startswith("pk-") else "private"
-                rec = {"tenant_id": resolved_tenant, "key_type": k_type, "created_at": None}
+                rec = {
+                    "tenant_id": resolved_tenant,
+                    "key_type": k_type,
+                    "created_at": None,
+                }
                 TENANT_KEY_RECORDS[api_key] = rec
                 TENANT_AUTH_MAPPING[api_key] = resolved_tenant
                 return rec
@@ -232,4 +276,3 @@ def get_public_key_tenant(
         )
 
     return record["tenant_id"]
-

@@ -31,9 +31,11 @@ def _get_storage_context(
     """Determine the active storage backend and storage configuration."""
     cfg = config or load_config()
     storage_cfg = cfg.get("storage", {}) if isinstance(cfg, dict) else {}
-    backend = os.environ.get(
-        "STORAGE_BACKEND", storage_cfg.get("backend", "local")
-    ).strip().lower()
+    backend = (
+        os.environ.get("STORAGE_BACKEND", storage_cfg.get("backend", "local"))
+        .strip()
+        .lower()
+    )
     return backend, storage_cfg
 
 
@@ -73,9 +75,8 @@ def get_accounts_records(
             or storage_cfg.get("region")
             or "us-east-1"
         )
-        secret_name = (
-            os.environ.get("ACCOUNTS_SECRET_NAME")
-            or storage_cfg.get("accounts_secret_name")
+        secret_name = os.environ.get("ACCOUNTS_SECRET_NAME") or storage_cfg.get(
+            "accounts_secret_name"
         )
 
         if secret_name:
@@ -133,7 +134,6 @@ def get_accounts_records(
             return config["accounts"]
 
     return {}
-
 
 
 def list_accounts(
@@ -219,9 +219,8 @@ def save_account_record(
             or storage_cfg.get("region")
             or "us-east-1"
         )
-        secret_name = (
-            os.environ.get("ACCOUNTS_SECRET_NAME")
-            or storage_cfg.get("accounts_secret_name")
+        secret_name = os.environ.get("ACCOUNTS_SECRET_NAME") or storage_cfg.get(
+            "accounts_secret_name"
         )
 
         if secret_name:

@@ -46,10 +46,57 @@ def create_session_token(
         "account_id": account_id,
         "tenant_id": tenant_id,
         "email": email.strip().lower(),
+        "token_type": "session",
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(seconds=expires_in)).timestamp()),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def create_mfa_ticket(
+    account_id: str,
+    tenant_id: str,
+    email: str,
+    expires_in: int = 300,
+) -> str:
+    """Create a short-lived signed JWT ticket for the second-factor MFA step."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": account_id,
+        "account_id": account_id,
+        "tenant_id": tenant_id,
+        "email": email.strip().lower(),
+        "token_type": "mfa_challenge",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(seconds=expires_in)).timestamp()),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def verify_mfa_ticket(ticket: str) -> dict[str, Any]:
+    """Verify and decode a temporary MFA challenge ticket.
+
+    Raises:
+        HTTPException: If the ticket is invalid, expired, or not an MFA ticket.
+    """
+    try:
+        payload = jwt.decode(ticket, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("token_type") != "mfa_challenge":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid MFA ticket: unexpected token type.",
+            )
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="MFA challenge has expired. Please restart login.",
+        )
+    except jwt.InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid MFA ticket: {exc}",
+        )
 
 
 def verify_session_token(token: str) -> dict[str, Any]:
@@ -60,6 +107,11 @@ def verify_session_token(token: str) -> dict[str, Any]:
     """
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("token_type") == "mfa_challenge":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="MFA challenge ticket cannot be used as a session token.",
+            )
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
