@@ -52,11 +52,14 @@ function FeatureCard({ icon: Icon, title, desc, color }) {
 /* ── Industry Demo Card ─────────────────────────────────────── */
 function IndustryCard({ emoji, label, desc, color }) {
   return (
-    <div className="card" style={{ textAlign: 'center', cursor: 'pointer', background: `linear-gradient(135deg,${color}10,transparent)` }}>
+    <Link to="/signup" className="card" style={{ textAlign: 'center', cursor: 'pointer', background: `linear-gradient(135deg,${color}10,transparent)`, display: 'block', transition: 'transform .2s, border-color .2s' }}
+      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.borderColor=`${color}40`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='var(--border)'; }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>{emoji}</div>
       <h4 style={{ marginBottom: 6 }}>{label}</h4>
-      <p style={{ fontSize: 13 }}>{desc}</p>
-    </div>
+      <p style={{ fontSize: 13, marginBottom: 12 }}>{desc}</p>
+      <span style={{ fontSize: 12, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>Start for free <ArrowRight size={12}/></span>
+    </Link>
   );
 }
 
@@ -146,9 +149,15 @@ export default function Landing() {
                   <s.icon size={24} color={s.color} />
                 </div>
                 <h4 style={{ marginBottom: 10 }}>{s.title}</h4>
-                <p style={{ fontSize: 14 }}>{s.desc}</p>
+                <p style={{ fontSize: 14, marginBottom: 14 }}>{s.desc}</p>
+                <Link to="/how-it-works" style={{ fontSize: 13, color: s.color, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500 }}>Learn more <ChevronRight size={13}/></Link>
               </div>
             ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <Link to="/how-it-works" className="btn btn-secondary">
+              See the Full Guide <ArrowRight size={15}/>
+            </Link>
           </div>
         </div>
       </section>
@@ -167,6 +176,11 @@ export default function Landing() {
             <FeatureCard icon={ShieldCheck}color="#10b981" title="Multi-Tenant Isolation"     desc="Complete data isolation per tenant. Your customers' data never touches another tenant's pipeline." />
             <FeatureCard icon={Rocket}     color="#f59e0b" title="Zero-Code Onboarding"       desc="AI profiler auto-detects schema, generates config, and starts training — no ML expertise required." />
             <FeatureCard icon={Globe}      color="#ef4444" title="Shopify & AWS Native"        desc="One-click Shopify OAuth integration. S3 and SQS support for cloud-scale deployments." />
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <Link to="/features" className="btn btn-secondary">
+              All Features <ArrowRight size={15}/>
+            </Link>
           </div>
         </div>
       </section>
@@ -227,7 +241,8 @@ export default function Landing() {
           <div style={{ display: 'flex', gap: 24, color: 'var(--text-muted)', fontSize: 13 }}>
             <Link to="/signup">Get Started</Link>
             <Link to="/signin">Sign In</Link>
-            <a href="#features">Features</a>
+            <Link to="/features">Features</Link>
+            <Link to="/how-it-works">How It Works</Link>
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>© 2026 AI_POD. All rights reserved.</div>
         </div>

@@ -42,8 +42,8 @@ export default function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="desktop-nav">
           {!user ? (
             <>
-              <Link to="/#features" className="btn btn-ghost">Features</Link>
-              <Link to="/#how-it-works" className="btn btn-ghost">How it works</Link>
+              <Link to="/features"     className="btn btn-ghost">Features</Link>
+              <Link to="/how-it-works" className="btn btn-ghost">How it works</Link>
               <Link to="/signin" className="btn btn-secondary btn-sm">Sign In</Link>
               <Link to="/signup" className="btn btn-primary btn-sm">Get Started</Link>
             </>
@@ -68,6 +68,8 @@ export default function Navbar() {
           {!user ? (
             <>
               <Link to="/" onClick={() => setOpen(false)} className="btn btn-ghost w-full">Home</Link>
+              <Link to="/features" onClick={() => setOpen(false)} className="btn btn-ghost w-full">Features</Link>
+              <Link to="/how-it-works" onClick={() => setOpen(false)} className="btn btn-ghost w-full">How It Works</Link>
               <Link to="/signin" onClick={() => setOpen(false)} className="btn btn-secondary w-full">Sign In</Link>
               <Link to="/signup" onClick={() => setOpen(false)} className="btn btn-primary w-full">Get Started</Link>
             </>

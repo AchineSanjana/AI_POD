@@ -3,8 +3,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { OnboardingProvider } from './context/OnboardingContext';
 
 // Pages
-import Landing    from './pages/Landing';
-import SignUp     from './pages/SignUp';
+import Landing      from './pages/Landing';
+import Features     from './pages/Features';
+import HowItWorks   from './pages/HowItWorks';
+import SignUp       from './pages/SignUp';
 import SignIn     from './pages/SignIn';
 
 import OnboardingLayout from './pages/onboarding/OnboardingLayout';
@@ -35,9 +37,11 @@ function PrivateRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/"       element={<Landing />} />
-      <Route path="/signup" element={<SignUp  />} />
-      <Route path="/signin" element={<SignIn  />} />
+      <Route path="/"            element={<Landing    />} />
+      <Route path="/features"    element={<Features   />} />
+      <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/signup"      element={<SignUp     />} />
+      <Route path="/signin"      element={<SignIn     />} />
 
       {/* Onboarding wizard */}
       <Route path="/onboarding" element={<OnboardingLayout />}>
