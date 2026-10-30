@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/v1';
+const BASE_URL = import.meta.env.VITE_API_URL || '/v1';
 
 function getToken() {
   return localStorage.getItem('aipod_token');
@@ -23,7 +23,10 @@ export const login  = (body) => request('/accounts/login',  { method: 'POST', bo
 export const loginMfa = (body) => request('/accounts/login/mfa', { method: 'POST', body: JSON.stringify(body) });
 export const verifyEmail = (body) => request('/accounts/verify-email', { method: 'POST', body: JSON.stringify(body) });
 export const resendVerification = (body) => request('/accounts/resend-verification', { method: 'POST', body: JSON.stringify(body) });
-export const getMe = () => request('/accounts/me');
+export const getMe = (explicitToken) => {
+  const token = explicitToken || getToken();
+  return request('/accounts/me', token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+};
 export const regenerateKeys = () => request('/accounts/keys/regenerate', { method: 'POST' });
 
 // MFA

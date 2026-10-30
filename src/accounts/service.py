@@ -672,4 +672,6 @@ def get_account_me_profile(
         "company_name": record.get("company_name", ""),
         "tenant_id": tenant_id,
         "public_key": public_key,
+        "role": record.get("role", "admin" if tenant_id == "admin" else "user"),
+        "is_admin": bool(record.get("is_admin", tenant_id == "admin")),
     }

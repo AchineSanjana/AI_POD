@@ -9,7 +9,19 @@ export default defineConfig({
       '/v1': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-      }
+      },
+      '/ui': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/demo': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/sdk.js': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     }
   }
 })

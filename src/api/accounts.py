@@ -235,6 +235,10 @@ class AccountMeResponse(BaseModel):
         default=False, description="Whether email has been verified"
     )
     mfa_enabled: bool = Field(default=False, description="Whether 2FA / MFA is enabled")
+    role: str | None = Field(default="user", description="Account role")
+    is_admin: bool | None = Field(
+        default=False, description="Whether account has admin privileges"
+    )
 
 
 class AccountKeysRegenerateResponse(BaseModel):
@@ -531,6 +535,10 @@ def get_me(
         profile = get_account_me_profile(account_id=current_account["account_id"])
         profile["email_verified"] = current_account.get("email_verified", False)
         profile["mfa_enabled"] = current_account.get("mfa_enabled", False)
+        if "role" in current_account:
+            profile["role"] = current_account["role"]
+        if "is_admin" in current_account:
+            profile["is_admin"] = current_account["is_admin"]
         return AccountMeResponse(**profile)
     except AccountError as exc:
         raise HTTPException(

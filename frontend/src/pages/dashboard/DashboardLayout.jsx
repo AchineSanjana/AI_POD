@@ -2,16 +2,17 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Key, Brain, BarChart3,
-  Settings, ExternalLink, LogOut, Zap, Menu, X,
+  Settings, ExternalLink, LogOut, Zap, Menu, X, Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 
 const NAV = [
-  { to:'/dashboard',          icon:LayoutDashboard, label:'Overview'    },
-  { to:'/dashboard/keys',     icon:Key,             label:'API Keys'    },
-  { to:'/dashboard/model',    icon:Brain,           label:'Model Status'},
-  { to:'/dashboard/analytics',icon:BarChart3,       label:'Analytics'   },
-  { to:'/dashboard/settings', icon:Settings,        label:'Settings'    },
+  { to:'/dashboard',          icon:LayoutDashboard, label:'Overview'        },
+  { to:'/ui',                 icon:Sparkles,        label:'Recommendations', external: true },
+  { to:'/dashboard/keys',     icon:Key,             label:'API Keys'        },
+  { to:'/dashboard/model',    icon:Brain,           label:'Model Status'    },
+  { to:'/dashboard/analytics',icon:BarChart3,       label:'Analytics'       },
+  { to:'/dashboard/settings', icon:Settings,        label:'Settings'        },
 ];
 
 export default function DashboardLayout() {
@@ -47,7 +48,21 @@ export default function DashboardLayout() {
 
       {/* Nav items */}
       <nav style={{ flex:1, padding:'16px 12px', display:'flex', flexDirection:'column', gap:2 }}>
-        {NAV.map(item => (
+        {NAV.map(item => item.external ? (
+          <a key={item.to} href={item.to}
+            style={{
+              display:'flex', alignItems:'center', gap:10,
+              padding:'10px 12px', borderRadius:'var(--radius-sm)',
+              fontSize:14, fontWeight: 400,
+              color: 'var(--text-secondary)',
+              background: 'transparent',
+              transition:'all .2s',
+              textDecoration:'none',
+            }}>
+            <item.icon size={16}/>
+            {item.label}
+          </a>
+        ) : (
           <NavLink key={item.to} to={item.to} end={item.to==='/dashboard'}
             style={({ isActive }) => ({
               display:'flex', alignItems:'center', gap:10,
@@ -67,7 +82,7 @@ export default function DashboardLayout() {
 
       {/* Bottom */}
       <div style={{ padding:'16px 12px', borderTop:'1px solid var(--border)', display:'flex', flexDirection:'column', gap:4 }}>
-        <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer"
+        <a href="/docs" target="_blank" rel="noreferrer"
           style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 12px',fontSize:13,color:'var(--text-muted)',borderRadius:'var(--radius-sm)',transition:'color .2s' }}>
           <ExternalLink size={15}/> API Docs
         </a>

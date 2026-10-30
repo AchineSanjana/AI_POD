@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OnboardingProvider } from './context/OnboardingContext';
@@ -34,6 +35,13 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/signin" replace />;
 }
 
+function UiRedirect() {
+  useEffect(() => {
+    window.location.href = '/ui';
+  }, []);
+  return null;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -42,6 +50,8 @@ function AppRoutes() {
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/signup"      element={<SignUp     />} />
       <Route path="/signin"      element={<SignIn     />} />
+      <Route path="/ui"          element={<UiRedirect />} />
+      <Route path="/demo"        element={<UiRedirect />} />
 
       {/* Onboarding wizard */}
       <Route path="/onboarding" element={<OnboardingLayout />}>

@@ -110,6 +110,10 @@ static_dir = PROJECT_ROOT / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+frontend_dist_assets = PROJECT_ROOT / "frontend" / "dist" / "assets"
+if frontend_dist_assets.exists():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist_assets)), name="frontend-assets")
+
 app.include_router(v1_router)
 
 
@@ -278,8 +282,23 @@ def test_sdk_page():
     return HTMLResponse("<h1>Test SDK Page Not Found</h1>", status_code=404)
 
 
+@app.get("/demo", response_class=HTMLResponse)
+@app.get("/demo/", response_class=HTMLResponse)
+def demo_ui_portal():
+    return HTMLResponse(build_home_page())
+
+
 @app.get("/", response_class=HTMLResponse)
+@app.get("/features", response_class=HTMLResponse)
+@app.get("/how-it-works", response_class=HTMLResponse)
+@app.get("/signup", response_class=HTMLResponse)
+@app.get("/signin", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
+@app.get("/dashboard/{full_path:path}", response_class=HTMLResponse)
 def ui_root():
+    frontend_dist_index = PROJECT_ROOT / "frontend" / "dist" / "index.html"
+    if frontend_dist_index.exists():
+        return FileResponse(frontend_dist_index)
     return HTMLResponse(build_home_page())
 
 

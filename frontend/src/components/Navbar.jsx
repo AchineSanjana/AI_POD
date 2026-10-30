@@ -42,6 +42,7 @@ export default function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="desktop-nav">
           {!user ? (
             <>
+              <Link to="/"            className="btn btn-ghost">Home</Link>
               <Link to="/features"     className="btn btn-ghost">Features</Link>
               <Link to="/how-it-works" className="btn btn-ghost">How it works</Link>
               <Link to="/signin" className="btn btn-secondary btn-sm">Sign In</Link>
@@ -49,6 +50,9 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              <Link to="/"            className="btn btn-ghost">Home</Link>
+              <Link to="/features"     className="btn btn-ghost">Features</Link>
+              <Link to="/how-it-works" className="btn btn-ghost">How it works</Link>
               <Link to="/dashboard" className="btn btn-ghost">Dashboard</Link>
               <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{user.company_name}</span>
               <button onClick={handleLogout} className="btn btn-secondary btn-sm">Sign Out</button>
@@ -75,6 +79,9 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              <Link to="/" onClick={() => setOpen(false)} className="btn btn-ghost w-full">Home</Link>
+              <Link to="/features" onClick={() => setOpen(false)} className="btn btn-ghost w-full">Features</Link>
+              <Link to="/how-it-works" onClick={() => setOpen(false)} className="btn btn-ghost w-full">How It Works</Link>
               <Link to="/dashboard" onClick={() => setOpen(false)} className="btn btn-ghost w-full">Dashboard</Link>
               <button onClick={() => { handleLogout(); setOpen(false); }} className="btn btn-secondary w-full">Sign Out</button>
             </>

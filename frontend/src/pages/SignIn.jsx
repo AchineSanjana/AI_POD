@@ -25,9 +25,22 @@ export default function SignIn() {
         setLoading(false); return;
       }
       const token = data.access_token || data.session_token;
-      const me = await getMe();
-      authLogin(token, me);
-      navigate('/dashboard');
+      if (token) localStorage.setItem('aipod_token', token);
+      let me = null;
+      try {
+        me = await getMe(token);
+      } catch (err) {
+        console.warn('Could not fetch user profile:', err);
+      }
+      authLogin(token, me || { email: form.email, company_name: 'Admin', tenant_id: 'admin' });
+
+      // If user is admin (admin@gmail.com), show the main recommendations UI page
+      const isAdmin = form.email.trim().toLowerCase() === 'admin@gmail.com' || me?.is_admin || me?.role === 'admin';
+      if (isAdmin) {
+        window.location.href = '/ui';
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally { setLoading(false); }
@@ -38,9 +51,22 @@ export default function SignIn() {
     try {
       const data = await loginMfa({ mfa_ticket: mfaTicket, code: form.mfa_code });
       const token = data.access_token || data.session_token;
-      const me = await getMe();
-      authLogin(token, me);
-      navigate('/dashboard');
+      if (token) localStorage.setItem('aipod_token', token);
+      let me = null;
+      try {
+        me = await getMe(token);
+      } catch (err) {
+        console.warn('Could not fetch user profile:', err);
+      }
+      authLogin(token, me || { email: form.email, company_name: 'Admin', tenant_id: 'admin' });
+
+      // If user is admin (admin@gmail.com), show the main recommendations UI page
+      const isAdmin = form.email.trim().toLowerCase() === 'admin@gmail.com' || me?.is_admin || me?.role === 'admin';
+      if (isAdmin) {
+        window.location.href = '/ui';
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || '2FA verification failed');
     } finally { setLoading(false); }

@@ -142,6 +142,7 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
         )
         tenants.update(
             [
+                "admin",
                 "telco_default",
                 "fresh_cart_co",
                 "thread_co",

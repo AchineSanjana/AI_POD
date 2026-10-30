@@ -96,7 +96,13 @@ export default function Landing() {
             <Link to="/signup" className="btn btn-primary btn-lg">
               Get Started Free <ArrowRight size={18} />
             </Link>
-            <Link to="/signin" className="btn btn-secondary btn-lg">
+            <Link to="/how-it-works" className="btn btn-secondary btn-lg">
+              How It Works
+            </Link>
+            <Link to="/features" className="btn btn-secondary btn-lg">
+              Features
+            </Link>
+            <Link to="/signin" className="btn btn-ghost btn-lg">
               Sign In
             </Link>
           </div>

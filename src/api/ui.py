@@ -385,7 +385,12 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
   <div class="container">
     <div class="page">
       <div class="header">
-        <div class="eyebrow">Multi-Tenant Recommender</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div class="eyebrow">Multi-Tenant Recommender</div>
+          <div id="admin-badge" style="display: none; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(24, 165, 107, 0.12); color: #10b981; font-size: 0.82rem; font-weight: 700; border: 1px solid rgba(24, 165, 107, 0.25);">
+            🛡️ Admin Logged In: admin@gmail.com
+          </div>
+        </div>
         <h1>Recommendation Demo</h1>
         <p class="subtext">Select a Tenant ID from the dropdown and choose or enter a Customer ID to fetch recommendations from the model.</p>
         <div class="simple-row" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
@@ -394,6 +399,8 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
           <a class="pill" href="/instacart" style="text-decoration: none; background: #059669; color: #fff; font-weight: bold;">🥑 Fresh Cart Grocery</a>
           <a class="pill" href="/storefront" style="text-decoration: none; background: #d97706; color: #fff; font-weight: bold;">🛍️ Gift &amp; Home Retail</a>
           <a class="pill" href="/onboarding" style="text-decoration: none; background: #6366f1; color: #fff; font-weight: bold;">🚀 Dataset Onboarding</a>
+          <a class="pill" href="/dashboard" style="text-decoration: none; background: #3b82f6; color: #fff; font-weight: bold;">📊 Dashboard</a>
+          <a class="pill" href="/signin" style="text-decoration: none; background: #ef4444; color: #fff; font-weight: bold;" onclick="localStorage.removeItem('aipod_token');localStorage.removeItem('aipod_pk');">🚪 Sign Out</a>
         </div>
       </div>
 
@@ -600,6 +607,14 @@ def build_home_page(tenant_id: str | None = None, default_customer_id: str | Non
     if (customerInput.value) {{
       fetchAndRenderRecommendations();
     }}
+
+    // Check for admin session
+    try {{
+      if (localStorage.getItem('aipod_token')) {{
+        const ab = document.getElementById('admin-badge');
+        if (ab) ab.style.display = 'inline-flex';
+      }}
+    }} catch (e) {{}}
   </script>
 </body>
 </html>

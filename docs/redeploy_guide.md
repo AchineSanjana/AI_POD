@@ -1,5 +1,9 @@
 # Container Redeployment Guide: `ai-pod-api`
 
+> [!NOTE]
+> **Latest Release Guide:** For redeploying with the **Authentication Hardening** and **Modern React Frontend** updates, refer to [AWS Redeployment Guide (Auth Hardening & Modern Frontend)](file:///d:/Projects/AI_POD/docs/aws_redeploy_auth_frontend_guide.md).
+
+
 This document details the exact process to rebuild the updated `ai-pod-api` Docker image (incorporating API-key authentication, rate limiting, and `/v1/` versioned routes), push it to AWS Elastic Container Registry (ECR), and redeploy it on the EC2 instance without downtime or infrastructure changes.
 
 ---
