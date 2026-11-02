@@ -924,10 +924,12 @@
                   <span>🔄 Resend Code</span>
                 </button>
               </div>
-              <div style="font-size: 0.88rem; color: var(--text-muted);">
+              <div style="font-size: 0.88rem; color: var(--text-muted); display: flex; gap: 14px;">
+                <a href="javascript:void(0)" onclick="setAuthView('signup')" style="color: #818cf8; text-decoration: underline;">Change Email / Sign Up</a>
                 <a href="javascript:void(0)" onclick="setAuthView('login')" style="color: #818cf8; text-decoration: underline;">Back to Log In</a>
               </div>
             </div>
+            <div id="verifyDevHintBox" style="display: none; background: rgba(245, 158, 11, 0.12); border: 1px dashed rgba(245, 158, 11, 0.45); border-radius: var(--radius-sm); padding: 10px 14px; margin-top: 14px; font-size: 0.84rem; color: #fde68a;"></div>
           </form>
         </div>
 
@@ -1023,7 +1025,7 @@
             <div>
               <div style="font-size: 1.15rem; font-weight: 700; color: #fff;" id="dashCompanyName">Company Dashboard</div>
               <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
-                Tenant ID: <code id="dashTenantId" style="color: #a5b4fc; font-weight: 600;"></code> &bull; <span class="badge badge-green" style="font-size: 0.7rem;">Session Authenticated</span>
+                Tenant ID: <code id="dashTenantId" style="color: #a5b4fc; font-weight: 600;"></code> &bull; <span class="badge badge-green" style="font-size: 0.7rem;">Session Authenticated</span> &bull; <span id="dashEmailVerifiedBadge" class="badge badge-amber" style="font-size: 0.7rem;">Email Unverified</span>
               </div>
             </div>
             <button type="button" class="btn btn-secondary" onclick="handleLogout()" style="padding: 6px 14px; font-size: 0.82rem;">
@@ -1167,12 +1169,12 @@
         </div>
 
         <!-- Interactive Drag-and-Drop Area -->
-        <div class="dropzone" id="dropzone" onclick="document.getElementById('csvFileInput').click()">
+        <div class="dropzone" id="dropzone" onclick="handleDropzoneClick()">
           <input type="file" id="csvFileInput" class="file-input" accept=".csv,text/csv" onchange="handleFileSelected(event)" />
           <div class="dropzone-icon">☁️</div>
           <div class="dropzone-title">Drop your CSV dataset here, or click to browse</div>
           <div class="dropzone-text">Supports CSV files with customer IDs, items, and interaction features (up to 50MB)</div>
-          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('csvFileInput').click()">
+          <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); handleDropzoneClick()">
             <span>📄</span>
             <span>Browse Files</span>
           </button>
@@ -1632,7 +1634,7 @@
       }
 
       btn.disabled = true;
-      btn.innerHTML = `<span>⏳ Registering account & issuing keys...</span>`;
+      btn.innerHTML = `<span>⏳ Registering account & issuing verification code...</span>`;
 
       try {
         const resp = await fetch(`${STATE.apiBaseUrl}/v1/accounts/signup`, {
@@ -1650,24 +1652,44 @@
           throw new Error(data.detail || `Signup failed (HTTP ${resp.status})`);
         }
 
-        // Save state: use private key immediately for upload & train
-        STATE.tenantId = data.tenant_id;
-        STATE.apiKey = data.private_key;
-        STATE.account = data;
+        // Store pending credentials (do NOT activate API key until email is verified)
+        STATE.pendingAccount = data;
+        STATE.pendingTenantId = data.tenant_id;
 
-        // Populate verify email target
+        // Populate verify email target and inputs
         const vEmailEl = document.getElementById('verifyEmailInput');
         const vTargetEl = document.getElementById('verifyEmailTarget');
+        const vCodeEl = document.getElementById('verifyCodeInput');
+        const devHintBox = document.getElementById('verifyDevHintBox');
+
         if (vEmailEl) vEmailEl.value = email;
         if (vTargetEl) vTargetEl.textContent = email;
+        if (vCodeEl) vCodeEl.value = '';
 
-        // Display keys with single-disclosure warning
-        displayKeysDisclosure(data.private_key, data.public_key, data.tenant_id, compName);
+        // Switch immediately to Verification screen (authVerifyEmailView)
+        setAuthView('verify');
 
-        // Update active credentials indicator
-        updateActiveCredsIndicator(data.tenant_id, data.private_key);
+        const authCard = document.getElementById('accountAuthCard');
+        if (authCard) authCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        showToast(`Account created for ${compName}! Verification code sent to ${email}`, '🎉');
+        if (data.email_dispatched) {
+          showToast(`Verification code sent to ${email}! Check your inbox.`, '📧');
+          if (devHintBox) devHintBox.style.display = 'none';
+        } else {
+          // If SMTP is not yet configured, notify user and provide dev hint if code is present
+          if (data.verification_code) {
+            showToast(`Account registered! Verification code: ${data.verification_code}`, '📧');
+            if (devHintBox) {
+              devHintBox.innerHTML = `⚙️ <strong>SMTP Notice:</strong> SMTP server is not yet configured in <code>.env</code>. <br>Your 6-digit dev verification code is: <strong style="color: #67e8f9; font-size: 1.05rem; font-family: var(--font-mono);">${data.verification_code}</strong>`;
+              devHintBox.style.display = 'block';
+            }
+          } else {
+            showToast(`Account created for ${compName}! Verification code sent to ${email}`, '🎉');
+            if (devHintBox) devHintBox.style.display = 'none';
+          }
+        }
+
+        if (vCodeEl) vCodeEl.focus();
       } catch (err) {
         showToast(err.message, '❌');
       } finally {
@@ -1702,10 +1724,30 @@
           throw new Error(data.detail || 'Failed to verify email');
         }
 
-        showToast('Email verified successfully! You can now log in.', '✅');
-        const loginEmail = document.getElementById('loginEmail');
-        if (loginEmail) loginEmail.value = email;
-        setAuthView('login');
+        const devHintBox = document.getElementById('verifyDevHintBox');
+        if (devHintBox) devHintBox.style.display = 'none';
+
+        // Check if completing new signup onboarding
+        if (STATE.pendingAccount && STATE.pendingAccount.email.toLowerCase() === email.toLowerCase()) {
+          const acc = STATE.pendingAccount;
+          STATE.tenantId = acc.tenant_id;
+          STATE.apiKey = acc.private_key;
+          STATE.account = acc;
+          delete STATE.pendingAccount;
+
+          // Display keys with single-disclosure warning
+          displayKeysDisclosure(acc.private_key, acc.public_key, acc.tenant_id, acc.company_name);
+
+          // Update active credentials indicator
+          updateActiveCredsIndicator(acc.tenant_id, acc.private_key);
+
+          showToast('Email verified successfully! Your API keys are now active.', '🎉');
+        } else {
+          showToast('Email verified successfully! You can now log in.', '✅');
+          const loginEmail = document.getElementById('loginEmail');
+          if (loginEmail) loginEmail.value = email;
+          setAuthView('login');
+        }
       } catch (err) {
         showToast(err.message, '❌');
       } finally {
@@ -1715,7 +1757,9 @@
     }
 
     async function handleResendVerification() {
-      const email = document.getElementById('verifyEmailInput').value.trim() || document.getElementById('signupEmail').value.trim();
+      const email = document.getElementById('verifyEmailInput').value.trim() ||
+                    (STATE.pendingAccount && STATE.pendingAccount.email) ||
+                    document.getElementById('signupEmail').value.trim();
       if (!email) {
         showToast('Enter your email address to resend verification code.', '⚠️');
         return;
@@ -1728,7 +1772,23 @@
           body: JSON.stringify({ email: email })
         });
         const data = await resp.json();
-        showToast(data.message || 'Verification code resent.', '📧');
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Failed to resend code');
+        }
+
+        const devHintBox = document.getElementById('verifyDevHintBox');
+        if (data.email_dispatched) {
+          showToast(`Fresh verification code sent to ${email}!`, '📧');
+          if (devHintBox) devHintBox.style.display = 'none';
+        } else if (data.verification_code) {
+          showToast(`New code generated! (Dev code: ${data.verification_code})`, '📧');
+          if (devHintBox) {
+            devHintBox.innerHTML = `⚙️ <strong>SMTP Notice:</strong> SMTP server is not yet configured in <code>.env</code>. <br>Your fresh dev verification code is: <strong style="color: #67e8f9; font-size: 1.05rem; font-family: var(--font-mono);">${data.verification_code}</strong>`;
+            devHintBox.style.display = 'block';
+          }
+        } else {
+          showToast(data.message || 'Verification code resent.', '📧');
+        }
       } catch (err) {
         showToast('Failed to resend verification code.', '❌');
       }
@@ -1953,6 +2013,17 @@
           if (btnMfa) btnMfa.textContent = 'Setup 2FA';
         }
 
+        const evBadge = document.getElementById('dashEmailVerifiedBadge');
+        if (evBadge) {
+          if (meData.email_verified) {
+            evBadge.className = 'badge badge-green';
+            evBadge.textContent = 'Email Verified';
+          } else {
+            evBadge.className = 'badge badge-amber';
+            evBadge.textContent = 'Email Unverified';
+          }
+        }
+
         STATE.tenantId = meData.tenant_id;
         updateActiveCredsIndicator(meData.tenant_id, STATE.apiKey);
 
@@ -2115,6 +2186,17 @@
       }
     });
 
+    function handleDropzoneClick() {
+      if (!STATE.apiKey) {
+        showToast('Please register and verify your email in Step 1 to unlock dataset upload.', '⚠️');
+        const authCard = document.getElementById('accountAuthCard');
+        if (authCard) authCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const fileInput = document.getElementById('csvFileInput');
+      if (fileInput) fileInput.click();
+    }
+
     function handleFileSelected(e) {
       if (e.target.files.length > 0) {
         processFile(e.target.files[0]);
@@ -2122,6 +2204,12 @@
     }
 
     function processFile(file) {
+      if (!STATE.apiKey) {
+        showToast('Please register and verify your email in Step 1 to unlock dataset upload.', '⚠️');
+        const authCard = document.getElementById('accountAuthCard');
+        if (authCard) authCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
       if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
         showToast('Please upload a valid .csv file', '⚠️');
         return;

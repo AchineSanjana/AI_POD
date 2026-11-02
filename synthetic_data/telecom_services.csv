@@ -1,0 +1,251 @@
+customer_id,contract_type,monthly_charges,tenure_months,internet_type,has_5g_unlimited,has_streaming_pass,has_device_protection,has_cloud_backup,has_international_roaming
+TEL_001,Month-to-month,65.14,16,5G Home,No,No,No,Yes,No
+TEL_002,Month-to-month,56.17,14,Fiber optic,No,No,No,No,No
+TEL_003,One year,111.54,13,Fiber optic,Yes,Yes,No,Yes,No
+TEL_004,Month-to-month,81.47,5,Fiber optic,Yes,No,No,Yes,No
+TEL_005,One year,106.58,42,Fiber optic,No,No,Yes,Yes,No
+TEL_006,Two year,155.18,71,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_007,Month-to-month,60.02,2,Fiber optic,Yes,No,No,No,No
+TEL_008,Two year,151.42,63,5G Home,Yes,Yes,Yes,Yes,No
+TEL_009,One year,88.66,21,5G Home,Yes,Yes,No,No,No
+TEL_010,Two year,142.77,36,DSL,Yes,Yes,Yes,Yes,No
+TEL_011,Two year,166.75,49,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_012,Month-to-month,50.28,8,5G Home,No,No,No,No,No
+TEL_013,One year,97.69,40,5G Home,No,Yes,Yes,Yes,No
+TEL_014,Month-to-month,53.09,7,Fiber optic,No,No,No,No,No
+TEL_015,One year,119.55,37,Fiber optic,No,Yes,Yes,No,Yes
+TEL_016,One year,105.82,24,DSL,Yes,No,Yes,No,No
+TEL_017,One year,99.05,30,Fiber optic,Yes,No,Yes,No,No
+TEL_018,One year,113.04,32,Fiber optic,No,Yes,Yes,Yes,No
+TEL_019,One year,99.62,15,Fiber optic,Yes,Yes,No,No,No
+TEL_020,One year,100.63,40,Fiber optic,Yes,Yes,No,Yes,No
+TEL_021,Two year,140.59,47,Fiber optic,Yes,No,Yes,Yes,Yes
+TEL_022,Two year,129.11,53,Fiber optic,Yes,No,Yes,Yes,No
+TEL_023,Month-to-month,88.12,18,Fiber optic,No,Yes,Yes,No,Yes
+TEL_024,Month-to-month,80.87,5,5G Home,Yes,No,Yes,No,No
+TEL_025,Month-to-month,56.13,9,Fiber optic,No,No,No,No,No
+TEL_026,One year,107.53,42,5G Home,No,No,Yes,No,Yes
+TEL_027,Two year,138.76,51,5G Home,No,Yes,Yes,Yes,Yes
+TEL_028,One year,101.33,29,5G Home,Yes,Yes,No,Yes,No
+TEL_029,One year,123.74,40,Cable,Yes,Yes,Yes,Yes,No
+TEL_030,Month-to-month,71.14,14,5G Home,No,No,No,Yes,Yes
+TEL_031,One year,113.11,23,Cable,Yes,No,Yes,Yes,No
+TEL_032,Two year,158.37,70,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_033,Month-to-month,56.44,18,5G Home,No,No,No,No,No
+TEL_034,One year,110.42,12,5G Home,Yes,Yes,Yes,No,No
+TEL_035,Month-to-month,73.21,5,5G Home,Yes,No,Yes,No,No
+TEL_036,Month-to-month,59.11,12,5G Home,No,No,No,Yes,No
+TEL_037,Month-to-month,73.12,15,Cable,No,Yes,No,Yes,No
+TEL_038,One year,109.68,27,5G Home,Yes,No,Yes,Yes,No
+TEL_039,Two year,137.86,42,Fiber optic,Yes,Yes,Yes,No,Yes
+TEL_040,Two year,158.66,28,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_041,One year,74.86,21,Fiber optic,Yes,No,No,No,No
+TEL_042,Two year,123.16,39,Fiber optic,Yes,No,Yes,Yes,No
+TEL_043,One year,102.58,28,5G Home,Yes,No,No,No,Yes
+TEL_044,Month-to-month,68.28,20,Fiber optic,Yes,No,No,No,No
+TEL_045,One year,111.34,40,5G Home,Yes,No,No,Yes,Yes
+TEL_046,Month-to-month,74.73,9,5G Home,Yes,No,Yes,No,No
+TEL_047,Two year,136.82,29,5G Home,Yes,Yes,No,No,Yes
+TEL_048,One year,84.45,22,5G Home,No,Yes,No,No,No
+TEL_049,One year,128.97,13,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_050,Month-to-month,80.98,20,Fiber optic,Yes,Yes,No,No,No
+TEL_051,Two year,126.21,62,Cable,Yes,Yes,Yes,No,No
+TEL_052,One year,118.14,42,Fiber optic,Yes,Yes,Yes,No,No
+TEL_053,Two year,141.31,29,5G Home,Yes,Yes,Yes,Yes,No
+TEL_054,Month-to-month,49.44,5,Fiber optic,No,No,No,No,No
+TEL_055,Two year,116.79,63,Fiber optic,Yes,No,No,No,Yes
+TEL_056,Month-to-month,67.08,8,DSL,No,No,Yes,No,No
+TEL_057,Two year,164.00,36,Fiber optic,No,Yes,Yes,Yes,Yes
+TEL_058,Two year,131.02,62,Fiber optic,Yes,No,Yes,Yes,No
+TEL_059,Month-to-month,69.33,6,Fiber optic,Yes,No,No,No,No
+TEL_060,Month-to-month,100.90,2,5G Home,Yes,Yes,Yes,No,Yes
+TEL_061,Month-to-month,58.33,5,Fiber optic,No,No,Yes,No,No
+TEL_062,Month-to-month,47.24,9,Fiber optic,No,No,No,No,No
+TEL_063,Month-to-month,56.38,20,5G Home,No,No,Yes,No,No
+TEL_064,Month-to-month,65.28,20,5G Home,Yes,No,No,No,No
+TEL_065,Two year,146.53,56,Fiber optic,Yes,Yes,No,Yes,Yes
+TEL_066,Month-to-month,81.82,4,Cable,Yes,Yes,No,No,No
+TEL_067,One year,107.51,34,5G Home,Yes,No,No,Yes,Yes
+TEL_068,Two year,130.24,44,Cable,No,Yes,Yes,No,Yes
+TEL_069,Two year,129.72,65,Fiber optic,Yes,No,Yes,No,Yes
+TEL_070,One year,120.55,27,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_071,Month-to-month,64.13,4,Fiber optic,Yes,No,No,No,No
+TEL_072,Two year,153.70,46,5G Home,Yes,Yes,Yes,Yes,Yes
+TEL_073,One year,100.35,17,DSL,Yes,No,Yes,Yes,No
+TEL_074,Month-to-month,68.97,19,Fiber optic,No,No,No,Yes,Yes
+TEL_075,Month-to-month,46.70,9,Fiber optic,No,No,No,No,No
+TEL_076,Month-to-month,69.97,20,Fiber optic,No,Yes,No,No,No
+TEL_077,Month-to-month,80.65,11,Cable,No,Yes,No,Yes,No
+TEL_078,Month-to-month,79.35,12,5G Home,Yes,Yes,No,Yes,No
+TEL_079,Two year,162.34,59,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_080,One year,102.24,16,DSL,Yes,No,Yes,No,No
+TEL_081,Month-to-month,108.85,5,5G Home,Yes,Yes,Yes,Yes,No
+TEL_082,Month-to-month,81.02,17,DSL,Yes,No,No,Yes,No
+TEL_083,One year,95.02,17,5G Home,Yes,No,No,Yes,No
+TEL_084,Two year,135.51,29,Fiber optic,Yes,Yes,No,Yes,No
+TEL_085,One year,90.62,21,5G Home,Yes,No,Yes,No,No
+TEL_086,Month-to-month,63.75,15,Fiber optic,Yes,No,No,No,No
+TEL_087,Month-to-month,88.59,18,Fiber optic,Yes,No,Yes,Yes,No
+TEL_088,Month-to-month,85.80,6,Cable,No,Yes,Yes,No,No
+TEL_089,One year,115.34,14,DSL,No,Yes,Yes,Yes,No
+TEL_090,One year,102.07,27,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_091,Month-to-month,65.70,18,Fiber optic,Yes,No,No,No,No
+TEL_092,Month-to-month,79.92,4,5G Home,Yes,No,No,Yes,No
+TEL_093,Month-to-month,78.24,5,Cable,No,Yes,No,Yes,No
+TEL_094,Month-to-month,62.57,20,Cable,Yes,No,No,No,No
+TEL_095,Month-to-month,67.59,4,DSL,No,No,No,Yes,No
+TEL_096,Two year,141.99,61,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_097,One year,136.56,13,5G Home,Yes,Yes,Yes,Yes,Yes
+TEL_098,One year,126.23,27,Cable,Yes,Yes,Yes,Yes,No
+TEL_099,Month-to-month,53.00,6,5G Home,No,No,No,No,No
+TEL_100,One year,126.26,42,Fiber optic,Yes,No,Yes,Yes,Yes
+TEL_101,Month-to-month,69.99,12,5G Home,No,Yes,No,No,No
+TEL_102,Month-to-month,59.32,5,Fiber optic,No,Yes,No,No,No
+TEL_103,One year,100.82,41,5G Home,Yes,No,Yes,Yes,No
+TEL_104,Month-to-month,77.83,4,5G Home,Yes,No,Yes,No,No
+TEL_105,Two year,125.60,54,Fiber optic,No,Yes,Yes,No,Yes
+TEL_106,One year,92.11,35,Cable,No,Yes,No,No,Yes
+TEL_107,Two year,150.80,35,Cable,No,No,Yes,Yes,Yes
+TEL_108,Month-to-month,70.99,18,5G Home,Yes,No,No,No,No
+TEL_109,One year,93.22,34,Fiber optic,No,No,No,Yes,No
+TEL_110,Two year,127.77,56,Fiber optic,Yes,No,Yes,No,Yes
+TEL_111,Month-to-month,68.71,9,DSL,No,Yes,No,No,Yes
+TEL_112,Month-to-month,58.85,13,Cable,No,No,No,No,No
+TEL_113,Month-to-month,51.82,5,5G Home,No,No,No,No,No
+TEL_114,Two year,151.15,72,Fiber optic,Yes,Yes,Yes,No,Yes
+TEL_115,Month-to-month,60.62,18,DSL,No,Yes,No,No,No
+TEL_116,One year,133.31,40,5G Home,Yes,Yes,Yes,Yes,No
+TEL_117,One year,92.96,24,Fiber optic,Yes,Yes,Yes,No,No
+TEL_118,Two year,151.08,54,Fiber optic,Yes,Yes,No,Yes,Yes
+TEL_119,Month-to-month,55.24,13,5G Home,No,No,No,No,No
+TEL_120,One year,92.59,35,DSL,No,No,Yes,No,No
+TEL_121,Month-to-month,61.97,15,5G Home,No,No,Yes,No,No
+TEL_122,Two year,123.57,25,Fiber optic,Yes,Yes,Yes,No,Yes
+TEL_123,Month-to-month,68.55,18,Fiber optic,Yes,No,No,No,No
+TEL_124,One year,93.31,33,Cable,No,No,No,Yes,Yes
+TEL_125,One year,103.38,35,DSL,Yes,Yes,No,No,No
+TEL_126,Month-to-month,68.94,14,5G Home,Yes,No,Yes,No,No
+TEL_127,One year,138.80,13,5G Home,Yes,Yes,Yes,Yes,No
+TEL_128,Two year,170.85,29,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_129,One year,102.21,33,5G Home,No,Yes,No,Yes,No
+TEL_130,Month-to-month,66.77,16,DSL,No,No,Yes,No,No
+TEL_131,One year,102.40,21,Fiber optic,Yes,Yes,No,No,No
+TEL_132,Month-to-month,68.44,14,Fiber optic,No,Yes,No,No,No
+TEL_133,Month-to-month,57.50,8,5G Home,No,No,No,No,No
+TEL_134,One year,121.51,27,5G Home,Yes,Yes,No,Yes,No
+TEL_135,Two year,126.48,57,Fiber optic,No,Yes,No,Yes,No
+TEL_136,One year,83.20,12,Fiber optic,Yes,No,No,No,No
+TEL_137,One year,101.65,25,Fiber optic,Yes,No,Yes,No,No
+TEL_138,Two year,135.69,30,Cable,Yes,Yes,Yes,Yes,No
+TEL_139,Two year,148.15,53,Fiber optic,Yes,Yes,No,Yes,No
+TEL_140,Month-to-month,62.80,13,5G Home,No,No,Yes,No,No
+TEL_141,Two year,162.46,30,Cable,Yes,No,Yes,Yes,Yes
+TEL_142,One year,101.79,20,Cable,Yes,No,Yes,No,No
+TEL_143,One year,81.90,24,DSL,Yes,No,No,No,No
+TEL_144,One year,111.59,37,DSL,Yes,No,Yes,Yes,No
+TEL_145,Two year,159.16,62,Fiber optic,Yes,Yes,No,Yes,Yes
+TEL_146,Month-to-month,58.84,19,Cable,No,No,No,Yes,No
+TEL_147,One year,100.52,35,Fiber optic,Yes,No,Yes,No,Yes
+TEL_148,Month-to-month,72.97,18,5G Home,Yes,No,Yes,No,No
+TEL_149,Month-to-month,65.72,13,Cable,No,No,Yes,No,No
+TEL_150,Month-to-month,56.18,9,5G Home,No,No,No,Yes,No
+TEL_151,One year,114.09,31,5G Home,Yes,Yes,Yes,No,No
+TEL_152,Month-to-month,68.46,14,Cable,No,Yes,No,No,No
+TEL_153,Two year,146.23,44,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_154,Month-to-month,80.06,19,Fiber optic,Yes,No,Yes,No,No
+TEL_155,Two year,155.05,68,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_156,Month-to-month,59.86,13,Fiber optic,No,No,No,No,No
+TEL_157,Two year,134.80,47,5G Home,Yes,No,Yes,Yes,No
+TEL_158,One year,109.43,30,DSL,Yes,No,No,Yes,Yes
+TEL_159,One year,108.01,28,5G Home,Yes,Yes,Yes,No,No
+TEL_160,Two year,129.23,54,Fiber optic,No,Yes,No,Yes,Yes
+TEL_161,Month-to-month,64.69,16,5G Home,No,No,Yes,Yes,No
+TEL_162,Month-to-month,88.84,4,Cable,No,Yes,Yes,Yes,No
+TEL_163,Month-to-month,47.80,13,5G Home,No,No,No,No,No
+TEL_164,Month-to-month,77.54,7,Fiber optic,No,Yes,Yes,No,No
+TEL_165,One year,117.83,20,5G Home,No,Yes,Yes,Yes,Yes
+TEL_166,One year,121.23,17,Cable,Yes,No,Yes,Yes,Yes
+TEL_167,Month-to-month,75.73,5,5G Home,Yes,No,Yes,No,No
+TEL_168,Two year,115.07,59,Fiber optic,Yes,No,Yes,No,No
+TEL_169,Month-to-month,52.58,13,DSL,No,No,No,No,No
+TEL_170,Month-to-month,60.87,8,Fiber optic,No,Yes,No,No,No
+TEL_171,Month-to-month,53.15,4,Fiber optic,No,No,No,No,No
+TEL_172,Month-to-month,72.87,8,Fiber optic,No,Yes,No,No,No
+TEL_173,Month-to-month,57.92,19,Cable,No,No,No,No,No
+TEL_174,One year,117.56,29,Fiber optic,Yes,No,Yes,Yes,No
+TEL_175,One year,108.99,15,Fiber optic,Yes,Yes,Yes,No,No
+TEL_176,Month-to-month,56.42,11,Cable,No,No,No,No,No
+TEL_177,One year,73.06,40,Cable,No,No,No,No,No
+TEL_178,Two year,150.83,70,Fiber optic,Yes,Yes,No,No,Yes
+TEL_179,Two year,167.77,55,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_180,Month-to-month,79.83,4,5G Home,Yes,No,Yes,No,No
+TEL_181,Two year,141.84,32,Cable,Yes,No,Yes,Yes,Yes
+TEL_182,One year,105.26,13,Fiber optic,Yes,Yes,No,No,Yes
+TEL_183,Month-to-month,85.84,8,5G Home,Yes,Yes,Yes,No,No
+TEL_184,Month-to-month,65.87,3,Cable,Yes,No,Yes,No,No
+TEL_185,Two year,153.48,33,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_186,One year,87.88,26,Cable,Yes,No,No,Yes,No
+TEL_187,Month-to-month,61.96,9,5G Home,No,No,No,No,Yes
+TEL_188,Two year,132.16,37,Fiber optic,Yes,Yes,Yes,No,No
+TEL_189,Month-to-month,59.26,16,5G Home,No,Yes,No,No,No
+TEL_190,Month-to-month,74.84,18,Cable,No,No,Yes,Yes,No
+TEL_191,Month-to-month,66.51,13,5G Home,No,No,No,Yes,No
+TEL_192,Month-to-month,71.06,10,Fiber optic,No,Yes,No,No,No
+TEL_193,One year,115.73,21,5G Home,No,Yes,Yes,Yes,No
+TEL_194,Month-to-month,68.22,6,Fiber optic,No,Yes,No,No,No
+TEL_195,Month-to-month,69.72,5,Cable,No,Yes,No,No,No
+TEL_196,Month-to-month,78.18,19,5G Home,No,Yes,No,Yes,No
+TEL_197,Two year,134.37,67,5G Home,Yes,Yes,No,Yes,Yes
+TEL_198,Month-to-month,58.71,2,5G Home,No,No,No,No,No
+TEL_199,Month-to-month,95.25,12,Fiber optic,Yes,Yes,No,Yes,No
+TEL_200,Two year,144.11,43,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_201,One year,98.76,27,DSL,No,Yes,No,Yes,No
+TEL_202,One year,92.06,32,Cable,No,Yes,No,No,No
+TEL_203,One year,137.13,19,Fiber optic,No,Yes,Yes,Yes,Yes
+TEL_204,Month-to-month,56.22,12,5G Home,No,No,No,No,No
+TEL_205,One year,90.94,16,Fiber optic,Yes,No,No,No,Yes
+TEL_206,Month-to-month,88.93,7,Fiber optic,Yes,Yes,No,No,Yes
+TEL_207,Two year,119.23,52,Fiber optic,Yes,Yes,Yes,No,No
+TEL_208,Two year,132.39,44,Fiber optic,No,Yes,Yes,Yes,No
+TEL_209,Two year,150.37,52,Fiber optic,Yes,Yes,No,Yes,Yes
+TEL_210,Month-to-month,50.58,7,Cable,No,No,No,No,No
+TEL_211,Month-to-month,73.62,15,Cable,No,No,Yes,No,Yes
+TEL_212,Month-to-month,50.74,13,5G Home,No,No,No,No,No
+TEL_213,One year,110.89,31,Fiber optic,Yes,No,Yes,Yes,Yes
+TEL_214,Two year,161.48,57,Fiber optic,Yes,Yes,Yes,No,Yes
+TEL_215,Month-to-month,78.70,19,5G Home,Yes,Yes,Yes,No,No
+TEL_216,Two year,164.38,57,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_217,One year,79.27,36,DSL,No,No,Yes,No,No
+TEL_218,One year,113.40,37,5G Home,Yes,No,Yes,No,Yes
+TEL_219,Two year,142.68,55,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_220,One year,106.51,37,Fiber optic,No,No,Yes,Yes,No
+TEL_221,Two year,147.74,57,Cable,Yes,No,Yes,Yes,Yes
+TEL_222,Month-to-month,72.34,14,Cable,No,Yes,No,No,No
+TEL_223,Month-to-month,86.27,19,Cable,No,Yes,Yes,Yes,No
+TEL_224,Two year,119.47,60,Fiber optic,No,No,Yes,Yes,No
+TEL_225,One year,82.07,19,Fiber optic,Yes,No,No,No,No
+TEL_226,Month-to-month,87.55,7,Fiber optic,Yes,Yes,Yes,No,No
+TEL_227,Two year,114.04,55,Cable,Yes,No,No,Yes,No
+TEL_228,One year,108.88,37,Cable,Yes,No,Yes,Yes,No
+TEL_229,One year,83.80,40,DSL,No,No,No,Yes,No
+TEL_230,Month-to-month,58.49,2,Fiber optic,Yes,No,No,No,No
+TEL_231,Month-to-month,89.62,2,5G Home,No,Yes,Yes,Yes,No
+TEL_232,One year,102.75,15,Fiber optic,Yes,Yes,No,Yes,No
+TEL_233,One year,114.02,14,5G Home,Yes,Yes,Yes,Yes,No
+TEL_234,Two year,151.60,60,Fiber optic,Yes,Yes,Yes,Yes,No
+TEL_235,One year,85.95,38,Fiber optic,No,No,No,No,Yes
+TEL_236,Month-to-month,68.37,2,5G Home,No,No,No,Yes,No
+TEL_237,Two year,114.50,37,5G Home,Yes,No,Yes,No,No
+TEL_238,Month-to-month,65.85,3,Fiber optic,No,No,No,No,Yes
+TEL_239,One year,85.10,37,Fiber optic,Yes,No,No,No,No
+TEL_240,Month-to-month,68.06,10,DSL,No,Yes,No,No,No
+TEL_241,Month-to-month,69.01,20,5G Home,Yes,No,No,No,No
+TEL_242,Two year,125.12,25,Fiber optic,Yes,No,No,Yes,No
+TEL_243,Month-to-month,60.85,15,Cable,No,No,Yes,No,No
+TEL_244,One year,134.45,28,Cable,Yes,Yes,Yes,No,Yes
+TEL_245,Two year,156.86,25,Fiber optic,Yes,Yes,Yes,Yes,Yes
+TEL_246,Month-to-month,81.24,15,5G Home,Yes,Yes,No,No,No
+TEL_247,One year,134.83,23,Fiber optic,Yes,No,Yes,Yes,Yes
+TEL_248,Two year,152.54,37,Cable,Yes,Yes,Yes,Yes,No
+TEL_249,Month-to-month,78.44,5,5G Home,Yes,Yes,No,No,No
+TEL_250,Month-to-month,69.96,13,DSL,Yes,Yes,No,No,No

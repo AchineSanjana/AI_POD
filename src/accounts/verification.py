@@ -15,6 +15,10 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from src.accounts.storage import (
     get_account_by_email,
     get_account_by_id,
@@ -49,7 +53,7 @@ def dispatch_verification_email(
 ) -> bool:
     """Send verification email to user or log to development console.
 
-    Returns True if successfully sent or queued.
+    Returns True if successfully sent via SMTP, False otherwise.
     """
     clean_email = email.strip().lower()
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -64,44 +68,86 @@ def dispatch_verification_email(
     }
 
     # In production with configured SMTP / SES, dispatch through external service
-    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_host = os.environ.get("SMTP_HOST", "").strip()
     if smtp_host:
         try:
             import smtplib
+            from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
 
-            msg = MIMEText(
+            port = int(os.environ.get("SMTP_PORT", "587"))
+            use_ssl = (
+                os.environ.get("SMTP_USE_SSL", "").strip().lower() in ("true", "1", "yes")
+                or port == 465
+            )
+            user = os.environ.get("SMTP_USER", "").strip() or None
+            pwd = os.environ.get("SMTP_PASS", "").strip() or None
+            sender = os.environ.get("SMTP_FROM", "").strip() or user or "no-reply@ai-pod.local"
+
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = f"Your AI POD Verification Code: {code}"
+            msg["From"] = sender
+            msg["To"] = clean_email
+
+            text_content = (
                 f"Hello {company_name},\n\n"
                 f"Your AI POD verification code is: {code}\n"
                 f"This code will expire in {VERIFICATION_EXPIRY_MINUTES} minutes.\n\n"
                 f"Thank you,\nAI POD Team"
             )
-            msg["Subject"] = "Verify your AI POD Account"
-            msg["From"] = os.environ.get("SMTP_FROM", "no-reply@ai-pod.local")
-            msg["To"] = clean_email
+            html_content = f"""
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+              <div style="margin-bottom: 20px;">
+                <span style="font-size: 24px; font-weight: 800; color: #4f46e5;">✨ AI POD</span>
+              </div>
+              <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Verify your email address</h2>
+              <p style="color: #475569; font-size: 15px; line-height: 1.5;">
+                Hello <strong>{company_name}</strong>,
+              </p>
+              <p style="color: #475569; font-size: 15px; line-height: 1.5;">
+                Enter this 6-digit verification code to activate your account and issue your API keys:
+              </p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; text-align: center; margin: 24px 0;">
+                <span style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #4f46e5; font-family: monospace;">{code}</span>
+              </div>
+              <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
+                This code expires in <strong>{VERIFICATION_EXPIRY_MINUTES} minutes</strong>. If you did not create an account on AI POD, you can safely ignore this email.
+              </p>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px 0;" />
+              <p style="color: #94a3b8; font-size: 12px; margin: 0;">AI POD Multi-Tenant Recommendations Engine</p>
+            </div>
+            """
+            msg.attach(MIMEText(text_content, "plain"))
+            msg.attach(MIMEText(html_content, "html"))
 
-            with smtplib.SMTP(
-                smtp_host, int(os.environ.get("SMTP_PORT", "587"))
-            ) as server:
-                server.starttls()
-                user = os.environ.get("SMTP_USER")
-                pwd = os.environ.get("SMTP_PASS")
-                if user and pwd:
-                    server.login(user, pwd)
-                server.send_message(msg)
-            logger.info("Dispatched verification email to '%s' via SMTP", clean_email)
+            timeout = float(os.environ.get("SMTP_TIMEOUT", "12.0"))
+            if use_ssl:
+                with smtplib.SMTP_SSL(smtp_host, port, timeout=timeout) as server:
+                    if user and pwd:
+                        server.login(user, pwd)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(smtp_host, port, timeout=timeout) as server:
+                    if os.environ.get("SMTP_STARTTLS", "true").strip().lower() in ("true", "1", "yes"):
+                        server.starttls()
+                    if user and pwd:
+                        server.login(user, pwd)
+                    server.send_message(msg)
+
+            logger.info("Dispatched verification email to '%s' via SMTP (%s:%d)", clean_email, smtp_host, port)
             return True
         except Exception as exc:
-            logger.warning("Failed sending verification email via SMTP: %s", exc)
+            logger.warning("Failed sending verification email via SMTP (%s): %s", smtp_host, exc)
+            return False
 
     logger.info(
-        "Verification code for '%s' (%s): [%s] (expires in %d min)",
+        "Verification code for '%s' (%s): [%s] (expires in %d min, SMTP not configured)",
         company_name,
         clean_email,
         code,
         VERIFICATION_EXPIRY_MINUTES,
     )
-    return True
+    return False
 
 
 def issue_verification_for_account(
@@ -127,7 +173,7 @@ def issue_verification_for_account(
 
     save_account_record(account_id, account, config=config)
 
-    dispatch_verification_email(
+    email_dispatched = dispatch_verification_email(
         email=account["email"],
         company_name=account.get("company_name", "User"),
         code=code,
@@ -138,6 +184,7 @@ def issue_verification_for_account(
         "account_id": account_id,
         "email": account["email"],
         "verification_sent": True,
+        "email_dispatched": email_dispatched,
         "verification_code": code,  # Accessible for tests/dev mode
         "expires_at": expires_at,
     }

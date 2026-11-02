@@ -1,0 +1,251 @@
+customer_id,product_id,product_name,category,price,quantity,transaction_date
+CUST_241,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,2,2026-08-16
+CUST_215,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-17
+CUST_235,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-08-02
+CUST_206,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-02
+CUST_236,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,2,2026-09-04
+CUST_227,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,2,2026-09-21
+CUST_201,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,1,2026-08-28
+CUST_222,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-18
+CUST_222,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-08-23
+CUST_223,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-09-16
+CUST_230,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,4,2026-08-25
+CUST_206,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,2,2026-09-09
+CUST_224,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-08-03
+CUST_243,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-06
+CUST_215,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-08-30
+CUST_241,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-08-23
+CUST_214,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-09-13
+CUST_242,GROC_01,Organic Hass Avocados,Produce,4.99,2,2026-09-04
+CUST_216,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-29
+CUST_241,GROC_10,Salted Caramel Almonds,Snacks,6.99,1,2026-08-21
+CUST_204,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-21
+CUST_226,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-30
+CUST_237,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-09-11
+CUST_232,GROC_05,Organic Baby Spinach,Produce,3.49,3,2026-08-30
+CUST_210,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-05
+CUST_235,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-09-27
+CUST_238,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-08-09
+CUST_233,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,2,2026-09-25
+CUST_208,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-13
+CUST_228,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-08
+CUST_230,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,4,2026-09-25
+CUST_201,GROC_10,Salted Caramel Almonds,Snacks,6.99,1,2026-09-26
+CUST_235,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,2,2026-08-22
+CUST_208,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-01
+CUST_217,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,2,2026-09-02
+CUST_207,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-09-10
+CUST_233,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-18
+CUST_211,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,2,2026-09-03
+CUST_201,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-08
+CUST_224,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,3,2026-08-20
+CUST_216,GROC_01,Organic Hass Avocados,Produce,4.99,3,2026-09-30
+CUST_206,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-08-05
+CUST_235,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,1,2026-08-31
+CUST_236,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-08
+CUST_228,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,3,2026-09-18
+CUST_245,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-09-12
+CUST_242,GROC_05,Organic Baby Spinach,Produce,3.49,3,2026-08-29
+CUST_208,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-02
+CUST_238,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,2,2026-08-01
+CUST_205,GROC_10,Salted Caramel Almonds,Snacks,6.99,1,2026-08-05
+CUST_203,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-08-16
+CUST_218,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-09
+CUST_237,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-31
+CUST_227,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-28
+CUST_223,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-09-16
+CUST_204,GROC_09,Organic Bananas Bunch,Produce,2.19,4,2026-08-07
+CUST_204,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-09-25
+CUST_207,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-29
+CUST_209,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-08-16
+CUST_205,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,3,2026-09-05
+CUST_207,GROC_01,Organic Hass Avocados,Produce,4.99,4,2026-09-23
+CUST_201,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,3,2026-09-24
+CUST_216,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-08-14
+CUST_226,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-08-01
+CUST_225,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-08-30
+CUST_219,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,4,2026-09-20
+CUST_236,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-13
+CUST_219,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-09-17
+CUST_235,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-08-04
+CUST_238,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,3,2026-09-03
+CUST_211,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-09-24
+CUST_212,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-09-25
+CUST_216,GROC_05,Organic Baby Spinach,Produce,3.49,3,2026-09-06
+CUST_216,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-06
+CUST_227,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-08-21
+CUST_217,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,2,2026-08-16
+CUST_217,GROC_05,Organic Baby Spinach,Produce,3.49,2,2026-08-20
+CUST_230,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-08-05
+CUST_201,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,4,2026-08-07
+CUST_205,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,1,2026-08-09
+CUST_223,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,3,2026-08-24
+CUST_219,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,3,2026-09-15
+CUST_220,GROC_09,Organic Bananas Bunch,Produce,2.19,4,2026-09-11
+CUST_234,GROC_01,Organic Hass Avocados,Produce,4.99,2,2026-08-20
+CUST_243,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,3,2026-08-17
+CUST_208,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,2,2026-08-10
+CUST_218,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-22
+CUST_214,GROC_10,Salted Caramel Almonds,Snacks,6.99,3,2026-09-02
+CUST_232,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,3,2026-08-04
+CUST_206,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-08-03
+CUST_201,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-08-17
+CUST_211,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,2,2026-08-28
+CUST_236,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-09-26
+CUST_245,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-09-23
+CUST_224,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-09
+CUST_203,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,3,2026-09-20
+CUST_203,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-08-16
+CUST_243,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,2,2026-09-26
+CUST_227,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,2,2026-09-29
+CUST_216,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,4,2026-09-21
+CUST_212,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-09-17
+CUST_222,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-09-12
+CUST_216,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-08-07
+CUST_225,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,3,2026-08-15
+CUST_213,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-08-20
+CUST_215,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,2,2026-08-26
+CUST_222,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-19
+CUST_218,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-09-13
+CUST_235,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-26
+CUST_217,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,4,2026-08-17
+CUST_203,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-16
+CUST_221,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,4,2026-08-08
+CUST_225,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-08-03
+CUST_228,GROC_01,Organic Hass Avocados,Produce,4.99,3,2026-09-04
+CUST_244,GROC_10,Salted Caramel Almonds,Snacks,6.99,2,2026-09-12
+CUST_213,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-09-12
+CUST_222,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-08-08
+CUST_220,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,2,2026-08-21
+CUST_226,GROC_10,Salted Caramel Almonds,Snacks,6.99,2,2026-08-13
+CUST_227,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-17
+CUST_212,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-05
+CUST_201,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-20
+CUST_238,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-29
+CUST_229,GROC_10,Salted Caramel Almonds,Snacks,6.99,1,2026-09-20
+CUST_211,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-12
+CUST_241,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-30
+CUST_216,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-13
+CUST_210,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-08-31
+CUST_240,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-08-27
+CUST_241,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-08-25
+CUST_232,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-09-14
+CUST_201,GROC_14,Dark Chocolate Granola,Pantry,5.79,3,2026-09-26
+CUST_207,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-09-21
+CUST_245,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,1,2026-08-16
+CUST_208,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,2,2026-09-12
+CUST_234,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,2,2026-09-30
+CUST_229,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-09-02
+CUST_228,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-09-27
+CUST_211,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,1,2026-08-17
+CUST_216,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-09-19
+CUST_234,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,1,2026-08-29
+CUST_205,GROC_10,Salted Caramel Almonds,Snacks,6.99,1,2026-08-22
+CUST_221,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-08-10
+CUST_215,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-08-14
+CUST_205,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-08-30
+CUST_227,GROC_01,Organic Hass Avocados,Produce,4.99,3,2026-08-25
+CUST_238,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,1,2026-09-26
+CUST_237,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-08-23
+CUST_220,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,3,2026-09-23
+CUST_227,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,2,2026-09-21
+CUST_239,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-08-18
+CUST_228,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,1,2026-09-12
+CUST_244,GROC_12,Organic Strawberries 1lb,Produce,4.49,2,2026-09-23
+CUST_230,GROC_14,Dark Chocolate Granola,Pantry,5.79,4,2026-09-04
+CUST_202,GROC_14,Dark Chocolate Granola,Pantry,5.79,2,2026-09-12
+CUST_202,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-25
+CUST_230,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-21
+CUST_214,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-09-26
+CUST_225,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,4,2026-08-27
+CUST_217,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-09-17
+CUST_235,GROC_01,Organic Hass Avocados,Produce,4.99,4,2026-08-15
+CUST_242,GROC_01,Organic Hass Avocados,Produce,4.99,4,2026-08-03
+CUST_202,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,1,2026-08-02
+CUST_240,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-12
+CUST_208,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,1,2026-09-14
+CUST_217,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,1,2026-09-08
+CUST_208,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-08-20
+CUST_207,GROC_09,Organic Bananas Bunch,Produce,2.19,3,2026-09-06
+CUST_244,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-09-30
+CUST_213,GROC_01,Organic Hass Avocados,Produce,4.99,2,2026-09-10
+CUST_216,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,2,2026-09-24
+CUST_244,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-06
+CUST_203,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-08-24
+CUST_205,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,1,2026-09-24
+CUST_227,GROC_12,Organic Strawberries 1lb,Produce,4.49,1,2026-08-24
+CUST_241,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-08-10
+CUST_228,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-09-11
+CUST_218,GROC_09,Organic Bananas Bunch,Produce,2.19,3,2026-09-19
+CUST_231,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,2,2026-09-07
+CUST_218,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-29
+CUST_206,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-18
+CUST_230,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,2,2026-08-22
+CUST_202,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,1,2026-09-01
+CUST_214,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-08-18
+CUST_239,GROC_10,Salted Caramel Almonds,Snacks,6.99,1,2026-08-01
+CUST_234,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,1,2026-09-16
+CUST_227,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,2,2026-09-14
+CUST_231,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-20
+CUST_202,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-14
+CUST_216,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-08-31
+CUST_236,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,1,2026-09-17
+CUST_236,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-08-18
+CUST_220,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-13
+CUST_221,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-18
+CUST_245,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-31
+CUST_218,GROC_11,Sparkling Mineral Water 6pk,Beverages,5.99,4,2026-09-03
+CUST_239,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-13
+CUST_219,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,1,2026-08-01
+CUST_235,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-08-04
+CUST_236,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,3,2026-09-10
+CUST_232,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-08-19
+CUST_231,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,1,2026-08-04
+CUST_217,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-09-22
+CUST_205,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-09-10
+CUST_244,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-09-06
+CUST_220,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-05
+CUST_227,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-08-15
+CUST_234,GROC_05,Organic Baby Spinach,Produce,3.49,3,2026-08-20
+CUST_238,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,1,2026-09-09
+CUST_204,GROC_09,Organic Bananas Bunch,Produce,2.19,2,2026-09-30
+CUST_214,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-08-06
+CUST_211,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,2,2026-08-11
+CUST_201,GROC_05,Organic Baby Spinach,Produce,3.49,2,2026-08-31
+CUST_219,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-08-19
+CUST_245,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-08-15
+CUST_217,GROC_12,Organic Strawberries 1lb,Produce,4.49,2,2026-09-12
+CUST_213,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-09-11
+CUST_210,GROC_14,Dark Chocolate Granola,Pantry,5.79,2,2026-08-05
+CUST_204,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-17
+CUST_237,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-08-30
+CUST_245,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-18
+CUST_233,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,1,2026-09-08
+CUST_203,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,2,2026-09-08
+CUST_217,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-09-13
+CUST_237,GROC_09,Organic Bananas Bunch,Produce,2.19,1,2026-09-18
+CUST_244,GROC_12,Organic Strawberries 1lb,Produce,4.49,2,2026-09-18
+CUST_212,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,2,2026-09-28
+CUST_218,GROC_03,Artisanal Sourdough Bread,Bakery,5.49,2,2026-09-10
+CUST_232,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,1,2026-08-27
+CUST_222,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-08-11
+CUST_222,GROC_05,Organic Baby Spinach,Produce,3.49,1,2026-09-12
+CUST_226,GROC_12,Organic Strawberries 1lb,Produce,4.49,2,2026-08-30
+CUST_206,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-19
+CUST_226,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,2,2026-08-01
+CUST_243,GROC_13,Ground Arabica Dark Roast,Pantry,9.99,1,2026-08-04
+CUST_213,GROC_08,Greek Whole Milk Yogurt,Dairy & Eggs,4.79,2,2026-09-01
+CUST_241,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-08-18
+CUST_236,GROC_02,Whole Milk 1 Gallon,Dairy & Eggs,3.89,1,2026-09-26
+CUST_245,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,1,2026-09-10
+CUST_239,GROC_12,Organic Strawberries 1lb,Produce,4.49,2,2026-08-20
+CUST_236,GROC_01,Organic Hass Avocados,Produce,4.99,1,2026-08-15
+CUST_208,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-09-23
+CUST_210,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,2,2026-09-02
+CUST_218,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-08-31
+CUST_216,GROC_06,Cold Brew Coffee 32oz,Beverages,6.29,1,2026-08-13
+CUST_239,GROC_07,Extra Virgin Olive Oil 500ml,Pantry,12.99,3,2026-09-25
+CUST_205,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,2,2026-08-27
+CUST_222,GROC_14,Dark Chocolate Granola,Pantry,5.79,1,2026-09-22
+CUST_201,GROC_04,Pasture-Raised Brown Eggs,Dairy & Eggs,5.99,1,2026-09-07
+CUST_238,GROC_15,Sea Salt Kettle Chips,Snacks,3.69,1,2026-08-10

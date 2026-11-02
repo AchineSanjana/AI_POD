@@ -283,6 +283,7 @@ def signup_company_account(
         "created_at": now_iso,
         "email_verified": False,
         "verification_sent": True,
+        "email_dispatched": verif_info.get("email_dispatched", False),
         "verification_code": verif_info.get("verification_code"),
         "private_key": sk,
         "public_key": pk,
@@ -456,6 +457,7 @@ def resend_email_verification(
     return {
         "email": clean_email,
         "verification_sent": True,
+        "email_dispatched": info.get("email_dispatched", False),
         "verification_code": info.get("verification_code"),
         "message": "Verification code has been dispatched.",
     }

@@ -79,6 +79,9 @@ class AccountSignupResponse(BaseModel):
     verification_sent: bool = Field(
         True, description="Whether email verification code was sent"
     )
+    email_dispatched: bool = Field(
+        False, description="Whether verification email was delivered via SMTP"
+    )
     verification_code: str | None = Field(
         None, description="Verification code (accessible in test/dev environments)"
     )
@@ -140,6 +143,9 @@ class ResendVerificationResponse(BaseModel):
 
     email: str = Field(..., description="Account email address")
     verification_sent: bool = Field(..., description="Dispatch status")
+    email_dispatched: bool = Field(
+        False, description="Whether verification email was delivered via SMTP"
+    )
     verification_code: str | None = Field(
         None, description="Dispatched code in dev/test mode"
     )
