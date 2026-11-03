@@ -16,7 +16,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel
 
 from scripts.onboard_tenant import _apply_overrides, save_tenant_to_config
-from src.api.auth import TENANT_AUTH_MAPPING, get_current_tenant, load_tenant_auth
+from src.api.auth import (
+    TENANT_AUTH_MAPPING,
+    get_current_tenant,
+    get_tenant_for_admin_action,
+    load_tenant_auth,
+)
+from src.utils.atomic_yaml import atomic_dump_yaml, atomic_yaml_write_lock
 from src.api.rate_limiter import check_rate_limit
 from src.api.recommendations import clear_model_cache
 from src.api.schemas import (
@@ -229,7 +235,7 @@ router = APIRouter(
 )
 async def upload_dataset(
     request: Request,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(get_tenant_for_admin_action),
 ) -> OnboardUploadResponse:
     """Upload raw dataset file for the authenticated tenant."""
     content_type = request.headers.get("content-type", "").lower()
@@ -343,7 +349,7 @@ def _resolve_tenant_data_file(tenant_id: str, custom_file: str | None = None) ->
 )
 def validate_dataset(
     payload: OnboardValidateRequest | None = None,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(get_tenant_for_admin_action),
 ) -> OnboardValidateResponse:
     """Validate and profile the tenant's raw dataset."""
     data_file_path = _resolve_tenant_data_file(
@@ -404,9 +410,16 @@ def validate_dataset(
 )
 def confirm_onboarding(
     payload: OnboardConfirmRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(get_tenant_for_admin_action),
 ) -> OnboardConfirmResponse:
     """Validate and persist the tenant's configuration in config.yaml."""
+    if payload.candidate_config:
+        req_tenant = payload.candidate_config.get("tenant_id")
+        if req_tenant and req_tenant != tenant_id and tenant_id != "admin":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Forbidden: You can only configure your own tenant ('{tenant_id}').",
+            )
     data_file_path = _resolve_tenant_data_file(tenant_id)
     df = pd.read_csv(data_file_path)
     report = profile_dataframe(df)
@@ -455,7 +468,7 @@ def confirm_onboarding(
 def train_tenant(
     background_tasks: BackgroundTasks,
     payload: OnboardTrainRequest | None = None,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(get_tenant_for_admin_action),
 ) -> OnboardTrainResponse:
     """Asynchronously train and persist recommendation model artifacts for the authenticated tenant."""
     config = load_config()
@@ -526,7 +539,7 @@ def train_tenant(
     description="Inspects background training status and artifact readiness for the authenticated tenant.",
 )
 def get_onboarding_status(
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(get_tenant_for_admin_action),
 ) -> OnboardStatusResponse:
     """Check the onboarding status and artifact readiness for the authenticated tenant."""
     config = load_config()
@@ -685,61 +698,61 @@ def list_tenant_keys() -> list[dict[str, Any]]:
         })
         seen_keys.add(k)
 
-    # Include fallback demo tenant default keys if not configured
-    cfg_tenants = config.get("tenants", {})
-    if isinstance(cfg_tenants, dict):
-        for t in cfg_tenants.keys():
-            default_sk = f"sk-{t}-xxxx"
-            if default_sk not in seen_keys:
-                items.append({
-                    "tenant_id": t,
-                    "api_key": default_sk,
-                    "key_type": "private",
-                    "created_at": None,
-                })
-                TENANT_AUTH_MAPPING[default_sk] = t
-
     return sorted(items, key=lambda x: (x["tenant_id"], x["api_key"]))
 
 
 @open_router.post(
     "/register-key",
     summary="Register a new tenant API key",
-    description="Registers a new tenant_id and API key for onboarding.",
+    description="Registers an API key for the authenticated tenant.",
 )
-def register_tenant_key(payload: RegisterKeyRequest) -> dict[str, Any]:
-    tenant_id = payload.tenant_id.strip()
-    if not tenant_id:
-        raise HTTPException(status_code=400, detail="tenant_id cannot be blank")
+def register_tenant_key(
+    payload: RegisterKeyRequest,
+    auth_tenant: str = Depends(get_tenant_for_admin_action),
+) -> dict[str, Any]:
+    # tenant_id is derived strictly from authenticated credentials
+    if payload.tenant_id and payload.tenant_id.strip() != auth_tenant and auth_tenant != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail=f"Forbidden: You can only register keys for your own tenant ('{auth_tenant}').",
+        )
 
-    api_key = payload.api_key.strip() if payload.api_key else f"sk-{tenant_id}-xxxx"
+    target_tenant = payload.tenant_id.strip() if (auth_tenant == "admin" and payload.tenant_id.strip()) else auth_tenant
+
+    if not payload.api_key or not payload.api_key.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="api_key must be provided. Fabricating default demo keys is not permitted.",
+        )
+
+    api_key = payload.api_key.strip()
     key_type = "public" if (payload.key_type == "public" or api_key.startswith("pk-")) else "private"
     now_iso = datetime.now(timezone.utc).isoformat()
 
     record = {
-        "tenant_id": tenant_id,
+        "tenant_id": target_tenant,
         "key_type": key_type,
         "created_at": now_iso,
     }
 
     local_path = resolve_path("config/tenants_auth.local.yaml")
-    data = {}
-    if local_path.exists():
-        with open(local_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
+    with atomic_yaml_write_lock(local_path):
+        data = {}
+        if local_path.exists():
+            with open(local_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
 
-    if "tenants_auth" not in data or not isinstance(data["tenants_auth"], dict):
-        data["tenants_auth"] = {}
+        if "tenants_auth" not in data or not isinstance(data["tenants_auth"], dict):
+            data["tenants_auth"] = {}
 
-    data["tenants_auth"][api_key] = record
-    with open(local_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(data, f, sort_keys=False)
+        data["tenants_auth"][api_key] = record
+        atomic_dump_yaml(local_path, data, sort_keys=False, acquire_lock=False)
 
     # Immediately register in in-memory auth cache
     load_tenant_auth()
     return {
         "status": "ok",
-        "tenant_id": tenant_id,
+        "tenant_id": target_tenant,
         "api_key": api_key,
         "key_type": key_type,
         "created_at": now_iso,

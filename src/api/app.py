@@ -1,9 +1,11 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +38,20 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("src.api.app")
     logger.info("AI_POD Recommendations API starting up (binding=0.0.0.0:8000)")
     logger.info("Serving /v1/recommendations, /v1/track, and demo portals")
+
+    # Email delivery status logging
+    smtp_host = os.environ.get("SMTP_HOST", "").strip()
+    is_prod = (
+        os.environ.get("ENV", "").strip().lower() in ("production", "prod")
+        or os.environ.get("AI_POD_ENV", "").strip().lower() in ("production", "prod")
+    )
+    if smtp_host:
+        logger.info("Email delivery: SMTP via %s", smtp_host)
+    else:
+        logger.info("Email delivery: CONSOLE ONLY (SMTP_HOST not set)")
+        if is_prod:
+            logger.error("Production environment has no SMTP_HOST configured; email delivery disabled")
+
     load_tenant_auth()
     worker = None
     if os.environ.get("ENABLE_TRACKING_WORKER", "").strip().lower() in ("true", "1", "yes"):

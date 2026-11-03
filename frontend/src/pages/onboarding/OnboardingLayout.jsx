@@ -1,6 +1,7 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Zap, Check } from 'lucide-react';
+import UnverifiedBanner from '../../components/UnverifiedBanner';
 
 const STEPS = [
   { path: '/onboarding/upload',   label: 'Upload',   num: 1 },
@@ -66,6 +67,7 @@ export default function OnboardingLayout() {
         <div className="orb orb-blue"   style={{ width:400, height:400, top:-150, right:-100,  opacity:.3 }} />
         <div className="orb orb-purple" style={{ width:350, height:350, bottom:-100, left:-80, opacity:.25 }} />
         <div style={{ position:'relative', zIndex:1 }}>
+          <UnverifiedBanner />
           <Outlet />
         </div>
       </main>

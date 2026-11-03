@@ -108,11 +108,20 @@ RATE_LIMITER = InMemoryRateLimiter(window_seconds=60.0)
 def check_rate_limit(
     scope: str = "recommendations",
     limiter: InMemoryRateLimiter | None = None,
+    tenant_dep: Any = None,
 ) -> Callable[..., str]:
     """FastAPI dependency factory enforcing rate limits on authenticated tenants."""
     active_limiter = limiter or RATE_LIMITER
 
-    def dependency(tenant_id: str = Depends(get_current_tenant)) -> str:
+    if tenant_dep is not None:
+        target_dep = tenant_dep
+    elif scope == "onboarding":
+        from src.api.auth import get_tenant_for_admin_action
+        target_dep = get_tenant_for_admin_action
+    else:
+        target_dep = get_current_tenant
+
+    def dependency(tenant_id: str = Depends(target_dep)) -> str:
         result = active_limiter.check(tenant_id=tenant_id, scope=scope)
         if not result.allowed:
             raise HTTPException(
@@ -130,6 +139,146 @@ def check_rate_limit(
         return tenant_id
 
     return dependency
+
+
+class EmailResendRateLimiter:
+    """Thread-safe dual sliding-window rate limiter for email verification resends.
+
+    Enforces:
+    - Max 1 resend per 60 seconds per email address.
+    - Max 5 resends per 3600 seconds (1 hour) per email address.
+    """
+
+    def __init__(
+        self,
+        short_window: float = 60.0,
+        long_window: float = 3600.0,
+        long_limit: int = 5,
+    ):
+        self.short_window = short_window
+        self.long_window = long_window
+        self.long_limit = long_limit
+        self._history: dict[str, deque[float]] = {}
+        self._lock = Lock()
+
+    def check(self, email: str, now: float | None = None) -> tuple[bool, int]:
+        """Evaluate request against email resend limits.
+
+        Returns:
+            (allowed: bool, retry_after: int)
+        """
+        clean_email = email.strip().lower()
+        current_time = time.time() if now is None else now
+        long_cutoff = current_time - self.long_window
+
+        with self._lock:
+            if clean_email not in self._history:
+                self._history[clean_email] = deque()
+
+            history = self._history[clean_email]
+
+            # Purge timestamps outside the 1-hour window
+            while history and history[0] <= long_cutoff:
+                history.popleft()
+
+            # Rule 1: Max 1 resend per 60 seconds
+            if history:
+                latest = history[-1]
+                time_since_last = current_time - latest
+                if time_since_last < self.short_window:
+                    retry_after = max(1, math.ceil(self.short_window - time_since_last))
+                    return False, retry_after
+
+            # Rule 2: Max 5 resends per hour
+            if len(history) >= self.long_limit:
+                oldest = history[0]
+                retry_after = max(1, math.ceil(oldest + self.long_window - current_time))
+                return False, retry_after
+
+            # Allowed - record timestamp
+            history.append(current_time)
+            return True, 0
+
+    def reset(self, email: str | None = None) -> None:
+        """Reset rate limiter history (useful in tests)."""
+        with self._lock:
+            if email is None:
+                self._history.clear()
+            else:
+                self._history.pop(email.strip().lower(), None)
+
+
+EMAIL_RESEND_RATE_LIMITER = EmailResendRateLimiter()
+
+
+class EmailResendRateLimiter:
+    """Thread-safe dual sliding-window rate limiter for email verification resends.
+
+    Enforces:
+    - Max 1 resend per 60 seconds per email address.
+    - Max 5 resends per 3600 seconds (1 hour) per email address.
+    """
+
+    def __init__(
+        self,
+        short_window: float = 60.0,
+        long_window: float = 3600.0,
+        long_limit: int = 5,
+    ):
+        self.short_window = short_window
+        self.long_window = long_window
+        self.long_limit = long_limit
+        self._history: dict[str, deque[float]] = {}
+        self._lock = Lock()
+
+    def check(self, email: str, now: float | None = None) -> tuple[bool, int]:
+        """Evaluate request against email resend limits.
+
+        Returns:
+            (allowed: bool, retry_after: int)
+        """
+        clean_email = email.strip().lower()
+        current_time = time.time() if now is None else now
+        long_cutoff = current_time - self.long_window
+
+        with self._lock:
+            if clean_email not in self._history:
+                self._history[clean_email] = deque()
+
+            history = self._history[clean_email]
+
+            # Purge timestamps outside the 1-hour window
+            while history and history[0] <= long_cutoff:
+                history.popleft()
+
+            # Rule 1: Max 1 resend per 60 seconds
+            if history:
+                latest = history[-1]
+                time_since_last = current_time - latest
+                if time_since_last < self.short_window:
+                    retry_after = max(1, math.ceil(self.short_window - time_since_last))
+                    return False, retry_after
+
+            # Rule 2: Max 5 resends per hour
+            if len(history) >= self.long_limit:
+                oldest = history[0]
+                retry_after = max(1, math.ceil(oldest + self.long_window - current_time))
+                return False, retry_after
+
+            # Allowed - record timestamp
+            history.append(current_time)
+            return True, 0
+
+    def reset(self, email: str | None = None) -> None:
+        """Reset rate limiter history (useful in tests)."""
+        with self._lock:
+            if email is None:
+                self._history.clear()
+            else:
+                self._history.pop(email.strip().lower(), None)
+
+
+EMAIL_RESEND_RATE_LIMITER = EmailResendRateLimiter()
 
 
 # Separate in-memory rate limiter for public unauthenticated endpoints (signup)
@@ -190,4 +339,74 @@ def check_ip_rate_limit(
         return ip
 
     return dependency
+
+
+class EmailResendRateLimiter:
+    """Thread-safe dual sliding-window rate limiter for email verification resends.
+
+    Enforces:
+    - Max 1 resend per 60 seconds per email address.
+    - Max 5 resends per 3600 seconds (1 hour) per email address.
+    """
+
+    def __init__(
+        self,
+        short_window: float = 60.0,
+        long_window: float = 3600.0,
+        long_limit: int = 5,
+    ):
+        self.short_window = short_window
+        self.long_window = long_window
+        self.long_limit = long_limit
+        self._history: dict[str, deque[float]] = {}
+        self._lock = Lock()
+
+    def check(self, email: str, now: float | None = None) -> tuple[bool, int]:
+        """Evaluate request against email resend limits.
+
+        Returns:
+            (allowed: bool, retry_after: int)
+        """
+        clean_email = email.strip().lower()
+        current_time = time.time() if now is None else now
+        long_cutoff = current_time - self.long_window
+
+        with self._lock:
+            if clean_email not in self._history:
+                self._history[clean_email] = deque()
+
+            history = self._history[clean_email]
+
+            # Purge timestamps outside the 1-hour window
+            while history and history[0] <= long_cutoff:
+                history.popleft()
+
+            # Rule 1: Max 1 resend per 60 seconds
+            if history:
+                latest = history[-1]
+                time_since_last = current_time - latest
+                if time_since_last < self.short_window:
+                    retry_after = max(1, math.ceil(self.short_window - time_since_last))
+                    return False, retry_after
+
+            # Rule 2: Max 5 resends per hour
+            if len(history) >= self.long_limit:
+                oldest = history[0]
+                retry_after = max(1, math.ceil(oldest + self.long_window - current_time))
+                return False, retry_after
+
+            # Allowed - record timestamp
+            history.append(current_time)
+            return True, 0
+
+    def reset(self, email: str | None = None) -> None:
+        """Reset rate limiter history (useful in tests)."""
+        with self._lock:
+            if email is None:
+                self._history.clear()
+            else:
+                self._history.pop(email.strip().lower(), None)
+
+
+EMAIL_RESEND_RATE_LIMITER = EmailResendRateLimiter()
 

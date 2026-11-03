@@ -1,7 +1,28 @@
 const BASE_URL = import.meta.env.VITE_API_URL || '/v1';
 
-function getToken() {
+export function getSessionToken() {
   return localStorage.getItem('aipod_token');
+}
+
+export function clearSessionToken() {
+  localStorage.removeItem('aipod_token');
+}
+
+export function getStoredKeys() {
+  return {
+    publicKey: localStorage.getItem('aipod_pk'),
+    privateKey: localStorage.getItem('aipod_sk'),
+  };
+}
+
+export function clearAllTokens() {
+  localStorage.removeItem('aipod_token');
+  localStorage.removeItem('aipod_pk');
+  localStorage.removeItem('aipod_sk');
+}
+
+function getToken() {
+  return getSessionToken();
 }
 
 async function request(path, options = {}) {
@@ -21,8 +42,10 @@ async function request(path, options = {}) {
 export const signup = (body) => request('/accounts/signup', { method: 'POST', body: JSON.stringify(body) });
 export const login  = (body) => request('/accounts/login',  { method: 'POST', body: JSON.stringify(body) });
 export const loginMfa = (body) => request('/accounts/login/mfa', { method: 'POST', body: JSON.stringify(body) });
-export const verifyEmail = (body) => request('/accounts/verify-email', { method: 'POST', body: JSON.stringify(body) });
-export const resendVerification = (body) => request('/accounts/resend-verification', { method: 'POST', body: JSON.stringify(body) });
+export const verifyEmail = ({ email, code }) =>
+  request('/accounts/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) });
+export const resendVerification = ({ email }) =>
+  request('/accounts/resend-verification', { method: 'POST', body: JSON.stringify({ email }) });
 export const getMe = (explicitToken) => {
   const token = explicitToken || getToken();
   return request('/accounts/me', token ? { headers: { Authorization: `Bearer ${token}` } } : {});

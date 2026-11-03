@@ -13,6 +13,7 @@ from typing import Any
 
 import yaml
 
+from src.utils.atomic_yaml import atomic_dump_yaml, atomic_yaml_write_lock
 from src.utils.config import load_config, resolve_path
 
 
@@ -47,16 +48,16 @@ def issue_tenant_keys(
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # Generate keys if not provided
+    # Generate keys if not provided (increased entropy to 16 bytes / 32 hex chars)
     sk = (
         private_key.strip()
         if private_key
-        else f"sk-{clean_tenant}-{secrets.token_hex(6)}"
+        else f"sk-{clean_tenant}-{secrets.token_hex(16)}"
     )
     pk = (
         public_key.strip()
         if public_key
-        else f"pk-{clean_tenant}-{secrets.token_hex(6)}"
+        else f"pk-{clean_tenant}-{secrets.token_hex(16)}"
     )
 
     private_record = {
@@ -126,22 +127,21 @@ def issue_tenant_keys(
                 Overwrite=True,
             )
     else:
-        # Local YAML persistence
+        # Local YAML persistence with atomic write and process/thread locking
         local_path = resolve_path("config/tenants_auth.local.yaml")
-        data = {}
-        if local_path.exists():
-            with open(local_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
+        with atomic_yaml_write_lock(local_path):
+            data = {}
+            if local_path.exists():
+                with open(local_path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
 
-        if "tenants_auth" not in data or not isinstance(data["tenants_auth"], dict):
-            data["tenants_auth"] = {}
+            if "tenants_auth" not in data or not isinstance(data["tenants_auth"], dict):
+                data["tenants_auth"] = {}
 
-        data["tenants_auth"][sk] = private_record
-        data["tenants_auth"][pk] = public_record
+            data["tenants_auth"][sk] = private_record
+            data["tenants_auth"][pk] = public_record
 
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(local_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False)
+            atomic_dump_yaml(local_path, data, sort_keys=False, acquire_lock=False)
 
     # Immediately register in in-memory auth structures
     try:
@@ -268,30 +268,29 @@ def revoke_tenant_keys(
                     Overwrite=True,
                 )
     else:
-        # Local YAML
+        # Local YAML with atomic write and process/thread locking
         local_path = resolve_path("config/tenants_auth.local.yaml")
-        data = {}
-        if local_path.exists():
-            try:
-                with open(local_path, encoding="utf-8") as f:
-                    data = yaml.safe_load(f) or {}
-            except Exception:
-                data = {}
+        with atomic_yaml_write_lock(local_path):
+            data = {}
+            if local_path.exists():
+                try:
+                    with open(local_path, encoding="utf-8") as f:
+                        data = yaml.safe_load(f) or {}
+                except Exception:
+                    data = {}
 
-        mapping = data.get("tenants_auth", {})
-        if isinstance(mapping, dict):
-            to_delete = [
-                k for k, v in mapping.items()
-                if (isinstance(v, dict) and v.get("tenant_id") == clean_tenant)
-                or (isinstance(v, str) and v == clean_tenant)
-            ]
-            for k in to_delete:
-                del mapping[k]
-                revoked_keys.append(k)
-            data["tenants_auth"] = mapping
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(local_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(data, f, sort_keys=False)
+            mapping = data.get("tenants_auth", {})
+            if isinstance(mapping, dict):
+                to_delete = [
+                    k for k, v in mapping.items()
+                    if (isinstance(v, dict) and v.get("tenant_id") == clean_tenant)
+                    or (isinstance(v, str) and v == clean_tenant)
+                ]
+                for k in to_delete:
+                    del mapping[k]
+                    revoked_keys.append(k)
+                data["tenants_auth"] = mapping
+                atomic_dump_yaml(local_path, data, sort_keys=False, acquire_lock=False)
 
     # Immediately purge from in-memory lookup structures
     try:

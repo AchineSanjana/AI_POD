@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { signup } from '../api/client';
 import { Zap, Building2, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
 
@@ -21,7 +20,6 @@ function pwStrength(pw) {
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { login: authLogin } = useAuth();
 
   const [form, setForm] = useState({ company_name:'', email:'', password:'', confirm:'', industry:'' });
   const [showPw, setShowPw] = useState(false);
@@ -43,11 +41,10 @@ export default function SignUp() {
     setLoading(true);
     try {
       const data = await signup({ company_name: form.company_name, email: form.email, password: form.password });
-      // Store keys
+      // Store API keys only (so IntegrateStep can show them once)
       localStorage.setItem('aipod_sk', data.private_key);
       localStorage.setItem('aipod_pk', data.public_key);
-      authLogin(data.private_key, { company_name: data.company_name, tenant_id: data.tenant_id, public_key: data.public_key, email_verified: data.email_verified });
-      navigate('/onboarding/upload');
+      navigate('/verify-email', { state: { email: form.email } });
     } catch (err) {
       setError(err.message || 'Signup failed');
     } finally {

@@ -18,9 +18,10 @@ Provides:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from src.accounts.service import (
@@ -45,7 +46,8 @@ from src.accounts.service import (
     verify_email_for_account,
 )
 from src.accounts.session import get_current_account
-from src.api.rate_limiter import check_ip_rate_limit
+from src.accounts.verification import RECENT_VERIFICATION_EMAILS
+from src.api.rate_limiter import EMAIL_RESEND_RATE_LIMITER, check_ip_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +83,6 @@ class AccountSignupResponse(BaseModel):
     )
     email_dispatched: bool = Field(
         False, description="Whether verification email was delivered via SMTP"
-    )
-    verification_code: str | None = Field(
-        None, description="Verification code (accessible in test/dev environments)"
     )
     private_key: str = Field(
         ...,
@@ -145,9 +144,6 @@ class ResendVerificationResponse(BaseModel):
     verification_sent: bool = Field(..., description="Dispatch status")
     email_dispatched: bool = Field(
         False, description="Whether verification email was delivered via SMTP"
-    )
-    verification_code: str | None = Field(
-        None, description="Dispatched code in dev/test mode"
     )
     message: str = Field(..., description="Status message")
 
@@ -245,6 +241,12 @@ class AccountMeResponse(BaseModel):
     is_admin: bool | None = Field(
         default=False, description="Whether account has admin privileges"
     )
+    key_created_at: str | None = Field(
+        default=None, description="ISO timestamp of key creation"
+    )
+    has_private_key: bool = Field(
+        default=False, description="Whether private API key exists in storage"
+    )
 
 
 class AccountKeysRegenerateResponse(BaseModel):
@@ -301,6 +303,7 @@ def signup(payload: AccountSignupRequest) -> AccountSignupResponse:
             email=payload.email,
             password=payload.password,
         )
+        result.pop("verification_code", None)
         return AccountSignupResponse(**result)
     except InvalidCompanyNameError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -350,9 +353,27 @@ def verify_email(payload: VerifyEmailRequest) -> VerifyEmailResponse:
 def resend_verification(
     payload: ResendVerificationRequest,
 ) -> ResendVerificationResponse:
-    """Resend email verification code."""
+    """Resend email verification code with rate limiting."""
+    clean_email = (payload.email or "").strip().lower()
+    allowed, retry_after = EMAIL_RESEND_RATE_LIMITER.check(clean_email)
+    if not allowed:
+        logger.warning(
+            "Resend rate limit exceeded for email '%s' (retry_after=%ss)",
+            clean_email,
+            retry_after,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Too many verification resend requests for '{clean_email}'. "
+                f"Please wait {retry_after} seconds before requesting another code."
+            ),
+            headers={"Retry-After": str(retry_after)},
+        )
+
     try:
-        result = resend_email_verification(email=payload.email)
+        result = resend_email_verification(email=clean_email)
+        result.pop("verification_code", None)
         return ResendVerificationResponse(**result)
     except Exception as exc:
         logger.exception("Unexpected error resending verification: %s", exc)
@@ -360,6 +381,41 @@ def resend_verification(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to resend verification email",
         )
+
+
+@router.get(
+    "/dev/last-verification",
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve latest verification code for testing (dev only)",
+    description="Returns the latest verification code dispatched to this email. Returns 404 in production.",
+)
+def get_last_verification(
+    email: str = Query(..., description="Account email address"),
+) -> dict[str, Any]:
+    """Retrieve last verification code for testing/development inspection."""
+    is_prod = (
+        os.environ.get("ENV", "").strip().lower() in ("production", "prod")
+        or os.environ.get("AI_POD_ENV", "").strip().lower() in ("production", "prod")
+    )
+    if is_prod:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endpoint not found",
+        )
+
+    clean_email = (email or "").strip().lower()
+    record = RECENT_VERIFICATION_EMAILS.get(clean_email)
+    if not record or not record.get("code"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No verification code found for '{clean_email}'",
+        )
+
+    return {
+        "email": clean_email,
+        "code": record["code"],
+        "sent_at": record.get("sent_at"),
+    }
 
 
 @router.post(
@@ -547,8 +603,13 @@ def get_me(
             profile["is_admin"] = current_account["is_admin"]
         return AccountMeResponse(**profile)
     except AccountError as exc:
+        status_code = (
+            status.HTTP_409_CONFLICT
+            if "key" in str(exc).lower()
+            else status.HTTP_404_NOT_FOUND
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status_code,
             detail=str(exc),
         )
     except Exception as exc:
@@ -577,8 +638,13 @@ def regenerate_keys(
         result = regenerate_account_keys(account_id=current_account["account_id"])
         return AccountKeysRegenerateResponse(**result)
     except AccountError as exc:
+        status_code = (
+            status.HTTP_409_CONFLICT
+            if "key" in str(exc).lower()
+            else status.HTTP_404_NOT_FOUND
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status_code,
             detail=str(exc),
         )
     except Exception as exc:

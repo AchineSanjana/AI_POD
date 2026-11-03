@@ -58,6 +58,8 @@ def clean_accounts_file(tmp_path, monkeypatch):
 
     monkeypatch.setattr("src.accounts.storage.LOCAL_ACCOUNTS_FILE", str(temp_accounts))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
+    monkeypatch.setenv("SMTP_HOST", "")
+    monkeypatch.setenv("ENFORCE_EMAIL_VERIFICATION", "false")
 
     import src.utils.config as cfg_module
     orig_resolve = cfg_module.resolve_path

@@ -16,6 +16,11 @@ from typing import Any
 
 import yaml
 
+from src.utils.atomic_yaml import (
+    atomic_dump_yaml,
+    atomic_yaml_write_lock,
+    get_thread_lock,
+)
 from src.utils.config import load_config, resolve_path
 
 logger = logging.getLogger(__name__)
@@ -133,8 +138,9 @@ def get_accounts_records(
     local_path = _resolve_accounts_path(LOCAL_ACCOUNTS_FILE)
     if local_path.exists():
         try:
-            with open(local_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
+            with get_thread_lock(local_path):
+                with open(local_path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
             if isinstance(data, dict):
                 accounts_map = data.get("accounts", data)
                 if isinstance(accounts_map, dict):
@@ -281,23 +287,22 @@ def save_account_record(
             )
         logger.info("Persisted account '%s' to AWS secure storage", clean_account_id)
     else:
-        # Local mode: persist to config/accounts.local.yaml
+        # Local mode: persist to config/accounts.local.yaml with atomic write and locking
         local_path = _resolve_accounts_path(LOCAL_ACCOUNTS_FILE)
-        data: dict[str, Any] = {}
-        if local_path.exists():
-            try:
-                with open(local_path, encoding="utf-8") as f:
-                    data = yaml.safe_load(f) or {}
-            except Exception:
-                data = {}
+        with atomic_yaml_write_lock(local_path):
+            data: dict[str, Any] = {}
+            if local_path.exists():
+                try:
+                    with open(local_path, encoding="utf-8") as f:
+                        data = yaml.safe_load(f) or {}
+                except Exception:
+                    data = {}
 
-        if "accounts" not in data or not isinstance(data["accounts"], dict):
-            data = {"accounts": {}}
+            if "accounts" not in data or not isinstance(data["accounts"], dict):
+                data = {"accounts": {}}
 
-        data["accounts"][clean_account_id] = record
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(local_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False)
+            data["accounts"][clean_account_id] = record
+            atomic_dump_yaml(local_path, data, sort_keys=False, acquire_lock=False)
 
         logger.info("Persisted account '%s' to '%s'", clean_account_id, local_path)
 

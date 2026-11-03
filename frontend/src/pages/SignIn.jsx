@@ -1,23 +1,32 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { login as apiLogin, loginMfa, getMe } from '../api/client';
-import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
+import { login as apiLogin, loginMfa, getMe, resendVerification } from '../api/client';
+import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login: authLogin } = useAuth();
 
-  const [form,  setForm]  = useState({ email:'', password:'', mfa_code:'' });
+  const initialEmail = location.state?.email || searchParams.get('email') || '';
+  const initialMessage = location.state?.message || '';
+
+  const [form,  setForm]  = useState({ email: initialEmail, password:'', mfa_code:'' });
   const [showPw,setShowPw]= useState(false);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState(initialMessage);
   const [loading,setLoading]=useState(false);
   const [mfaTicket,setMfaTicket]=useState(null);
 
-  const handleChange = e => setForm(f=>({...f,[e.target.name]:e.target.value}));
+  const handleChange = e => {
+    setForm(f=>({...f,[e.target.name]:e.target.value}));
+    if (error) setError('');
+  };
 
   const handleLogin = async (e) => {
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault(); setError(''); setInfoMessage(''); setLoading(true);
     try {
       const data = await apiLogin({ email: form.email, password: form.password });
       if (data.mfa_required && data.mfa_ticket) {
@@ -34,14 +43,34 @@ export default function SignIn() {
       }
       authLogin(token, me || { email: form.email, company_name: 'Admin', tenant_id: 'admin' });
 
-      // If user is admin (admin@gmail.com), show the main recommendations UI page
-      const isAdmin = form.email.trim().toLowerCase() === 'admin@gmail.com' || me?.is_admin || me?.role === 'admin';
+      // Check admin privileges strictly from backend profile
+      const isAdmin = Boolean(me?.is_admin || me?.role === 'admin');
       if (isAdmin) {
         window.location.href = '/ui';
       } else {
         navigate('/dashboard');
       }
     } catch (err) {
+      if (err?.status === 403) {
+        // Email not verified: automatically trigger resend and redirect to /verify-email
+        try {
+          await resendVerification({ email: form.email });
+        } catch (resendErr) {
+          console.warn('Auto-resend notification:', resendErr);
+        }
+        navigate('/verify-email', {
+          state: {
+            email: form.email,
+            autoResent: true,
+            info: 'Your email address is not verified yet. We just sent a verification code to your inbox.',
+          },
+        });
+        return;
+      }
+      if (err?.status === 423) {
+        setError(err.message || 'Account temporarily locked due to consecutive failed attempts. Please try again later.');
+        return;
+      }
       setError(err.message || 'Login failed');
     } finally { setLoading(false); }
   };
@@ -60,8 +89,8 @@ export default function SignIn() {
       }
       authLogin(token, me || { email: form.email, company_name: 'Admin', tenant_id: 'admin' });
 
-      // If user is admin (admin@gmail.com), show the main recommendations UI page
-      const isAdmin = form.email.trim().toLowerCase() === 'admin@gmail.com' || me?.is_admin || me?.role === 'admin';
+      // Check admin privileges strictly from backend profile
+      const isAdmin = Boolean(me?.is_admin || me?.role === 'admin');
       if (isAdmin) {
         window.location.href = '/ui';
       } else {
@@ -91,6 +120,12 @@ export default function SignIn() {
         </div>
 
         <div className="card-glass" style={{ padding:32 }}>
+          {infoMessage && (
+            <div className="alert alert-success mb-6" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+              <span>{infoMessage}</span>
+            </div>
+          )}
           {error && <div className="alert alert-error mb-6">{error}</div>}
 
           {!mfaTicket ? (

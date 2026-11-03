@@ -12,7 +12,13 @@ export function AuthProvider({ children }) {
     if (token) {
       getMe()
         .then(setUser)
-        .catch(() => { localStorage.removeItem('aipod_token'); })
+        .catch((err) => {
+          if (err?.status === 401) {
+            // Only clear the session JWT if unauthorized, preserving aipod_pk / aipod_sk
+            localStorage.removeItem('aipod_token');
+          }
+          setUser(null);
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);

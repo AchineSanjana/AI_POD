@@ -23,6 +23,8 @@ from typing import Any
 import pandas as pd
 import yaml
 
+from src.utils.atomic_yaml import atomic_dump_yaml, atomic_yaml_write_lock
+
 # Allow running as `python scripts/onboard_tenant.py` from project root
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -66,19 +68,25 @@ def save_tenant_to_config(
         Path to config.yaml file.
     """
     config_file = Path(config_path)
-    if config_file.exists():
-        with open(config_file, encoding="utf-8") as f:
-            full_config = yaml.safe_load(f) or {}
-    else:
-        full_config = {}
+    with atomic_yaml_write_lock(config_file):
+        if config_file.exists():
+            with open(config_file, encoding="utf-8") as f:
+                full_config = yaml.safe_load(f) or {}
+        else:
+            full_config = {}
 
-    if "tenants" not in full_config:
-        full_config["tenants"] = {}
+        if "tenants" not in full_config:
+            full_config["tenants"] = {}
 
-    full_config["tenants"][tenant_id] = tenant_block
+        full_config["tenants"][tenant_id] = tenant_block
 
-    with open(config_file, "w", encoding="utf-8") as f:
-        yaml.safe_dump(full_config, f, sort_keys=False, default_flow_style=False)
+        atomic_dump_yaml(
+            config_file,
+            full_config,
+            sort_keys=False,
+            default_flow_style=False,
+            acquire_lock=False,
+        )
 
 
 def handle_review_prompts(

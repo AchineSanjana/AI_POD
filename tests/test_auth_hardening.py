@@ -8,15 +8,18 @@ from fastapi.testclient import TestClient
 from src.accounts.totp import (
     generate_totp_code,
 )
+from src.accounts.verification import RECENT_VERIFICATION_EMAILS
 from src.api.app import app
-from src.api.rate_limiter import SIGNUP_RATE_LIMITER
+from src.api.rate_limiter import EMAIL_RESEND_RATE_LIMITER, SIGNUP_RATE_LIMITER
 
 
 @pytest.fixture(autouse=True)
 def reset_rate_limiters():
     SIGNUP_RATE_LIMITER.reset()
+    EMAIL_RESEND_RATE_LIMITER.reset()
     yield
     SIGNUP_RATE_LIMITER.reset()
+    EMAIL_RESEND_RATE_LIMITER.reset()
 
 
 @pytest.fixture
@@ -31,6 +34,8 @@ def clean_accounts(tmp_path, monkeypatch):
 
     monkeypatch.setattr("src.accounts.storage.LOCAL_ACCOUNTS_FILE", str(temp_accounts))
     monkeypatch.setenv("STORAGE_BACKEND", "local")
+    monkeypatch.setenv("SMTP_HOST", "")
+    monkeypatch.setenv("ENFORCE_EMAIL_VERIFICATION", "false")
 
     import src.utils.config as cfg_module
 
@@ -60,8 +65,15 @@ def test_signup_dispatches_verification_code(client: TestClient, clean_accounts)
     data = resp.json()
     assert data["email_verified"] is False
     assert data["verification_sent"] is True
-    assert "verification_code" in data
-    code = data["verification_code"]
+    # Security: verification_code must NOT be returned in API response
+    assert "verification_code" not in data
+    assert "code" not in data
+    assert "token" not in data
+
+    # Verify code was dispatched to in-memory store
+    record = RECENT_VERIFICATION_EMAILS.get("dev@securecorp.com")
+    assert record is not None
+    code = record["code"]
     assert len(code) == 6
     assert code.isdigit()
 
@@ -75,7 +87,8 @@ def test_verify_email_success_and_failure(client: TestClient, clean_accounts):
     }
     signup_resp = client.post("/v1/accounts/signup", json=signup_payload)
     assert signup_resp.status_code == 201
-    code = signup_resp.json()["verification_code"]
+    assert "verification_code" not in signup_resp.json()
+    code = RECENT_VERIFICATION_EMAILS["verify@testcorp.com"]["code"]
 
     # 1. Invalid code rejected
     bad_resp = client.post(
@@ -118,7 +131,14 @@ def test_resend_verification_email(client: TestClient, clean_accounts):
     assert resend_resp.status_code == 200
     data = resend_resp.json()
     assert data["verification_sent"] is True
-    assert len(data["verification_code"]) == 6
+    # Security: verification_code must NOT be returned in API response
+    assert "verification_code" not in data
+    assert "code" not in data
+    assert "token" not in data
+
+    code = RECENT_VERIFICATION_EMAILS["resend@testcorp.com"]["code"]
+    assert len(code) == 6
+    assert code.isdigit()
 
 
 def test_login_brute_force_lockout(client: TestClient, clean_accounts):
@@ -166,7 +186,9 @@ def test_enforce_email_verification_blocks_unverified_login(
         "password": "StrictPassword123!",
     }
     signup_resp = client.post("/v1/accounts/signup", json=signup_payload)
-    code = signup_resp.json()["verification_code"]
+    assert signup_resp.status_code == 201
+    assert "verification_code" not in signup_resp.json()
+    code = RECENT_VERIFICATION_EMAILS["strict@testcorp.com"]["code"]
 
     # Login before verification fails with 403 Forbidden
     login_resp = client.post(
@@ -333,3 +355,173 @@ def test_production_blocks_wildcard_xxxx_mock_keys(client: TestClient, monkeypat
     prod_resp = client.get("/onboarding/status", headers={"X-API-Key": "sk-telco-xxxx"})
     assert prod_resp.status_code == 401
     assert "Invalid API Key" in prod_resp.json()["detail"]
+
+
+def test_security_responses_contain_no_verification_code(client: TestClient, clean_accounts):
+    """Verify POST /signup, /resend-verification, and /verify-email strip code and token."""
+    # 1. Signup
+    signup_payload = {
+        "company_name": "NoLeak Corp",
+        "email": "noleak@testcorp.com",
+        "password": "Password123!",
+    }
+    signup_resp = client.post("/v1/accounts/signup", json=signup_payload)
+    assert signup_resp.status_code == 201
+    signup_data = signup_resp.json()
+    assert "verification_code" not in signup_data
+    assert "code" not in signup_data
+    assert "token" not in signup_data
+
+    # Code is only in RECENT_VERIFICATION_EMAILS
+    code = RECENT_VERIFICATION_EMAILS["noleak@testcorp.com"]["code"]
+    assert code and len(code) == 6
+
+    # 2. Resend
+    EMAIL_RESEND_RATE_LIMITER.reset()
+    resend_resp = client.post(
+        "/v1/accounts/resend-verification",
+        json={"email": "noleak@testcorp.com"},
+    )
+    assert resend_resp.status_code == 200
+    resend_data = resend_resp.json()
+    assert "verification_code" not in resend_data
+    assert "code" not in resend_data
+    assert "token" not in resend_data
+
+    # 3. Verify
+    new_code = RECENT_VERIFICATION_EMAILS["noleak@testcorp.com"]["code"]
+    verify_resp = client.post(
+        "/v1/accounts/verify-email",
+        json={"email": "noleak@testcorp.com", "code": new_code},
+    )
+    assert verify_resp.status_code == 200
+    verify_data = verify_resp.json()
+    assert "verification_code" not in verify_data
+    assert "code" not in verify_data
+    assert "token" not in verify_data
+
+
+def test_resend_verification_rate_limiting_60s(client: TestClient, clean_accounts):
+    """Verify max 1 resend per 60s per email returns 429 with Retry-After header."""
+    signup_payload = {
+        "company_name": "Rate Corp",
+        "email": "ratelimit@testcorp.com",
+        "password": "Password123!",
+    }
+    client.post("/v1/accounts/signup", json=signup_payload)
+
+    # First resend succeeds
+    resp1 = client.post(
+        "/v1/accounts/resend-verification",
+        json={"email": "ratelimit@testcorp.com"},
+    )
+    assert resp1.status_code == 200
+
+    # Immediate second resend is rate-limited
+    resp2 = client.post(
+        "/v1/accounts/resend-verification",
+        json={"email": "ratelimit@testcorp.com"},
+    )
+    assert resp2.status_code == 429
+    assert "Retry-After" in resp2.headers
+    retry_after = int(resp2.headers["Retry-After"])
+    assert 1 <= retry_after <= 60
+    assert "too many" in resp2.json()["detail"].lower()
+
+
+def test_resend_verification_rate_limiter_hourly():
+    """Verify dual window limiter enforces max 5 resends per hour."""
+    limiter = EMAIL_RESEND_RATE_LIMITER
+    limiter.reset()
+
+    email = "window@testcorp.com"
+    base_time = 1000.0
+
+    # 5 resends spaced 65s apart (allowed by 60s rule)
+    for i in range(5):
+        allowed, retry = limiter.check(email, now=base_time + (i * 65))
+        assert allowed is True
+        assert retry == 0
+
+    # 6th attempt within the hour window (325s from start) -> rejected by 5/hour rule
+    allowed, retry = limiter.check(email, now=base_time + 325)
+    assert allowed is False
+    # Next available should be base_time + 3600
+    expected_retry = 3600 - 325
+    assert retry == expected_retry
+
+    # After 1 hour has elapsed, it succeeds
+    allowed, retry = limiter.check(email, now=base_time + 3601)
+    assert allowed is True
+    assert retry == 0
+
+
+def test_dev_last_verification_endpoint(client: TestClient, clean_accounts, monkeypatch):
+    """GET /v1/accounts/dev/last-verification returns code in dev, 404 in production."""
+    signup_payload = {
+        "company_name": "Dev Check Corp",
+        "email": "devcheck@testcorp.com",
+        "password": "Password123!",
+    }
+    client.post("/v1/accounts/signup", json=signup_payload)
+
+    # 1. Dev mode succeeds
+    monkeypatch.setenv("ENV", "development")
+    dev_resp = client.get("/v1/accounts/dev/last-verification?email=devcheck@testcorp.com")
+    assert dev_resp.status_code == 200
+    data = dev_resp.json()
+    assert data["email"] == "devcheck@testcorp.com"
+    assert len(data["code"]) == 6
+    assert data["code"].isdigit()
+    assert "sent_at" in data
+
+    # 2. Unknown email returns 404
+    unknown_resp = client.get("/v1/accounts/dev/last-verification?email=unknown@testcorp.com")
+    assert unknown_resp.status_code == 404
+
+    # 3. Production mode returns 404 for security
+    monkeypatch.setenv("ENV", "production")
+    prod_resp = client.get("/v1/accounts/dev/last-verification?email=devcheck@testcorp.com")
+    assert prod_resp.status_code == 404
+
+    # 4. AI_POD_ENV=prod also blocks
+    monkeypatch.setenv("ENV", "development")
+    monkeypatch.setenv("AI_POD_ENV", "prod")
+    prod2_resp = client.get("/v1/accounts/dev/last-verification?email=devcheck@testcorp.com")
+    assert prod2_resp.status_code == 404
+
+
+def test_startup_logging_email_delivery(monkeypatch, caplog):
+    """Lifespan logs SMTP vs CONSOLE ONLY, and logs ERROR when production has no SMTP_HOST."""
+    import logging
+    from src.api.app import lifespan
+
+    # Case 1: SMTP configured
+    monkeypatch.setenv("SMTP_HOST", "smtp.sendgrid.net")
+    monkeypatch.setenv("ENV", "development")
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        import asyncio
+        async def run_lifespan():
+            async with lifespan(app):
+                pass
+        asyncio.run(run_lifespan())
+    assert any("Email delivery: SMTP via smtp.sendgrid.net" in r.message for r in caplog.records)
+
+    # Case 2: No SMTP in development -> CONSOLE ONLY info log
+    monkeypatch.setenv("SMTP_HOST", "")
+    monkeypatch.setenv("ENFORCE_EMAIL_VERIFICATION", "false")
+    monkeypatch.setenv("ENV", "development")
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        asyncio.run(run_lifespan())
+    assert any("Email delivery: CONSOLE ONLY (SMTP_HOST not set)" in r.message for r in caplog.records)
+
+    # Case 3: No SMTP in production -> ERROR log
+    monkeypatch.setenv("SMTP_HOST", "")
+    monkeypatch.setenv("ENFORCE_EMAIL_VERIFICATION", "false")
+    monkeypatch.setenv("ENV", "production")
+    caplog.clear()
+    with caplog.at_level(logging.ERROR):
+        asyncio.run(run_lifespan())
+    assert any("Production environment has no SMTP_HOST configured" in r.message for r in caplog.records)

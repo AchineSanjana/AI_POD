@@ -9,6 +9,7 @@ import Features     from './pages/Features';
 import HowItWorks   from './pages/HowItWorks';
 import SignUp       from './pages/SignUp';
 import SignIn     from './pages/SignIn';
+import VerifyEmail from './pages/VerifyEmail';
 
 import OnboardingLayout from './pages/onboarding/OnboardingLayout';
 import UploadStep       from './pages/onboarding/UploadStep';
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/signup"      element={<SignUp     />} />
       <Route path="/signin"      element={<SignIn     />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/ui"          element={<UiRedirect />} />
       <Route path="/demo"        element={<UiRedirect />} />
 

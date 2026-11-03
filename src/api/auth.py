@@ -277,3 +277,97 @@ def get_public_key_tenant(
         )
 
     return record["tenant_id"]
+
+
+def get_tenant_for_admin_action(
+    request: Request = None,  # type: ignore[assignment]
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    authorization: str | None = Header(None, alias="Authorization"),
+    x_session_token: str | None = Header(None, alias="X-Session-Token"),
+) -> str:
+    """FastAPI dependency for administrative and onboarding actions.
+
+    Accepts EITHER:
+    1. A private 'sk-' X-API-Key (public 'pk-' keys are strictly forbidden with 403).
+    2. A valid session JWT (via Authorization: Bearer <token> or X-Session-Token).
+       Rejects MFA challenge tickets with 401. If ENFORCE_EMAIL_VERIFICATION is enabled,
+       unverified accounts receive 403 Forbidden.
+
+    In all cases, tenant_id is derived strictly from the authenticated credentials,
+    never from request parameters.
+    """
+    # 1. Inspect X-API-Key if provided
+    if x_api_key and x_api_key.strip():
+        clean_key = x_api_key.strip()
+        record = get_key_record(clean_key)
+        if not record:
+            raise HTTPException(
+                status_code=401,
+                detail=f"Invalid API Key: '{clean_key}'",
+            )
+        if record.get("key_type") == "public" or clean_key.startswith("pk-"):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Forbidden: Public API keys (pk-...) cannot perform administrative or "
+                    "onboarding actions. Use a private API key (sk-...) or session token."
+                ),
+            )
+        return record["tenant_id"]
+
+    # 2. Inspect session JWT (Authorization: Bearer <token> or X-Session-Token)
+    token: str | None = None
+    if authorization:
+        parts = authorization.strip().split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1]
+        elif len(parts) == 1:
+            token = parts[0]
+    if not token and x_session_token:
+        token = x_session_token.strip()
+
+    if token:
+        from src.accounts.session import verify_session_token
+        from src.accounts.storage import get_account_by_id
+
+        payload = verify_session_token(token)
+        account_id = payload.get("account_id") or payload.get("sub")
+        if not account_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Malformed session token payload",
+            )
+
+        account_record = get_account_by_id(account_id)
+        if not account_record:
+            raise HTTPException(
+                status_code=401,
+                detail="Account not found or inactive",
+            )
+
+        # Enforce email verification if configured
+        enforce_email = os.environ.get(
+            "ENFORCE_EMAIL_VERIFICATION", "false"
+        ).strip().lower() in ("true", "1", "yes")
+        if enforce_email and not account_record.get("email_verified", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Email has not been verified. Please verify your email before performing this action.",
+            )
+
+        tenant_id = account_record.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Account is not associated with any tenant",
+            )
+        return str(tenant_id)
+
+    # 3. Neither X-API-Key nor session token provided
+    raise HTTPException(
+        status_code=401,
+        detail=(
+            "Authentication required. Provide a private 'X-API-Key' (sk-...) or "
+            "'Authorization: Bearer <session_token>'."
+        ),
+    )

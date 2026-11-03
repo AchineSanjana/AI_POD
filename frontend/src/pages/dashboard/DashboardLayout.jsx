@@ -1,8 +1,9 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import UnverifiedBanner from '../../components/UnverifiedBanner';
 import {
   LayoutDashboard, Key, Brain, BarChart3,
-  Settings, ExternalLink, LogOut, Zap, Menu, X, Sparkles,
+  Settings, ExternalLink, LogOut, Zap, Menu, Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -15,14 +16,8 @@ const NAV = [
   { to:'/dashboard/settings', icon:Settings,        label:'Settings'        },
 ];
 
-export default function DashboardLayout() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [sideOpen, setSideOpen] = useState(false);
-
-  const handleLogout = () => { logout(); navigate('/'); };
-
-  const Sidebar = () => (
+function Sidebar({ user, onLogout }) {
+  return (
     <aside style={{
       width:240, background:'var(--bg-surface)',
       borderRight:'1px solid var(--border)',
@@ -86,19 +81,27 @@ export default function DashboardLayout() {
           style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 12px',fontSize:13,color:'var(--text-muted)',borderRadius:'var(--radius-sm)',transition:'color .2s' }}>
           <ExternalLink size={15}/> API Docs
         </a>
-        <button onClick={handleLogout}
+        <button onClick={onLogout}
           style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 12px',fontSize:13,color:'var(--text-muted)',borderRadius:'var(--radius-sm)',transition:'color .2s', width:'100%' }}>
           <LogOut size={15}/> Sign Out
         </button>
       </div>
     </aside>
   );
+}
+
+export default function DashboardLayout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [sideOpen, setSideOpen] = useState(false);
+
+  const handleLogout = () => { logout(); navigate('/'); };
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden' }}>
       {/* Desktop sidebar */}
       <div style={{ display:'block' }} className="desktop-sidebar">
-        <Sidebar />
+        <Sidebar user={user} onLogout={handleLogout} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -106,7 +109,7 @@ export default function DashboardLayout() {
         <div style={{ position:'fixed',inset:0,zIndex:200, display:'flex' }}>
           <div style={{ position:'absolute',inset:0,background:'rgba(0,0,0,.6)' }} onClick={() => setSideOpen(false)}/>
           <div style={{ position:'relative',zIndex:1,height:'100%' }}>
-            <Sidebar />
+            <Sidebar user={user} onLogout={handleLogout} />
           </div>
         </div>
       )}
@@ -119,6 +122,7 @@ export default function DashboardLayout() {
           <span style={{ fontFamily:'Outfit',fontWeight:700 }}>AI_POD</span>
         </div>
         <div style={{ flex:1, padding:'32px', overflowY:'auto' }}>
+          <UnverifiedBanner />
           <Outlet />
         </div>
       </div>

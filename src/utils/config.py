@@ -581,8 +581,11 @@ def get_tenant_auth_records(config: dict | None = None) -> dict[str, dict[str, A
         # Local / dev mode: Read from config/tenants_auth.local.yaml
         local_path = resolve_path("config/tenants_auth.local.yaml")
         if local_path.exists():
-            with open(local_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
+            from src.utils.atomic_yaml import get_thread_lock
+
+            with get_thread_lock(local_path):
+                with open(local_path, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
             if isinstance(data, dict):
                 raw_mapping = data.get("tenants_auth", data)
         elif "tenants_auth" in config and isinstance(config["tenants_auth"], dict):
@@ -594,6 +597,7 @@ def get_tenant_auth_records(config: dict | None = None) -> dict[str, dict[str, A
                     data = yaml.safe_load(f) or {}
                 if isinstance(data, dict):
                     raw_mapping = data.get("tenants_auth", data)
+
 
     return {
         str(k): _normalize_key_record(str(k), v)

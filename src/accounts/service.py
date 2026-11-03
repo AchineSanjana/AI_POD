@@ -284,7 +284,6 @@ def signup_company_account(
         "email_verified": False,
         "verification_sent": True,
         "email_dispatched": verif_info.get("email_dispatched", False),
-        "verification_code": verif_info.get("verification_code"),
         "private_key": sk,
         "public_key": pk,
         "note": security_note,
@@ -458,7 +457,6 @@ def resend_email_verification(
         "email": clean_email,
         "verification_sent": True,
         "email_dispatched": info.get("email_dispatched", False),
-        "verification_code": info.get("verification_code"),
         "message": "Verification code has been dispatched.",
     }
 
@@ -660,7 +658,8 @@ def get_account_me_profile(
 ) -> dict[str, Any]:
     """Retrieve public profile for authenticated account.
 
-    Returns company_name, tenant_id, and public_key ONLY. Never returns private_key.
+    Returns company_name, tenant_id, public_key, email_verified, mfa_enabled,
+    is_admin, key_created_at, and has_private_key. Never returns private_key.
     """
     cfg = config or load_config()
     record = get_account_by_id(account_id, config=cfg)
@@ -668,7 +667,42 @@ def get_account_me_profile(
         raise AccountError("Account not found")
 
     tenant_id = record["tenant_id"]
-    public_key = get_tenant_public_key(tenant_id, config=cfg) or f"pk-{tenant_id}-xxxx"
+    public_key = get_tenant_public_key(tenant_id, config=cfg)
+    if not public_key:
+        raise AccountError(f"No public API key configured for tenant '{tenant_id}'")
+
+    from src.utils.config import get_tenant_auth_records
+
+    auth_records = get_tenant_auth_records(cfg)
+    key_created_at = None
+    has_private = False
+
+    pk_rec = auth_records.get(public_key)
+    if pk_rec and pk_rec.get("created_at"):
+        key_created_at = pk_rec.get("created_at")
+
+    for k, rec in auth_records.items():
+        if rec.get("tenant_id") == tenant_id:
+            if rec.get("key_type") == "private" or k.startswith("sk-"):
+                has_private = True
+                if not key_created_at and rec.get("created_at"):
+                    key_created_at = rec.get("created_at")
+
+    if not has_private or not key_created_at:
+        try:
+            from src.api.auth import TENANT_KEY_RECORDS
+
+            for k, rec in TENANT_KEY_RECORDS.items():
+                if rec.get("tenant_id") == tenant_id:
+                    if rec.get("key_type") == "private" or k.startswith("sk-"):
+                        has_private = True
+                        if not key_created_at and rec.get("created_at"):
+                            key_created_at = rec.get("created_at")
+                    elif rec.get("key_type") == "public" or k.startswith("pk-"):
+                        if not key_created_at and rec.get("created_at"):
+                            key_created_at = rec.get("created_at")
+        except ImportError:
+            pass
 
     return {
         "company_name": record.get("company_name", ""),
@@ -676,4 +710,8 @@ def get_account_me_profile(
         "public_key": public_key,
         "role": record.get("role", "admin" if tenant_id == "admin" else "user"),
         "is_admin": bool(record.get("is_admin", tenant_id == "admin")),
+        "email_verified": bool(record.get("email_verified", False)),
+        "mfa_enabled": bool(record.get("mfa_enabled", False)),
+        "key_created_at": key_created_at,
+        "has_private_key": has_private,
     }
