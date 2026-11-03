@@ -52,6 +52,15 @@ async def lifespan(app: FastAPI):
         if is_prod:
             logger.error("Production environment has no SMTP_HOST configured; email delivery disabled")
 
+    # JWT secret startup check
+    jwt_secret = os.environ.get("JWT_SECRET_KEY", "").strip()
+    if not jwt_secret:
+        if is_prod:
+            logger.error("JWT_SECRET_KEY is not set in production environment!")
+            raise RuntimeError("JWT_SECRET_KEY must be set in production environment")
+        else:
+            logger.warning("JWT_SECRET_KEY is not set; using insecure default for development")
+
     load_tenant_auth()
     worker = None
     if os.environ.get("ENABLE_TRACKING_WORKER", "").strip().lower() in ("true", "1", "yes"):

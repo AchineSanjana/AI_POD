@@ -38,10 +38,7 @@ export default function ConfirmStep() {
       setConfig({ tenant_id: tid, mapping });
       navigate('/onboarding/training');
     } catch (err) {
-      // In dev, proceed anyway
-      setTenantId(tid);
-      setConfig({ tenant_id: tid, mapping });
-      navigate('/onboarding/training');
+      setError(err?.detail || err?.message || 'Failed to save configuration.');
     } finally { setLoading(false); }
   };
 

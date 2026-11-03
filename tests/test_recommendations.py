@@ -60,8 +60,13 @@ def test_get_recommendations_unknown_customer_validation():
         params={"top_n": 3},
         headers={"X-API-Key": "sk-telco-xxxx"},
     )
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Customer '99999' not found for tenant 'telco_default'"
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tenant_id"] == "telco_default"
+    assert data["customer_id"] == "99999"
+    assert data["fallback"] is True
+    assert data["reason"] == "unknown_customer"
+    assert isinstance(data["recommendations"], list)
 
 
 def test_model_caching_behavior():

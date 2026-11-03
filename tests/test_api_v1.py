@@ -102,15 +102,20 @@ def test_v1_recommendations_unauthorized_401(client: TestClient):
     assert "Invalid API Key" in resp_invalid.json()["detail"]
 
 
-def test_v1_recommendations_unknown_customer_404(client: TestClient):
-    """GET /v1/recommendations returns 404 when customer does not exist for tenant."""
+def test_v1_recommendations_unknown_customer_fallback(client: TestClient):
+    """GET /v1/recommendations returns 200 with fallback=True and reason='unknown_customer'."""
     resp = client.get(
         "/v1/recommendations",
         params={"customer_id": "non_existent_cust_999999", "top_n": 3},
         headers={"X-API-Key": "sk-telco-xxxx"},
     )
-    assert resp.status_code == 404
-    assert "not found for tenant" in resp.json()["detail"]
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["tenant_id"] == "telco_default"
+    assert data["customer_id"] == "non_existent_cust_999999"
+    assert data["fallback"] is True
+    assert data["reason"] == "unknown_customer"
+    assert isinstance(data["recommendations"], list)
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +254,7 @@ def test_v1_onboard_lifecycle_end_to_end(client: TestClient, tmp_path: Path, mon
         completed = False
         while time.time() - start_t < 15:
             st = client.get("/v1/onboard/status", headers={"X-API-Key": test_key}).json()
-            if st["status"] == "complete":
+            if st.get("status") in ("complete", "completed"):
                 completed = True
                 break
             time.sleep(0.1)
@@ -262,7 +267,7 @@ def test_v1_onboard_lifecycle_end_to_end(client: TestClient, tmp_path: Path, mon
             headers={"X-API-Key": test_key},
         )
         assert status_resp3.status_code == 200
-        assert status_resp3.json()["status"] == "complete"
+        assert status_resp3.json()["status"] in ("complete", "completed")
         assert status_resp3.json()["has_model"] is True
         assert "final_model.joblib" in status_resp3.json()["model_path"]
 
@@ -378,13 +383,13 @@ def test_v1_onboard_train_async_polling(client: TestClient, monkeypatch):
         final_resp = None
         while time.time() - start_time < 20:
             st = client.get("/v1/onboard/status", headers={"X-API-Key": test_key}).json()
-            if st["status"] == "complete":
+            if st.get("status") in ("complete", "completed"):
                 final_resp = st
                 break
             time.sleep(0.1)
 
         assert final_resp is not None, "Async training timed out before reaching 'complete'"
-        assert final_resp["status"] == "complete"
+        assert final_resp["status"] in ("complete", "completed")
         assert final_resp["has_model"] is True
         assert final_resp["model_path"] is not None
         assert "final_model.joblib" in final_resp["model_path"]

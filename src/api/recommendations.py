@@ -16,7 +16,12 @@ from pydantic import BaseModel, Field
 
 from src.api.auth import get_current_tenant, get_key_record
 from src.api.rate_limiter import check_rate_limit
-from src.api.schemas import RecommendationItem, RecommendationRequest, RecommendationsResponse
+from src.api.schemas import (
+    RecommendationItem,
+    RecommendationRequest,
+    RecommendationsResponse,
+    SampleCustomersResponse,
+)
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.utils.config import get_tenant_auth_mapping, get_tenant_config, load_config, resolve_path
@@ -37,11 +42,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # In-memory tenant model cache: {tenant_id: loaded_model}
 MODEL_CACHE: dict[str, Any] = {}
+# Multi-worker cache tracking: {tenant_id: {"version_marker": marker, "model_path": path, "last_checked": timestamp}}
+MODEL_CACHE_METADATA: dict[str, dict[str, Any]] = {}
 
 
 def clear_model_cache() -> None:
     """Clear the in-memory tenant model cache (useful for testing)."""
     MODEL_CACHE.clear()
+    MODEL_CACHE_METADATA.clear()
 
 
 # Alias for backward compatibility
@@ -51,13 +59,39 @@ resolve_tenant_id = get_current_tenant
 def get_model_for_tenant(
     tenant_id: str, storage: StorageBackend | None = None
 ) -> Any:
-    """Retrieve tenant model from cache or load lazily from storage backend."""
-    if tenant_id in MODEL_CACHE:
-        return MODEL_CACHE[tenant_id]
+    """Retrieve tenant model from cache or load lazily from storage backend.
+
+    Maintains a 30-second TTL on the storage version marker to ensure cache
+    coherency across multiple uvicorn worker processes.
+    """
+    import time
 
     if storage is None:
         config = load_config()
         storage = get_storage_backend(config)
+
+    now = time.time()
+    meta = MODEL_CACHE_METADATA.get(tenant_id)
+
+    if tenant_id in MODEL_CACHE:
+        # Check if 30-second verification interval has passed
+        if meta is not None and (now - meta.get("last_checked", 0.0) < 30.0):
+            return MODEL_CACHE[tenant_id]
+
+        target_path = (meta.get("model_path") if meta else None) or f"models/{tenant_id}/final_model.joblib"
+        if not storage.exists(target_path) and tenant_id == "telco_default":
+            legacy_path = "models/final_model.joblib"
+            if storage.exists(legacy_path):
+                target_path = legacy_path
+
+        current_marker = storage.get_version_marker(target_path)
+        if (
+            meta is not None
+            and current_marker is not None
+            and current_marker == meta.get("version_marker")
+        ):
+            meta["last_checked"] = now
+            return MODEL_CACHE[tenant_id]
 
     model_path = f"models/{tenant_id}/final_model.joblib"
     if not storage.exists(model_path) and tenant_id == "telco_default":
@@ -66,6 +100,8 @@ def get_model_for_tenant(
             model_path = legacy_path
 
     if not storage.exists(model_path):
+        MODEL_CACHE.pop(tenant_id, None)
+        MODEL_CACHE_METADATA.pop(tenant_id, None)
         raise HTTPException(
             status_code=404,
             detail=(
@@ -75,7 +111,13 @@ def get_model_for_tenant(
         )
 
     model = persistence_load_model(model_path, storage=storage)
+    marker = storage.get_version_marker(model_path)
     MODEL_CACHE[tenant_id] = model
+    MODEL_CACHE_METADATA[tenant_id] = {
+        "version_marker": marker,
+        "model_path": model_path,
+        "last_checked": now,
+    }
     return model
 
 
@@ -241,26 +283,29 @@ def _get_fallback_recommendations(
 
 def _recommend_for_customer(
     tenant_id: str, customer_id: str, top_n: int, storage: StorageBackend | None = None
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], bool, str | None]:
     if storage is None:
         config = load_config()
         storage = get_storage_backend(config)
 
     # Fallback path for untrained tenants: do not error, return most-frequently-interacted-with products
     if not is_tenant_trained(tenant_id, storage=storage):
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "model_not_trained"
 
     try:
         customers, products = _get_model_tables(tenant_id, storage=storage)
     except Exception as exc:
         logger.warning("Could not load model tables for tenant '%s' (%s). Falling back.", tenant_id, exc)
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "model_not_trained"
 
-    customer_ids = set(customers["customer_id"].astype(str))
+    customer_ids = (
+        set(customers["customer_id"].astype(str))
+        if (customers is not None and "customer_id" in customers.columns)
+        else set()
+    )
 
     if str(customer_id) not in customer_ids:
-        # Gracefully return popularity fallback for cold-start visitors or unknown demo customer IDs
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "unknown_customer"
 
     customer_lookup = customers.set_index("customer_id")
     customer_row = (
@@ -279,7 +324,7 @@ def _recommend_for_customer(
             recommended_ids = model.recommend(customer_row, top_k=top_n)
 
     if not recommended_ids:
-        return [], False
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "no_history"
 
     product_lookup = products.set_index("product_id")
     recommendations: list[dict[str, Any]] = []
@@ -303,7 +348,7 @@ def _recommend_for_customer(
             }
         )
 
-    return recommendations, False
+    return recommendations, False, None
 
 
 def _log_recommendation_request(request: Request, tenant_id: str, is_fallback: bool) -> None:
@@ -332,22 +377,24 @@ def _log_recommendation_request(request: Request, tenant_id: str, is_fallback: b
     description="Retrieve personalized top-N product recommendations for a customer. The tenant is resolved from the X-API-Key header.",
 )
 def get_recommendations(
-    request: Request,
     customer_id: str = Query(..., description="Customer ID to score"),
     top_n: int = Query(5, ge=1, le=50, description="Number of recommendations to return (1-50)"),
+    request: Request = None,
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     """Retrieve personalized product recommendations for a customer."""
     if not customer_id or not customer_id.strip():
         raise HTTPException(status_code=400, detail="customer_id cannot be blank")
 
-    recs, is_fallback = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
-    _log_recommendation_request(request, tenant_id, is_fallback)
+    recs, is_fallback, reason = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
+    if request is not None:
+        _log_recommendation_request(request, tenant_id, is_fallback)
     return {
         "tenant_id": tenant_id,
         "customer_id": customer_id.strip(),
         "recommendations": recs,
         "fallback": is_fallback,
+        "reason": reason,
     }
 
 
@@ -359,21 +406,67 @@ def get_recommendations(
 )
 def create_recommendations(
     payload: RecommendationRequest,
-    request: Request,
+    request: Request = None,
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     """Retrieve recommendations using a JSON request body."""
     if not payload.customer_id or not payload.customer_id.strip():
         raise HTTPException(status_code=400, detail="customer_id cannot be blank")
 
-    recs, is_fallback = _recommend_for_customer(tenant_id, payload.customer_id.strip(), payload.top_n)
-    _log_recommendation_request(request, tenant_id, is_fallback)
+    recs, is_fallback, reason = _recommend_for_customer(tenant_id, payload.customer_id.strip(), payload.top_n)
+    if request is not None:
+        _log_recommendation_request(request, tenant_id, is_fallback)
     return {
         "tenant_id": tenant_id,
         "customer_id": payload.customer_id.strip(),
         "recommendations": recs,
         "fallback": is_fallback,
+        "reason": reason,
     }
+
+
+@router.get(
+    "/sample-customers",
+    response_model=SampleCustomersResponse,
+    summary="Get sample customer IDs for tenant",
+    description="Retrieve real sample customer IDs from processed data for testing recommendations.",
+)
+def get_sample_customers(
+    limit: int = Query(10, ge=1, le=100, description="Max number of sample customer IDs to return"),
+    request: Request = None,
+    tenant_id: str = Depends(get_current_tenant),
+) -> dict[str, Any]:
+    """Retrieve sample customer IDs from processed customers.csv without reading the whole file."""
+    config = load_config()
+    storage = get_storage_backend(config)
+    proc_path = f"data/processed/{tenant_id}/customers.csv"
+    if not storage.exists(proc_path) and tenant_id == "telco_default":
+        if storage.exists("data/processed/customers.csv"):
+            proc_path = "data/processed/customers.csv"
+
+    if not storage.exists(proc_path):
+        return {"tenant_id": tenant_id, "customer_ids": []}
+
+    try:
+        # Read up to 32 KB through storage.read_file_range to avoid loading full file
+        chunk = storage.read_file_range(proc_path, start=0, length=32768)
+        text = chunk.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        if len(lines) > 1:
+            if len(chunk) == 32768:
+                lines = lines[:-1]
+            csv_text = "\n".join(lines)
+            df = pd.read_csv(io.StringIO(csv_text))
+            col = "customer_id" if "customer_id" in df.columns else (
+                "customerID" if "customerID" in df.columns else df.columns[0]
+            )
+            raw_ids = [str(x).strip() for x in df[col].dropna().unique() if str(x).strip()]
+            sample_ids = raw_ids[:limit]
+            return {"tenant_id": tenant_id, "customer_ids": sample_ids}
+    except Exception as exc:
+        logger.warning("[%s] Failed to extract sample customers from %s: %s", tenant_id, proc_path, exc)
+
+    return {"tenant_id": tenant_id, "customer_ids": []}
 
 
 @router.get(
@@ -384,7 +477,7 @@ def create_recommendations(
 )
 def get_recommendations_for_customer(
     customer_id: str,
-    request: Request,
+    request: Request = None,
     top_n: int = Query(5, ge=1, le=50, description="Number of recommendations to return (1-50)"),
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
@@ -392,11 +485,13 @@ def get_recommendations_for_customer(
     if not customer_id or not customer_id.strip():
         raise HTTPException(status_code=400, detail="customer_id cannot be blank")
 
-    recs, is_fallback = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
-    _log_recommendation_request(request, tenant_id, is_fallback)
+    recs, is_fallback, reason = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
+    if request is not None:
+        _log_recommendation_request(request, tenant_id, is_fallback)
     return {
         "tenant_id": tenant_id,
         "customer_id": customer_id.strip(),
         "recommendations": recs,
         "fallback": is_fallback,
+        "reason": reason,
     }

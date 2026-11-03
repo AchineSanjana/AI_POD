@@ -29,9 +29,7 @@ export default function SchemaStep() {
       setMapping({ ...form, validation: data });
       navigate('/onboarding/confirm');
     } catch (err) {
-      // Allow proceeding even if backend not connected in dev
-      setMapping({ ...form, validation: null });
-      navigate('/onboarding/confirm');
+      setError(err?.detail || err?.message || 'Schema validation failed.');
     } finally { setLoading(false); }
   };
 

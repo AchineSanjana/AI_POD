@@ -1,20 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOnboarding } from '../../context/OnboardingContext';
-import { getRecommendations } from '../../api/client';
+import { getRecommendations, getSampleCustomers } from '../../api/client';
 import CodeBlock from '../../components/CodeBlock';
 import KeyDisplay from '../../components/KeyDisplay';
-import { Key, Code2, Package, ShoppingBag, Zap, ArrowRight, Search } from 'lucide-react';
+import { Key, Code2, ShoppingBag, Zap, ArrowRight, Search, AlertCircle } from 'lucide-react';
+
+const KEY_UNAVAILABLE = 'Key not available, regenerate in Dashboard > API Keys';
 
 export default function IntegrateStep() {
   const { keys, tenantId } = useOnboarding();
-  const pk = keys.pk || localStorage.getItem('aipod_pk') || 'pk-live-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-  const sk = keys.sk || localStorage.getItem('aipod_sk') || 'sk-live-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+  const pk = keys.pk || localStorage.getItem('aipod_pk') || KEY_UNAVAILABLE;
+  const sk = keys.sk || localStorage.getItem('aipod_sk') || KEY_UNAVAILABLE;
 
-  const [sdkTab,    setSdkTab]    = useState(0);
-  const [testId,    setTestId]    = useState('');
-  const [testResult,setTestResult]= useState(null);
-  const [testing,   setTesting]   = useState(false);
+  const [sdkTab,          setSdkTab]          = useState(0);
+  const [testId,          setTestId]          = useState('');
+  const [sampleCustomers, setSampleCustomers] = useState([]);
+  const [testResult,      setTestResult]      = useState(null);
+  const [testError,       setTestError]       = useState('');
+  const [testing,         setTesting]         = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSamples = async () => {
+      try {
+        const res = await getSampleCustomers(10, pk !== KEY_UNAVAILABLE ? pk : null);
+        if (isMounted) {
+          const ids = res?.customer_ids || (Array.isArray(res) ? res : []);
+          setSampleCustomers(ids);
+          if (ids.length > 0) {
+            setTestId((current) => current || ids[0]);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load sample customers:', err);
+      }
+    };
+    fetchSamples();
+    return () => { isMounted = false; };
+  }, [pk]);
 
   const htmlSnippet = `<script
   src="https://api.aipod.io/v1/sdk.js"
@@ -34,7 +58,7 @@ export default function IntegrateStep() {
     top_n: 4,
     containerId: 'ai-recs',
     template: (item) =>
-      \`<div class="product">\${item.product_name}</div\>\`
+      \`<div class="product">\${item.product_name}</div>\`
   });
 </script>`;
 
@@ -65,23 +89,17 @@ const recs = await aipod.getRecommendations({ top_n: 5 });`;
 }`;
 
   const handleTest = async () => {
-    setTesting(true); setTestResult(null);
+    setTesting(true);
+    setTestResult(null);
+    setTestError('');
     try {
-      const data = await getRecommendations(testId, 5);
+      const data = await getRecommendations(testId, 5, pk !== KEY_UNAVAILABLE ? pk : null);
       setTestResult(data);
-    } catch {
-      // Mock response for demo
-      setTestResult({
-        tenant_id: tenantId || 'demo',
-        customer_id: testId,
-        recommendations: [
-          { rank:1, product_id:'P001', product_name:'Online Security',  category:'Add-on' },
-          { rank:2, product_id:'P002', product_name:'Tech Support',      category:'Add-on' },
-          { rank:3, product_id:'P003', product_name:'Streaming TV',      category:'Entertainment' },
-        ],
-        fallback: false,
-      });
-    } finally { setTesting(false); }
+    } catch (err) {
+      setTestError(err?.message || err?.detail || 'Failed to fetch recommendations.');
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -130,29 +148,79 @@ const recs = await aipod.getRecommendations({ top_n: 5 });`;
           <Search size={18} color="var(--accent-3)"/>
           <h4>Test Your Recommendations</h4>
         </div>
-        <p style={{ fontSize:14, marginBottom:16 }}>Enter a customer_id from your dataset to see live recommendations.</p>
-        <div style={{ display:'flex', gap:12 }}>
-          <input value={testId} onChange={e=>setTestId(e.target.value)} placeholder="e.g. 7590-VHVEG" />
+        <p style={{ fontSize:14, marginBottom:16 }}>
+          Select a sample customer or type any customer ID to see live recommendations.
+        </p>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+          {sampleCustomers.length > 0 && (
+            <select
+              style={{ minWidth: 200, flex: '0 0 auto' }}
+              value={sampleCustomers.includes(testId) ? testId : ''}
+              onChange={e => {
+                if (e.target.value) setTestId(e.target.value);
+              }}
+            >
+              <option value="">Sample customers...</option>
+              {sampleCustomers.map(id => (
+                <option key={id} value={id}>{id}</option>
+              ))}
+            </select>
+          )}
+          <input
+            style={{ flex: 1, minWidth: 180 }}
+            value={testId}
+            onChange={e=>setTestId(e.target.value)}
+            placeholder="e.g. 7590-VHVEG or type custom ID"
+          />
           <button className="btn btn-primary btn-sm" onClick={handleTest} disabled={!testId || testing} style={{ whiteSpace:'nowrap' }}>
             {testing ? 'Loading…' : 'Get Recs'}
           </button>
         </div>
 
+        {testError && (
+          <div className="alert alert-error mt-4">
+            <AlertCircle size={16}/> {testError}
+          </div>
+        )}
+
         {testResult && (
           <div style={{ marginTop:20 }}>
+            {testResult.fallback && (
+              <div className="alert alert-warning mb-4" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <span>
+                  <strong>Fallback Recommendations:</strong> Popularity-based recommendations active.
+                  {testResult.reason && (
+                    <span style={{ marginLeft: 6 }}>
+                      (Reason: <code>{testResult.reason}</code>)
+                    </span>
+                  )}
+                </span>
+                <span className="badge badge-yellow">Fallback</span>
+              </div>
+            )}
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {testResult.recommendations?.map(r => (
-                <div key={r.rank} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
-                  <div style={{ width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#3b82f6,#818cf8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:'#fff',flexShrink:0 }}>
-                    {r.rank}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{r.product_name}</div>
-                    {r.category && <div style={{ fontSize:12, color:'var(--text-muted)' }}>{r.category}</div>}
-                  </div>
-                  {testResult.fallback && r.rank === 1 && <span className="badge badge-yellow" style={{ marginLeft:'auto' }}>Fallback</span>}
+              {testResult.recommendations?.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic', padding: 8 }}>
+                  No recommendations available for this customer.
                 </div>
-              ))}
+              ) : (
+                testResult.recommendations?.map(r => (
+                  <div key={r.rank} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
+                    <div style={{ width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#3b82f6,#818cf8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:'#fff',flexShrink:0 }}>
+                      {r.rank}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{r.product_name || r.product_id}</div>
+                      {r.category && <div style={{ fontSize:12, color:'var(--text-muted)' }}>{r.category}</div>}
+                    </div>
+                    {testResult.fallback && r.rank === 1 && (
+                      <span className="badge badge-yellow" style={{ marginLeft:'auto' }}>
+                        {testResult.reason || 'Fallback'}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -167,3 +235,4 @@ const recs = await aipod.getRecommendations({ top_n: 5 });`;
     </div>
   );
 }
+

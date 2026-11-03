@@ -71,7 +71,13 @@ export const onboardTrain    = ()     => request('/onboard/train',    { method: 
 export const onboardStatus   = ()     => request('/onboard/status');
 
 // Recommendations
-export const getRecommendations = (customerId, topN = 5) =>
-  request(`/recommendations/${customerId}?top_n=${topN}`, {
-    headers: { 'X-API-Key': localStorage.getItem('aipod_pk') || '' },
+export const getSampleCustomers = (limit = 10, pk = null) =>
+  request(`/recommendations/sample-customers?limit=${limit}`, {
+    headers: { 'X-API-Key': pk || localStorage.getItem('aipod_pk') || '' },
   });
+
+export const getRecommendations = (customerId, topN = 5, pk = null) =>
+  request(`/recommendations/${customerId}?top_n=${topN}`, {
+    headers: { 'X-API-Key': pk || localStorage.getItem('aipod_pk') || '' },
+  });
+

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { login as apiLogin, loginMfa, getMe, resendVerification } from '../api/client';
+import { login as apiLogin, loginMfa, getMe, resendVerification, onboardStatus } from '../api/client';
 import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 export default function SignIn() {
@@ -48,7 +48,19 @@ export default function SignIn() {
       if (isAdmin) {
         window.location.href = '/ui';
       } else {
-        navigate('/dashboard');
+        let targetRoute = '/dashboard';
+        try {
+          const statusRes = await onboardStatus();
+          if (
+            statusRes?.status === 'not_started' ||
+            (!statusRes?.has_model && !['complete', 'completed', 'active'].includes(statusRes?.status))
+          ) {
+            targetRoute = '/onboarding/upload';
+          }
+        } catch {
+          targetRoute = '/onboarding/upload';
+        }
+        navigate(targetRoute);
       }
     } catch (err) {
       if (err?.status === 403) {
@@ -94,7 +106,19 @@ export default function SignIn() {
       if (isAdmin) {
         window.location.href = '/ui';
       } else {
-        navigate('/dashboard');
+        let targetRoute = '/dashboard';
+        try {
+          const statusRes = await onboardStatus();
+          if (
+            statusRes?.status === 'not_started' ||
+            (!statusRes?.has_model && !['complete', 'completed', 'active'].includes(statusRes?.status))
+          ) {
+            targetRoute = '/onboarding/upload';
+          }
+        } catch {
+          targetRoute = '/onboarding/upload';
+        }
+        navigate(targetRoute);
       }
     } catch (err) {
       setError(err.message || '2FA verification failed');

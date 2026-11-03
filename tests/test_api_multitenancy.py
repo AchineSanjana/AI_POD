@@ -88,20 +88,33 @@ def test_api_multitenancy_telco_ecommerce_isolation(monkeypatch):
     assert set(ecom_rec_pids).isdisjoint(telco_catalog_ids)
 
     # --- Part 3: Verify cross-tenant customer query isolation ---
-    # Querying fixture_ecommerce with a Telco customer ID must return 404
+    # Querying fixture_ecommerce with a Telco customer ID returns fallback for fixture_ecommerce
     resp_cross = client.get(
         "/recommendations",
         params={"customer_id": known_telco_customer, "tenant_id": "fixture_ecommerce"},
         headers={"X-API-Key": "sk-ecommerce-xxxx"},
     )
-    assert resp_cross.status_code == 404
-    assert resp_cross.json()["detail"] == f"Customer '{known_telco_customer}' not found for tenant 'fixture_ecommerce'"
+    assert resp_cross.status_code == 200
+    cross_payload = resp_cross.json()
+    assert cross_payload["tenant_id"] == "fixture_ecommerce"
+    assert cross_payload["fallback"] is True
+    assert cross_payload["reason"] == "unknown_customer"
+    cross_pids = {r["product_id"] for r in cross_payload["recommendations"]}
+    assert cross_pids.issubset(ecom_catalog_ids)
+    assert cross_pids.isdisjoint(telco_catalog_ids)
 
-    # Querying telco_default with an e-commerce customer ID must also return 404
+    # Querying telco_default with an e-commerce customer ID returns fallback for telco_default
     resp_cross_rev = client.get(
         f"/recommendations/{known_ecom_customer}",
         params={"tenant_id": "telco_default"},
         headers={"X-API-Key": "sk-telco-xxxx"},
     )
-    assert resp_cross_rev.status_code == 404
-    assert resp_cross_rev.json()["detail"] == f"Customer '{known_ecom_customer}' not found for tenant 'telco_default'"
+    assert resp_cross_rev.status_code == 200
+    cross_rev_payload = resp_cross_rev.json()
+    assert cross_rev_payload["tenant_id"] == "telco_default"
+    assert cross_rev_payload["fallback"] is True
+    assert cross_rev_payload["reason"] == "unknown_customer"
+    cross_rev_pids = {r["product_id"] for r in cross_rev_payload["recommendations"]}
+    assert cross_rev_pids.issubset(telco_catalog_ids)
+    assert cross_rev_pids.isdisjoint(ecom_catalog_ids)
+

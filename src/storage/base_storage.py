@@ -63,3 +63,35 @@ class StorageBackend(ABC):
             list[str]: Sorted list of relative logical file paths matching the prefix.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_version_marker(self, path: str) -> str | None:
+        """Return an opaque version identifier for a file if it exists, or None.
+
+        For local storage, this can be formatted as f"{mtime_ns}:{size}".
+        For S3, this can be the ETag or LastModified timestamp.
+
+        Args:
+            path: Logical path to the file.
+
+        Returns:
+            str | None: String version marker if file exists, else None.
+        """
+        raise NotImplementedError
+
+    def read_file_range(self, path: str, start: int = 0, length: int | None = None) -> bytes:
+        """Read a slice of raw byte contents of a file without loading the entire file into memory.
+
+        Args:
+            path: Logical path to the file.
+            start: Starting byte offset (0-indexed).
+            length: Maximum number of bytes to read, or None to read to end of file.
+
+        Returns:
+            bytes: The requested slice of binary content.
+        """
+        content = self.read_file(path)
+        if length is not None:
+            return content[start : start + length]
+        return content[start:]
+

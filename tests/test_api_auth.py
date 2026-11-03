@@ -135,7 +135,7 @@ def test_cross_tenant_spoofing_prevented_in_body_and_query(client: TestClient):
     assert get_rec_ids.issubset(telco_products)
     assert get_rec_ids.isdisjoint(ecom_products)
 
-    # 3. Attempting to query Tenant B's customer ID using Tenant A's key must return 404
+    # 3. Attempting to query Tenant B's customer ID using Tenant A's key must return Tenant A's fallback
     ecom_cust = ecom_model.customers_.iloc[0]["customer_id"]
     cross_resp = client.post(
         "/recommendations",
@@ -145,8 +145,14 @@ def test_cross_tenant_spoofing_prevented_in_body_and_query(client: TestClient):
         },
         headers={"X-API-Key": "sk-telco-xxxx"},
     )
-    assert cross_resp.status_code == 404
-    assert f"Customer '{ecom_cust}' not found for tenant 'telco_default'" in cross_resp.json()["detail"]
+    assert cross_resp.status_code == 200
+    cross_data = cross_resp.json()
+    assert cross_data["tenant_id"] == "telco_default"
+    assert cross_data["fallback"] is True
+    assert cross_data["reason"] == "unknown_customer"
+    cross_rec_ids = {str(r["product_id"]) for r in cross_data["recommendations"]}
+    assert cross_rec_ids.issubset(telco_products)
+    assert cross_rec_ids.isdisjoint(ecom_products)
 
 
 def test_get_tenant_auth_mapping_local_file():
@@ -405,14 +411,17 @@ def test_public_key_tenant_isolation(client: TestClient):
     ecom_model = get_model_for_tenant("fixture_ecommerce")
     ecom_cust = ecom_model.customers_.iloc[0]["customer_id"]
 
-    # Querying Tenant B's customer with Tenant A's public key must return 404
+    # Querying Tenant B's customer with Tenant A's public key must return fallback for Tenant A
     resp = client.get(
         "/v1/recommendations",
         params={"customer_id": ecom_cust, "tenant_id": "fixture_ecommerce"},
         headers={"X-API-Key": "pk-telco-xxxx"},
     )
-    assert resp.status_code == 404
-    assert f"Customer '{ecom_cust}' not found for tenant 'telco_default'" in resp.json()["detail"]
+    assert resp.status_code == 200
+    resp_data = resp.json()
+    assert resp_data["tenant_id"] == "telco_default"
+    assert resp_data["fallback"] is True
+    assert resp_data["reason"] == "unknown_customer"
 
     # Tracking event with Tenant A's public key is strictly attributed to Tenant A
     track_resp = client.post(

@@ -82,6 +82,21 @@ class TestLocalStorage:
         # List non-existent prefix
         assert storage.list_files("non_existent_prefix") == []
 
+    def test_read_file_range(self, tmp_path: Path):
+        storage = LocalStorage(base_dir=tmp_path)
+        test_path = "data/sample.csv"
+        content = b"customer_id,name\nc1,Alice\nc2,Bob\nc3,Charlie\n"
+        storage.write_file(test_path, content)
+
+        # Read first 16 bytes
+        slice1 = storage.read_file_range(test_path, start=0, length=16)
+        assert slice1 == content[:16]
+
+        # Read from offset 17 to end
+        slice2 = storage.read_file_range(test_path, start=17)
+        assert slice2 == content[17:]
+
+
 
 # ===========================================================================
 # S3Storage Tests
@@ -267,3 +282,22 @@ class TestBackendParity:
                 "data/processed/tenant_2/file3.csv",
             ]
             assert storage.list_files("unknown") == []
+
+    @mock_aws
+    def test_s3_read_file_range(self):
+        client = boto3.client("s3", region_name="us-east-1")
+        client.create_bucket(Bucket="test-bucket")
+        storage = S3Storage(bucket_name="test-bucket", s3_client=client)
+
+        test_path = "data/s3_sample.csv"
+        content = b"customer_id,val\nc101,10\nc102,20\nc103,30\n"
+        storage.write_file(test_path, content)
+
+        # Read first 15 bytes
+        slice1 = storage.read_file_range(test_path, start=0, length=15)
+        assert slice1 == content[:15]
+
+        # Read from offset 16 to end
+        slice2 = storage.read_file_range(test_path, start=16)
+        assert slice2 == content[16:]
+

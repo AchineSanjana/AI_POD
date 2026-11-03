@@ -113,6 +113,25 @@ class S3Storage(StorageBackend):
                 ) from e
             raise
 
+    def read_file_range(self, path: str, start: int = 0, length: int | None = None) -> bytes:
+        """Read a byte range of an S3 object using HTTP range headers."""
+        key = self._resolve_key(path)
+        try:
+            kwargs: dict[str, Any] = {"Bucket": self.bucket_name, "Key": key}
+            if length is not None:
+                kwargs["Range"] = f"bytes={start}-{start + length - 1}"
+            elif start > 0:
+                kwargs["Range"] = f"bytes={start}-"
+            response = self.s3_client.get_object(**kwargs)
+            return response["Body"].read()
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code in ("NoSuchKey", "404", "NoSuchBucket"):
+                raise FileNotFoundError(
+                    f"File not found in S3: s3://{self.bucket_name}/{key}"
+                ) from e
+            raise
+
     def write_file(self, path: str, content: bytes) -> None:
         """Write byte content to an S3 object."""
         key = self._resolve_key(path)
@@ -149,3 +168,17 @@ class S3Storage(StorageBackend):
                 results.append(self._key_to_logical_path(key))
 
         return sorted(results)
+
+    def get_version_marker(self, path: str) -> str | None:
+        """Return opaque version marker (ETag or LastModified) for S3 object, or None."""
+        key = self._resolve_key(path)
+        try:
+            resp = self.s3_client.head_object(Bucket=self.bucket_name, Key=key)
+            etag = resp.get("ETag", "").strip('"')
+            last_mod = resp.get("LastModified", "")
+            return f"{etag}:{last_mod}" if (etag or last_mod) else None
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code in ("NoSuchKey", "404", "NoSuchBucket"):
+                return None
+            raise

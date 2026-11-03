@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import secrets
+import time
 
 from src.storage.base_storage import StorageBackend
 from src.utils.config import PROJECT_ROOT
@@ -43,11 +46,49 @@ class LocalStorage(StorageBackend):
             )
         return target.read_bytes()
 
-    def write_file(self, path: str, content: bytes) -> None:
-        """Write binary content to local file, creating parent directories."""
+    def read_file_range(self, path: str, start: int = 0, length: int | None = None) -> bytes:
+        """Read a byte range from a local file without reading the whole file."""
         target = self._resolve(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
+        if not target.is_file():
+            raise FileNotFoundError(
+                f"File not found: '{path}' (resolved to '{target}')"
+            )
+        with open(target, "rb") as f:
+            if start > 0:
+                f.seek(start)
+            if length is not None:
+                return f.read(length)
+            return f.read()
+
+    def write_file(self, path: str, content: bytes) -> None:
+        """Write binary content to local file atomically, creating parent directories."""
+        target = self._resolve(path)
+        parent = target.parent
+        parent.mkdir(parents=True, exist_ok=True)
+
+        temp_name = f".tmp_{target.name}_{secrets.token_hex(4)}"
+        temp_path = parent / temp_name
+
+        try:
+            with open(temp_path, "wb") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+
+            for attempt in range(5):
+                try:
+                    os.replace(temp_path, target)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.05)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
 
     def exists(self, path: str) -> bool:
         """Check whether a file exists at given path on local filesystem."""
@@ -83,3 +124,14 @@ class LocalStorage(StorageBackend):
                         results.append(rel)
 
         return sorted(results)
+
+    def get_version_marker(self, path: str) -> str | None:
+        """Return opaque version marker f'{mtime_ns}:{size}' for local file, or None."""
+        target = self._resolve(path)
+        if not target.is_file():
+            return None
+        try:
+            stat = target.stat()
+            return f"{stat.st_mtime_ns}:{stat.st_size}"
+        except OSError:
+            return None

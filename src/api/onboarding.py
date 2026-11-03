@@ -105,104 +105,18 @@ def _load_training_status(
 
 
 def _execute_training_job(tenant_id: str, config: dict) -> None:
-    """Worker function that runs data adaptation and model training in the background."""
+    """Worker function that runs the multi-model tournament recommendation pipeline."""
     storage = get_storage_backend(config)
-    _save_training_status(
-        tenant_id=tenant_id,
-        status_val="running",
-        message=f"Training job for tenant '{tenant_id}' is running.",
-        storage=storage,
-    )
     try:
-        specs = None
-        try:
-            tenant_cfg = get_tenant_config(config, tenant_id)
-            adapter = GenericConfigAdapter(tenant_cfg, storage=storage)
-            customers, products, interactions = adapter.run()
-            specs = tenant_cfg.customers.features
-        except Exception as cfg_err:
-            # Fall back to processed tables in storage if tenant is not configured in config.yaml
-            cust_path = f"data/processed/{tenant_id}/customers.csv"
-            prod_path = f"data/processed/{tenant_id}/products.csv"
-            int_path = f"data/processed/{tenant_id}/interactions.csv"
-            if storage.exists(cust_path) and storage.exists(prod_path) and storage.exists(int_path):
-                customers = pd.read_csv(io.BytesIO(storage.read_file(cust_path)))
-                products = pd.read_csv(io.BytesIO(storage.read_file(prod_path)))
-                interactions = pd.read_csv(io.BytesIO(storage.read_file(int_path)))
-            elif storage.exists(int_path):
-                interactions = pd.read_csv(io.BytesIO(storage.read_file(int_path)))
-                if storage.exists(cust_path):
-                    customers = pd.read_csv(io.BytesIO(storage.read_file(cust_path)))
-                else:
-                    c_col = "customer_id" if "customer_id" in interactions.columns else interactions.columns[0]
-                    customers = pd.DataFrame({"customer_id": interactions[c_col].dropna().unique()})
-                if storage.exists(prod_path):
-                    products = pd.read_csv(io.BytesIO(storage.read_file(prod_path)))
-                else:
-                    p_col = "product_id" if "product_id" in interactions.columns else interactions.columns[1]
-                    products = pd.DataFrame({"product_id": interactions[p_col].dropna().unique()})
-            else:
-                raise cfg_err
+        from src.pipeline.run import run_tenant_pipeline
 
-        # Merge newly arrived interactions from data/processed/{tenant_id}/interactions.csv
-        proc_int_path = f"data/processed/{tenant_id}/interactions.csv"
-        if storage.exists(proc_int_path):
-            try:
-                proc_bytes = storage.read_file(proc_int_path)
-                proc_df = pd.read_csv(io.BytesIO(proc_bytes))
-                if not proc_df.empty and "customer_id" in proc_df.columns and "product_id" in proc_df.columns:
-                    interactions = pd.concat([interactions, proc_df], ignore_index=True)
-                    interactions = interactions.drop_duplicates(subset=["customer_id", "product_id"], keep="last")
-            except Exception as e:
-                logger.warning("Could not merge processed interactions for %s: %s", tenant_id, e)
-
-        # Merge in-memory queued tracking events if present
-        try:
-            from src.api.tracking import get_queued_events
-
-            queued = get_queued_events(tenant_id)
-            if queued:
-                q_rows = []
-                for ev in queued:
-                    cid = ev.get("customer_id")
-                    pid = ev.get("product_id")
-                    if cid and pid:
-                        q_rows.append({"customer_id": str(cid), "product_id": str(pid), "weight": float(ev.get("quantity") or 1.0)})
-                if q_rows:
-                    q_df = pd.DataFrame(q_rows)
-                    interactions = pd.concat([interactions, q_df], ignore_index=True)
-                    interactions = interactions.drop_duplicates(subset=["customer_id", "product_id"], keep="last")
-        except Exception:
-            pass
-
-        model = LearnedRankingRecommender(
-            customer_specs=specs
-        ).fit(
-            customers=customers,
-            products=products,
-            interactions=interactions,
-        )
-
-        model_path = f"models/{tenant_id}/final_model.joblib"
-        save_model(model, model_path, storage=storage)
-        clear_model_cache()
-
-        _save_training_status(
+        run_tenant_pipeline(
             tenant_id=tenant_id,
-            status_val="complete",
-            message=f"Model successfully trained and saved to {model_path} for tenant '{tenant_id}'.",
             storage=storage,
-            model_path=model_path,
+            config=config,
         )
     except Exception as exc:
         logger.exception("Training failed for tenant %s: %s", tenant_id, exc)
-        _save_training_status(
-            tenant_id=tenant_id,
-            status_val="failed",
-            message=f"Training failed for tenant '{tenant_id}': {exc}",
-            storage=storage,
-            error=str(exc),
-        )
     finally:
         _ACTIVE_TRAINING_THREADS.pop(tenant_id, None)
 
@@ -295,11 +209,11 @@ async def upload_dataset(
     if df.empty:
         raise HTTPException(status_code=400, detail="Dataset must contain at least one row of data")
 
-    dest_path = resolve_path(f"data/raw/{target_filename}")
-    dest_path.parent.mkdir(parents=True, exist_ok=True)
-    dest_path.write_bytes(raw_bytes)
-
+    config = load_config()
+    storage = get_storage_backend(config)
     rel_path = f"data/raw/{target_filename}"
+    storage.write_file(rel_path, raw_bytes)
+
     return OnboardUploadResponse(
         tenant_id=tenant_id,
         file_path=rel_path,
@@ -309,29 +223,42 @@ async def upload_dataset(
     )
 
 
-def _resolve_tenant_data_file(tenant_id: str, custom_file: str | None = None) -> Path:
-    """Find the raw dataset path for a tenant."""
+def _read_tenant_raw_data(
+    tenant_id: str,
+    storage: StorageBackend,
+    custom_file: str | None = None,
+) -> tuple[pd.DataFrame, str]:
+    """Find and read the raw dataset for a tenant via storage."""
     if custom_file:
+        clean = custom_file.replace("\\", "/").strip()
+        if storage.exists(clean):
+            return pd.read_csv(io.BytesIO(storage.read_file(clean))), clean
         p = resolve_path(custom_file)
-        if not p.exists():
-            p = Path(custom_file)
         if p.exists():
-            return p
-        raise HTTPException(status_code=404, detail=f"Specified data file not found: {custom_file}")
+            return pd.read_csv(p), custom_file
+        raise HTTPException(
+            status_code=404, detail=f"Specified data file not found: {custom_file}"
+        )
 
-    # Check uploaded raw dataset
-    uploaded = resolve_path(f"data/raw/{tenant_id}_raw.csv")
-    if uploaded.exists():
-        return uploaded
+    # Check uploaded raw dataset in storage
+    uploaded = f"data/raw/{tenant_id}_raw.csv"
+    if storage.exists(uploaded):
+        return pd.read_csv(io.BytesIO(storage.read_file(uploaded))), uploaded
+    up_local = resolve_path(uploaded)
+    if up_local.exists():
+        return pd.read_csv(up_local), uploaded
 
     # Check config.yaml data_source.path if tenant is already declared
     try:
         cfg = load_config()
         if tenant_id in cfg.get("tenants", {}):
             t_cfg = get_tenant_config(cfg, tenant_id)
-            ds_path = resolve_path(t_cfg.data_source.path)
-            if ds_path.exists():
-                return ds_path
+            ds_path = t_cfg.data_source.path.replace("\\", "/").strip()
+            if storage.exists(ds_path):
+                return pd.read_csv(io.BytesIO(storage.read_file(ds_path))), ds_path
+            loc_p = resolve_path(ds_path)
+            if loc_p.exists():
+                return pd.read_csv(loc_p), ds_path
     except Exception:
         pass
 
@@ -352,27 +279,17 @@ def validate_dataset(
     tenant_id: str = Depends(get_tenant_for_admin_action),
 ) -> OnboardValidateResponse:
     """Validate and profile the tenant's raw dataset."""
-    data_file_path = _resolve_tenant_data_file(
-        tenant_id, custom_file=payload.data_file if payload else None
+    config = load_config()
+    storage = get_storage_backend(config)
+    df, rel_path = _read_tenant_raw_data(
+        tenant_id, storage, custom_file=payload.data_file if payload else None
     )
-
-    try:
-        df = pd.read_csv(data_file_path)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400, detail=f"Unable to read dataset at {data_file_path}: {exc}"
-        )
 
     if df.empty:
         raise HTTPException(status_code=400, detail="Raw dataset contains no rows")
 
     try:
         report = profile_dataframe(df)
-        try:
-            rel_path = str(data_file_path.relative_to(PROJECT_ROOT)).replace("\\", "/")
-        except ValueError:
-            rel_path = str(data_file_path).replace("\\", "/")
-
         candidate_config = generate_tenant_config(report, tenant_id=tenant_id, data_source_path=rel_path)
         summary = generate_review_summary(report)
     except Exception as exc:
@@ -420,17 +337,14 @@ def confirm_onboarding(
                 status_code=403,
                 detail=f"Forbidden: You can only configure your own tenant ('{tenant_id}').",
             )
-    data_file_path = _resolve_tenant_data_file(tenant_id)
-    df = pd.read_csv(data_file_path)
+    config = load_config()
+    storage = get_storage_backend(config)
+    df, rel_path = _read_tenant_raw_data(tenant_id, storage)
     report = profile_dataframe(df)
 
     if payload.candidate_config:
         config_block = dict(payload.candidate_config)
     else:
-        try:
-            rel_path = str(data_file_path.relative_to(PROJECT_ROOT)).replace("\\", "/")
-        except ValueError:
-            rel_path = str(data_file_path).replace("\\", "/")
         config_block = generate_tenant_config(report, tenant_id=tenant_id, data_source_path=rel_path)
 
     if payload.overrides:
@@ -486,30 +400,48 @@ def train_tenant(
             status_code=400, detail=f"Invalid tenant configuration for '{tenant_id}': {exc}"
         )
 
-    data_file = resolve_path(tenant_cfg.data_source.path)
-    if not data_file.exists():
+    storage = get_storage_backend(config)
+    raw_path = tenant_cfg.data_source.path
+    if not storage.exists(raw_path) and not resolve_path(raw_path).exists():
         raise HTTPException(
             status_code=404,
-            detail=f"Raw dataset file '{tenant_cfg.data_source.path}' not found on disk.",
+            detail=f"Raw dataset file '{tenant_cfg.data_source.path}' not found in storage.",
         )
 
-    storage = get_storage_backend(config)
-
-    # Check if a training job is already active for this tenant
-    current_status = _load_training_status(tenant_id, storage=storage)
+    # Multi-worker guard: check active thread in current process
     active_thread = _ACTIVE_TRAINING_THREADS.get(tenant_id)
-    if (
-        (active_thread and active_thread.is_alive())
-        or (current_status and current_status.get("status") in ("queued", "running"))
-    ):
-        return OnboardTrainResponse(
-            tenant_id=tenant_id,
-            status=current_status.get("status", "running") if current_status else "running",
-            status_url="/v1/onboard/status",
-            message=f"Training job for tenant '{tenant_id}' is already in progress.",
-            trained=False,
-            model_path=None,
+    if active_thread and active_thread.is_alive():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Training job for tenant '{tenant_id}' is already in progress.",
         )
+
+    # Multi-worker guard: check status/{tenant_id}.json in storage
+    current_status = _load_training_status(tenant_id, storage=storage)
+    if current_status and current_status.get("status") in ("queued", "running"):
+        updated_at = current_status.get("updated_at")
+        if updated_at:
+            try:
+                dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                diff_seconds = (datetime.now(timezone.utc) - dt).total_seconds()
+                if diff_seconds < 15 * 60:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            f"Training job for tenant '{tenant_id}' is already in progress "
+                            f"on a worker ({int(diff_seconds)}s ago)."
+                        ),
+                    )
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Training job for tenant '{tenant_id}' is already in progress.",
+                )
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Training job for tenant '{tenant_id}' is already in progress.",
+            )
 
     # Persist initial 'queued' status
     _save_training_status(
@@ -546,19 +478,20 @@ def get_onboarding_status(
     tenants = config.get("tenants", {})
     has_config = tenant_id in tenants
 
+    storage = get_storage_backend(config)
     has_data = False
-    raw_candidate = resolve_path(f"data/raw/{tenant_id}_raw.csv")
-    if raw_candidate.exists():
+    raw_candidate = f"data/raw/{tenant_id}_raw.csv"
+    if storage.exists(raw_candidate) or resolve_path(raw_candidate).exists():
         has_data = True
     elif has_config:
         try:
             t_cfg = get_tenant_config(config, tenant_id)
-            if resolve_path(t_cfg.data_source.path).exists():
+            ds_path = t_cfg.data_source.path
+            if storage.exists(ds_path) or resolve_path(ds_path).exists():
                 has_data = True
         except Exception:
             pass
 
-    storage = get_storage_backend(config)
     model_path = f"models/{tenant_id}/final_model.joblib"
     has_model = storage.exists(model_path)
     if not has_model and tenant_id == "telco_default":
@@ -570,51 +503,116 @@ def get_onboarding_status(
     status_data = _load_training_status(tenant_id, storage=storage)
     if status_data:
         train_status = status_data.get("status")
+        updated_at = status_data.get("updated_at")
+
+        # Stalled check: if running/queued and updated_at > 15 minutes old
+        is_stalled = False
+        if train_status in ("queued", "running") and updated_at:
+            try:
+                dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                if (datetime.now(timezone.utc) - dt).total_seconds() > 15 * 60:
+                    is_stalled = True
+            except (ValueError, TypeError):
+                pass
+
+        if is_stalled:
+            logger.warning("[%s] Training job stalled (>15m without update)", tenant_id)
+            return OnboardStatusResponse(
+                tenant_id=tenant_id,
+                status="stalled",
+                ready=False,
+                has_data=has_data,
+                has_config=has_config,
+                has_model=has_model,
+                model_path=model_path if has_model else None,
+                stage=status_data.get("stage"),
+                error="Training job stalled or timed out after 15 minutes.",
+                message=f"Training job for tenant '{tenant_id}' stalled. Please retry.",
+                models=status_data.get("models"),
+                metrics=status_data.get("metrics"),
+                winner_model=status_data.get("winner_model"),
+                winner_key=status_data.get("winner_key"),
+                dataset=status_data.get("dataset"),
+                started_at=status_data.get("started_at"),
+                updated_at=updated_at,
+            )
+
         if train_status in ("queued", "running"):
+            logger.info("[%s] Status check: %s (stage=%s)", tenant_id, train_status, status_data.get("stage"))
             return OnboardStatusResponse(
                 tenant_id=tenant_id,
                 status=train_status,
+                ready=False,
                 has_data=has_data,
                 has_config=has_config,
                 has_model=False,
                 model_path=None,
+                stage=status_data.get("stage"),
                 error=None,
                 message=status_data.get(
                     "message", f"Training is currently {train_status} for tenant '{tenant_id}'."
                 ),
+                models=status_data.get("models"),
+                metrics=status_data.get("metrics"),
+                winner_model=status_data.get("winner_model"),
+                winner_key=status_data.get("winner_key"),
+                dataset=status_data.get("dataset"),
+                started_at=status_data.get("started_at"),
+                updated_at=updated_at,
             )
         elif train_status == "failed":
+            logger.info("[%s] Status check: failed (error=%s)", tenant_id, status_data.get("error"))
             return OnboardStatusResponse(
                 tenant_id=tenant_id,
                 status="failed",
+                ready=False,
                 has_data=has_data,
                 has_config=has_config,
                 has_model=has_model,
-                model_path=None,
+                model_path=model_path if has_model else None,
+                stage=status_data.get("stage"),
                 error=status_data.get("error"),
                 message=status_data.get(
                     "message", f"Training failed for tenant '{tenant_id}': {status_data.get('error')}"
                 ),
+                models=status_data.get("models"),
+                metrics=status_data.get("metrics"),
+                winner_model=status_data.get("winner_model"),
+                winner_key=status_data.get("winner_key"),
+                dataset=status_data.get("dataset"),
+                started_at=status_data.get("started_at"),
+                updated_at=updated_at,
             )
-        elif train_status == "complete":
+        elif train_status in ("complete", "completed"):
             saved_model_path = status_data.get("model_path") or model_path
+            logger.info("[%s] Status check: completed (winner=%s)", tenant_id, status_data.get("winner_model"))
             return OnboardStatusResponse(
                 tenant_id=tenant_id,
-                status="complete",
+                status="completed",
+                ready=has_model,
                 has_data=has_data,
                 has_config=has_config,
-                has_model=True,
+                has_model=has_model,
                 model_path=saved_model_path,
+                stage=status_data.get("stage", "completed"),
                 error=None,
                 message=status_data.get(
                     "message",
-                    f"Model successfully trained and saved to {saved_model_path} for tenant '{tenant_id}'.",
+                    f"Model successfully trained and saved for tenant '{tenant_id}'.",
                 ),
+                models=status_data.get("models"),
+                metrics=status_data.get("metrics"),
+                winner_model=status_data.get("winner_model"),
+                winner_key=status_data.get("winner_key"),
+                dataset=status_data.get("dataset"),
+                started_at=status_data.get("started_at"),
+                updated_at=updated_at,
             )
         elif train_status in ("ready_to_train", "ready-to-train"):
             return OnboardStatusResponse(
                 tenant_id=tenant_id,
                 status="ready_to_train",
+                ready=False,
                 has_data=has_data,
                 has_config=has_config,
                 has_model=has_model,
@@ -624,25 +622,38 @@ def get_onboarding_status(
                     "message",
                     f"Tenant '{tenant_id}' has reached required data thresholds and is ready to train.",
                 ),
+                models=status_data.get("models"),
+                metrics=status_data.get("metrics"),
+                winner_model=status_data.get("winner_model"),
+                winner_key=status_data.get("winner_key"),
+                dataset=status_data.get("dataset"),
+                started_at=status_data.get("started_at"),
+                updated_at=updated_at,
             )
 
     # 2. Fall back to inferred onboarding state when no status file exists
     if has_model and has_config:
         status_str = "active"
         msg = f"Tenant '{tenant_id}' is active and ready to serve recommendations."
+        ready_flag = True
     elif has_config and has_data:
         status_str = "ready_to_train"
         msg = f"Tenant '{tenant_id}' configuration is confirmed. Call /v1/onboard/train to build model."
+        ready_flag = False
     elif has_data:
         status_str = "needs_configuration"
         msg = f"Tenant '{tenant_id}' dataset is uploaded. Call /v1/onboard/validate to inspect schema."
+        ready_flag = False
     else:
         status_str = "not_started"
         msg = f"Tenant '{tenant_id}' has not uploaded data. Call /v1/onboard/upload to begin."
+        ready_flag = False
 
+    logger.info("[%s] Status check: inferred=%s (ready=%s)", tenant_id, status_str, ready_flag)
     return OnboardStatusResponse(
         tenant_id=tenant_id,
         status=status_str,
+        ready=ready_flag,
         has_data=has_data,
         has_config=has_config,
         has_model=has_model,

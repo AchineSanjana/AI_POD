@@ -598,6 +598,106 @@ tenants:
     segmentation:
       field: aisle_name
       split: categorical
+  test_onboard_s3:
+    data_source:
+      type: csv
+      path: data/raw/test_onboard_s3_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: account_age
+        dtype: numeric
+      - name: plan_tier
+        dtype: categorical
+        allowed_values:
+        - Basic
+        - Enterprise
+        - Pro
+        encoding: one_hot
+      - name: cloud_storage
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: security_backup
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: streaming_tv
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns:
+      - cloud_storage
+      - security_backup
+      - streaming_tv
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
+    segmentation:
+      field: account_age
+      split: median
+  test_onboard_local:
+    data_source:
+      type: csv
+      path: data/raw/test_onboard_local_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: account_age
+        dtype: numeric
+      - name: plan_tier
+        dtype: categorical
+        allowed_values:
+        - Basic
+        - Enterprise
+        - Pro
+        encoding: one_hot
+      - name: cloud_storage
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: security_backup
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: streaming_tv
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns:
+      - cloud_storage
+      - security_backup
+      - streaming_tv
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
+    segmentation:
+      field: account_age
+      split: median
 model:
   content_based:
     similarity_metric: cosine

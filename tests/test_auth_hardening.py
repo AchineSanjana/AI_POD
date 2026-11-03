@@ -521,6 +521,7 @@ def test_startup_logging_email_delivery(monkeypatch, caplog):
     monkeypatch.setenv("SMTP_HOST", "")
     monkeypatch.setenv("ENFORCE_EMAIL_VERIFICATION", "false")
     monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("JWT_SECRET_KEY", "testing-jwt-secret")
     caplog.clear()
     with caplog.at_level(logging.ERROR):
         asyncio.run(run_lifespan())

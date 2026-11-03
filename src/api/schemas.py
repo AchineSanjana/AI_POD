@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +28,18 @@ class RecommendationsResponse(BaseModel):
     fallback: bool = Field(
         False,
         description="True if recommendations are fallback popularity-based rather than personalized",
+    )
+    reason: str | None = Field(
+        None,
+        description="Explanation when fallback is true: model_not_trained, unknown_customer, or no_history",
+    )
+
+
+class SampleCustomersResponse(BaseModel):
+    tenant_id: str = Field(..., description="Authenticated tenant identifier")
+    customer_ids: list[str] = Field(
+        default_factory=list,
+        description="List of sample customer IDs extracted from processed data",
     )
 
 
@@ -108,7 +120,7 @@ class OnboardTrainRequest(BaseModel):
 
 class OnboardTrainResponse(BaseModel):
     tenant_id: str = Field(..., description="Authenticated tenant identifier")
-    status: str = Field(..., description="Training status ('queued', 'running', 'complete', 'failed')")
+    status: str = Field(..., description="Training status ('queued', 'running', 'completed', 'complete', 'failed')")
     status_url: str = Field(..., description="URL endpoint to poll for training status updates")
     message: str = Field(..., description="Training execution details")
     trained: bool = Field(False, description="True if model artifact was successfully generated")
@@ -116,17 +128,28 @@ class OnboardTrainResponse(BaseModel):
 
 
 class OnboardStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     tenant_id: str = Field(..., description="Authenticated tenant identifier")
     status: str = Field(
         ...,
-        description="Overall onboarding/training status ('not_started', 'needs_configuration', 'ready_to_train', 'queued', 'running', 'complete', 'active', 'failed')",
+        description="Overall onboarding/training status ('not_started', 'ready_to_train', 'queued', 'running', 'completed', 'complete', 'active', 'failed', 'stalled')",
     )
-    has_data: bool = Field(..., description="True if raw data file is present")
-    has_config: bool = Field(..., description="True if tenant configuration is saved in config.yaml")
-    has_model: bool = Field(..., description="True if trained model artifact exists")
+    ready: bool = Field(False, description="True if recommendations are ready to serve")
+    has_data: bool = Field(False, description="True if raw data file is present")
+    has_config: bool = Field(False, description="True if tenant configuration is saved in config.yaml")
+    has_model: bool = Field(False, description="True if trained model artifact exists")
     model_path: str | None = Field(None, description="Path to trained model artifact if available")
+    stage: str | None = Field(None, description="Current training pipeline stage")
     error: str | None = Field(None, description="Detailed error message if training failed")
     message: str = Field(..., description="Current tenant lifecycle summary")
+    models: dict[str, str] | None = Field(None, description="Candidate model training statuses")
+    metrics: dict[str, Any] | None = Field(None, description="Evaluation metrics for models")
+    winner_model: str | None = Field(None, description="Display name of winning model")
+    winner_key: str | None = Field(None, description="Key of winning model")
+    dataset: dict[str, int] | None = Field(None, description="Dataset row counts")
+    started_at: str | None = Field(None, description="UTC ISO timestamp when training started")
+    updated_at: str | None = Field(None, description="UTC ISO timestamp when status was last updated")
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +168,6 @@ class TrackEventPayload(BaseModel):
 
 class TrackEventAcceptedResponse(BaseModel):
     status: str = Field("accepted", description="Status confirmation")
-
 
 
 # ---------------------------------------------------------------------------
@@ -202,4 +224,3 @@ class ScheduledRetrainResponse(BaseModel):
 class ScheduledRetrainRequest(BaseModel):
     wait_for_completion: bool = Field(False, description="Wait for background training jobs to finish before responding")
     timeout_seconds: float = Field(30.0, description="Max seconds to wait if wait_for_completion is True")
-
