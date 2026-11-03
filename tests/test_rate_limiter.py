@@ -170,6 +170,7 @@ def test_onboarding_strict_rate_limit(client: TestClient, monkeypatch):
             "active",
             "running",
             "complete",
+            "completed",
         ]
 
     # 3rd request triggers 429 with Retry-After

@@ -89,7 +89,7 @@ def test_e2e_multitenant_pipeline_and_serving(monkeypatch):
         api_key = api_keys[tenant_id]
 
         # A. Direct internal API function: _recommend_for_customer
-        direct_recs, is_fallback = _recommend_for_customer(tenant_id=tenant_id, customer_id=customer_id, top_n=5)
+        direct_recs, is_fallback, *_ = _recommend_for_customer(tenant_id=tenant_id, customer_id=customer_id, top_n=5)
         assert isinstance(direct_recs, list)
         assert is_fallback is False
         assert len(direct_recs) > 0, f"Expected non-empty direct recs for {tenant_id}"
@@ -122,10 +122,30 @@ def test_e2e_multitenant_pipeline_and_serving(monkeypatch):
         tenant_catalogs["movielens_demo"]
     ), "Cross-contamination: catalogs overlap between tenants"
 
-    # Cross-tenant query should fail with 404
+    # Cross-tenant customer query falls back gracefully to movielens popularity recs, never leaking telco data
     resp_cross = client.get(
         "/recommendations",
         params={"customer_id": known_customers["telco_default"], "tenant_id": "movielens_demo"},
         headers={"X-API-Key": api_keys["movielens_demo"]},
     )
-    assert resp_cross.status_code == 404
+    assert resp_cross.status_code == 200
+    cross_payload = resp_cross.json()
+    assert cross_payload["fallback"] is True
+    assert cross_payload["reason"] == "unknown_customer"
+    cross_pids = [r["product_id"] for r in cross_payload["recommendations"]]
+    assert set(cross_pids).issubset(tenant_catalogs["movielens_demo"])
+    assert set(cross_pids).isdisjoint(tenant_catalogs["telco_default"])
+
+    # Attempting to query recommendations with an invalid or missing key must fail with 401
+    resp_invalid_key = client.get(
+        "/recommendations",
+        params={"customer_id": known_customers["telco_default"]},
+        headers={"X-API-Key": "sk-invalid-nonexistent-key"},
+    )
+    assert resp_invalid_key.status_code == 401
+
+    resp_no_key = client.get(
+        "/recommendations",
+        params={"customer_id": known_customers["telco_default"]},
+    )
+    assert resp_no_key.status_code == 401

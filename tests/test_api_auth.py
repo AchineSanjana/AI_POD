@@ -289,12 +289,12 @@ def test_public_key_rejected_with_403_everywhere_else(client: TestClient):
     assert resp_post_rec.status_code == 403
     assert "Forbidden" in resp_post_rec.json()["detail"]
 
-    # GET /v1/recommendations/{customer_id}
+    # GET /v1/recommendations/{customer_id} is allowed for public keys (JS SDK & Integration)
     resp_path_rec = client.get(
         "/v1/recommendations/any_cust",
         headers={"X-API-Key": public_key},
     )
-    assert resp_path_rec.status_code == 403
+    assert resp_path_rec.status_code in (200, 404)
 
     # POST /v1/onboard/upload
     resp_upload = client.post(

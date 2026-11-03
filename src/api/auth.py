@@ -163,6 +163,17 @@ def get_key_record(api_key: str | None) -> dict[str, Any] | None:
             TENANT_AUTH_MAPPING[api_key] = "fixture_ecommerce"
             return rec
 
+        if api_key in ("sk-movielens-xxxx", "pk-movielens-xxxx"):
+            k_type = "public" if api_key.startswith("pk-") else "private"
+            rec = {
+                "tenant_id": "movielens_demo",
+                "key_type": k_type,
+                "created_at": None,
+            }
+            TENANT_KEY_RECORDS[api_key] = rec
+            TENANT_AUTH_MAPPING[api_key] = "movielens_demo"
+            return rec
+
         for t in tenants:
             if api_key == f"sk-{t}-xxxx":
                 rec = {"tenant_id": t, "key_type": "private", "created_at": None}

@@ -89,10 +89,12 @@ def test_movielens_pipeline_and_api(monkeypatch):
     pids = [r["product_id"] for r in payload["recommendations"]]
     assert len(pids) > 0
 
-    # 4. Cross-tenant customer isolation
+    # 4. Unknown customer cold-start fallback
     resp_cross = client.get(
         "/recommendations",
         params={"customer_id": "non_existent_customer_99999", "tenant_id": "movielens_demo"},
         headers={"X-API-Key": "sk-movielens-xxxx"},
     )
-    assert resp_cross.status_code == 404
+    assert resp_cross.status_code == 200
+    assert resp_cross.json()["fallback"] is True
+    assert resp_cross.json()["reason"] == "unknown_customer" 

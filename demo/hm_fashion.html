@@ -1529,9 +1529,15 @@
     }
 
     const CONFIG = {
-      baseUrl: resolveApiBase(),
-      publicKey: sanitizeHmKey(localStorage.getItem('hm_api_key')),
+      baseUrl: "https://your-engine.com",
+      publicKey: "PASTE_YOUR_PUBLIC_KEY_HERE",
     };
+    if (typeof window !== 'undefined') {
+      const liveBase = resolveApiBase();
+      const liveKey = sanitizeHmKey(localStorage.getItem('hm_api_key'));
+      if (liveBase && !liveBase.includes('your-engine.com')) CONFIG.baseUrl = liveBase;
+      if (liveKey && !liveKey.includes('PASTE_YOUR')) CONFIG.publicKey = liveKey;
+    }
 
     // Auto-detect live server, saved localStorage, or query parameters for live execution
     (function initLocalConfig() {
