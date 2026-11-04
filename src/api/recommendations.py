@@ -4,9 +4,11 @@ Driven by CustomerSchema, ProductSchema, and tenant configuration.
 """
 
 from collections import Counter
+import csv
 import io
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,7 @@ from src.api.schemas import (
 )
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
+from src.telemetry import record_recommendation
 from src.utils.config import get_tenant_auth_mapping, get_tenant_config, load_config, resolve_path
 from src.utils.persistence import load_model as persistence_load_model
 
@@ -370,6 +373,52 @@ def _log_recommendation_request(request: Request, tenant_id: str, is_fallback: b
     )
 
 
+def _handle_recommendation(
+    tenant_id: str,
+    customer_id: str,
+    top_n: int,
+    request: Request | None = None,
+) -> dict[str, Any]:
+    """Execute recommendation scoring, log request, and record telemetry."""
+    if not customer_id or not customer_id.strip():
+        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
+
+    clean_cid = customer_id.strip()
+    start_t = time.perf_counter()
+    recs, is_fallback, reason = _recommend_for_customer(tenant_id, clean_cid, top_n)
+    latency_ms = (time.perf_counter() - start_t) * 1000.0
+
+    source = "live"
+    if request is not None:
+        _log_recommendation_request(request, tenant_id, is_fallback)
+        header_src = request.headers.get("x-aipod-source") or request.headers.get("X-AIPOD-Source")
+        if header_src == "wizard-test":
+            source = "test"
+
+    recommended_pids = [
+        r["product_id"] if isinstance(r, dict) else getattr(r, "product_id", str(r))
+        for r in recs
+    ]
+    record_recommendation(
+        tenant_id=tenant_id,
+        customer_id=clean_cid,
+        top_n=top_n,
+        fallback=is_fallback,
+        reason=reason,
+        latency_ms=latency_ms,
+        source=source,
+        recommended_products=recommended_pids,
+    )
+
+    return {
+        "tenant_id": tenant_id,
+        "customer_id": clean_cid,
+        "recommendations": recs,
+        "fallback": is_fallback,
+        "reason": reason,
+    }
+
+
 @router.get(
     "",
     response_model=RecommendationsResponse,
@@ -383,19 +432,7 @@ def get_recommendations(
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     """Retrieve personalized product recommendations for a customer."""
-    if not customer_id or not customer_id.strip():
-        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
-
-    recs, is_fallback, reason = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
-    if request is not None:
-        _log_recommendation_request(request, tenant_id, is_fallback)
-    return {
-        "tenant_id": tenant_id,
-        "customer_id": customer_id.strip(),
-        "recommendations": recs,
-        "fallback": is_fallback,
-        "reason": reason,
-    }
+    return _handle_recommendation(tenant_id, customer_id, top_n, request)
 
 
 @router.post(
@@ -410,19 +447,7 @@ def create_recommendations(
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     """Retrieve recommendations using a JSON request body."""
-    if not payload.customer_id or not payload.customer_id.strip():
-        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
-
-    recs, is_fallback, reason = _recommend_for_customer(tenant_id, payload.customer_id.strip(), payload.top_n)
-    if request is not None:
-        _log_recommendation_request(request, tenant_id, is_fallback)
-    return {
-        "tenant_id": tenant_id,
-        "customer_id": payload.customer_id.strip(),
-        "recommendations": recs,
-        "fallback": is_fallback,
-        "reason": reason,
-    }
+    return _handle_recommendation(tenant_id, payload.customer_id, payload.top_n, request)
 
 
 @router.get(
@@ -450,19 +475,46 @@ def get_sample_customers(
     try:
         # Read up to 32 KB through storage.read_file_range to avoid loading full file
         chunk = storage.read_file_range(proc_path, start=0, length=32768)
+        if not chunk:
+            return {"tenant_id": tenant_id, "customer_ids": []}
+
         text = chunk.decode("utf-8", errors="replace")
-        lines = text.splitlines()
-        if len(lines) > 1:
-            if len(chunk) == 32768:
-                lines = lines[:-1]
-            csv_text = "\n".join(lines)
-            df = pd.read_csv(io.StringIO(csv_text))
-            col = "customer_id" if "customer_id" in df.columns else (
-                "customerID" if "customerID" in df.columns else df.columns[0]
-            )
-            raw_ids = [str(x).strip() for x in df[col].dropna().unique() if str(x).strip()]
-            sample_ids = raw_ids[:limit]
-            return {"tenant_id": tenant_id, "customer_ids": sample_ids}
+
+        # If chunk hit the 32 KB buffer limit, drop the last (possibly truncated) line
+        if len(chunk) >= 32768:
+            last_nl = max(text.rfind("\n"), text.rfind("\r"))
+            if last_nl > 0:
+                text = text[:last_nl]
+
+        # Parse with standard csv.reader to correctly handle quoted fields and delimiters
+        reader = csv.reader(io.StringIO(text))
+        try:
+            header = next(reader)
+        except StopIteration:
+            return {"tenant_id": tenant_id, "customer_ids": []}
+
+        if not header:
+            return {"tenant_id": tenant_id, "customer_ids": []}
+
+        norm_header = [h.strip() for h in header]
+        col_idx = 0
+        for candidate in ("customer_id", "customerID", "customer", "id"):
+            if candidate in norm_header:
+                col_idx = norm_header.index(candidate)
+                break
+
+        sample_ids: list[str] = []
+        seen: set[str] = set()
+        for row in reader:
+            if len(row) > col_idx:
+                cid = row[col_idx].strip()
+                if cid and cid not in seen:
+                    seen.add(cid)
+                    sample_ids.append(cid)
+                    if len(sample_ids) >= limit:
+                        break
+
+        return {"tenant_id": tenant_id, "customer_ids": sample_ids}
     except Exception as exc:
         logger.warning("[%s] Failed to extract sample customers from %s: %s", tenant_id, proc_path, exc)
 
@@ -482,16 +534,4 @@ def get_recommendations_for_customer(
     tenant_id: str = Depends(get_current_tenant),
 ) -> dict[str, Any]:
     """Retrieve personalized product recommendations for a customer specified by path."""
-    if not customer_id or not customer_id.strip():
-        raise HTTPException(status_code=400, detail="customer_id cannot be blank")
-
-    recs, is_fallback, reason = _recommend_for_customer(tenant_id, customer_id.strip(), top_n)
-    if request is not None:
-        _log_recommendation_request(request, tenant_id, is_fallback)
-    return {
-        "tenant_id": tenant_id,
-        "customer_id": customer_id.strip(),
-        "recommendations": recs,
-        "fallback": is_fallback,
-        "reason": reason,
-    }
+    return _handle_recommendation(tenant_id, customer_id, top_n, request)

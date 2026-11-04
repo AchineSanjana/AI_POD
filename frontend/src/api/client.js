@@ -76,8 +76,17 @@ export const getSampleCustomers = (limit = 10, pk = null) =>
     headers: { 'X-API-Key': pk || localStorage.getItem('aipod_pk') || '' },
   });
 
-export const getRecommendations = (customerId, topN = 5, pk = null) =>
+export const getRecommendations = (customerId, topN = 5, pk = null, customHeaders = {}) =>
   request(`/recommendations/${customerId}?top_n=${topN}`, {
-    headers: { 'X-API-Key': pk || localStorage.getItem('aipod_pk') || '' },
+    headers: {
+      'X-API-Key': pk || localStorage.getItem('aipod_pk') || '',
+      ...customHeaders,
+    },
   });
+
+// Dashboard
+export const getDashboardOverview = () => request('/dashboard/overview');
+export const getDashboardModels   = () => request('/dashboard/models');
+export const getDashboardAnalytics = (days = 7) => request(`/dashboard/analytics?days=${days}`);
+export const getDashboardEvents    = (limit = 20) => request(`/dashboard/events?limit=${limit}`);
 

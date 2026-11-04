@@ -122,13 +122,21 @@ class GenericConfigAdapter(DataAdapter):
 
         feature_specs = self.customer_schema.features
 
-        cols_to_select = [
-            c for c in [id_col] + [f.name for f in feature_specs] if c in raw.columns
-        ]
+        seen = set()
+        cols_to_select = []
+        for c in [id_col] + [f.name for f in feature_specs]:
+            if c in raw.columns and c not in seen:
+                cols_to_select.append(c)
+                seen.add(c)
         df = raw[cols_to_select].copy()
 
         if id_col in df.columns:
+            if id_col != "customer_id" and "customer_id" in df.columns:
+                df = df.drop(columns=["customer_id"])
             df = df.rename(columns={id_col: "customer_id"})
+
+        df = df.loc[:, ~df.columns.duplicated(keep="first")]
+
         if "customer_id" in df.columns:
             df["customer_id"] = _format_identifier_series(df["customer_id"])
             df = df[

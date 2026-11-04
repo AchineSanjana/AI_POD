@@ -28,6 +28,7 @@ from src.api.retrain import router as retrain_router
 from src.api.tracking import router as tracking_router
 from src.api.ui import build_home_page, router as ui_router
 from src.api.accounts import router as accounts_router
+from src.api.dashboard import router as dashboard_router
 from src.integrations.shopify.api import router as shopify_router
 from src.utils.config import PROJECT_ROOT
 
@@ -62,6 +63,11 @@ async def lifespan(app: FastAPI):
             logger.warning("JWT_SECRET_KEY is not set; using insecure default for development")
 
     load_tenant_auth()
+
+    # Start background telemetry flusher
+    from src.telemetry import flush_telemetry, start_telemetry_flusher, stop_telemetry_flusher
+    start_telemetry_flusher(5.0)
+
     worker = None
     if os.environ.get("ENABLE_TRACKING_WORKER", "").strip().lower() in ("true", "1", "yes"):
         from src.queue.tracking_worker import start_background_tracking_worker
@@ -69,6 +75,8 @@ async def lifespan(app: FastAPI):
     yield
     if worker:
         worker.stop()
+    stop_telemetry_flusher()
+    flush_telemetry()
 
 
 app = FastAPI(
@@ -84,6 +92,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -118,6 +127,7 @@ v1_router.include_router(open_onboarding_router)
 v1_router.include_router(shopify_router)
 v1_router.include_router(retrain_router)
 v1_router.include_router(accounts_router)
+v1_router.include_router(dashboard_router)
 
 
 @v1_router.get("/sdk.js", include_in_schema=False)
@@ -230,6 +240,7 @@ app.include_router(open_onboarding_router)
 app.include_router(shopify_router)
 app.include_router(retrain_router)
 app.include_router(accounts_router)
+app.include_router(dashboard_router)
 
 
 @app.get(

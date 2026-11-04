@@ -25,6 +25,9 @@ data/external/*
 !data/external/.gitkeep
 data/events/*
 !data/events/.gitkeep
+data/telemetry/**
+!data/telemetry/
+!data/telemetry/.gitkeep
 
 # Saved models (keep folder structure, ignore actual artifacts)
 models/*

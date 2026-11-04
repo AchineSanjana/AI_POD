@@ -95,3 +95,14 @@ class StorageBackend(ABC):
             return content[start : start + length]
         return content[start:]
 
+    def delete_file(self, path: str) -> bool:
+        """Delete a file at the specified path if it exists.
+
+        Args:
+            path: Logical path to destination file.
+
+        Returns:
+            bool: True if deleted, False if not found or deletion failed.
+        """
+        raise NotImplementedError
+

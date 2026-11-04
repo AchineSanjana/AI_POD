@@ -125,6 +125,19 @@ def generate_tenant_config(
     segmentation_split: str = "median"
 
     if is_transactional:
+        # Check for explicit customer ID column
+        cust_id_candidates = [
+            c.name for c in profile_report
+            if any(tok in c.name.lower() for tok in ("customer", "user", "client", "member", "account", "buyer", "shopper"))
+            and c.null_percentage < 99.0
+        ]
+        if cust_id_candidates:
+            cust_id_col = cust_id_candidates[0]
+            if id_column != cust_id_col:
+                if not invoice_candidates:
+                    invoice_candidates = [id_column]
+                id_column = cust_id_col
+
         prod_id_col = product_id_candidates[0]
         desc_col = desc_candidates[0] if desc_candidates else None
         invoice_col = invoice_candidates[0] if invoice_candidates else None

@@ -182,3 +182,12 @@ class S3Storage(StorageBackend):
             if error_code in ("NoSuchKey", "404", "NoSuchBucket"):
                 return None
             raise
+
+    def delete_file(self, path: str) -> bool:
+        """Delete an S3 object at the specified path if it exists."""
+        key = self._resolve_key(path)
+        try:
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=key)
+            return True
+        except ClientError:
+            return False

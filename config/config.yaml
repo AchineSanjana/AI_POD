@@ -736,3 +736,5 @@ integrations:
 dummyjson:
   enabled_for_practice_only: true
   page_size: 30
+telemetry:
+  retention_days: 30

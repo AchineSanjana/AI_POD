@@ -144,8 +144,10 @@ def _extract_config_val(config: Any, key: str, default: Any = None) -> Any:
     return default
 
 
-def _format_identifier_series(series: pd.Series) -> pd.Series:
+def _format_identifier_series(series: pd.Series | pd.DataFrame) -> pd.Series:
     """Normalize identifier series to clean strings without float '.0' artifacts."""
+    if isinstance(series, pd.DataFrame):
+        series = series.iloc[:, 0]
     def _fmt(val: Any) -> str:
         if pd.isna(val):
             return ""

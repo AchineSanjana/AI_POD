@@ -135,3 +135,14 @@ class LocalStorage(StorageBackend):
             return f"{stat.st_mtime_ns}:{stat.st_size}"
         except OSError:
             return None
+
+    def delete_file(self, path: str) -> bool:
+        """Delete a local file at the specified path if it exists."""
+        target = self._resolve(path)
+        if target.is_file():
+            try:
+                target.unlink()
+                return True
+            except OSError:
+                return False
+        return False

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { onboardStatus, getMe } from '../../api/client';
-import { Brain, Key, BarChart3, Zap, ArrowRight, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getDashboardOverview, getDashboardEvents, getMe } from '../../api/client';
+import { Brain, Key, BarChart3, Zap, ArrowRight, RefreshCw, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 function StatCard({ label, value, sub, color, icon: Icon }) {
   return (
@@ -21,32 +21,64 @@ function StatCard({ label, value, sub, color, icon: Icon }) {
   );
 }
 
-const RECENT_EVENTS = [
-  { id:1, customer:'7590-VHVEG', event:'view',     product:'OnlineSecurity', time:'2 min ago' },
-  { id:2, customer:'2345-ABCD',  event:'purchase', product:'TechSupport',    time:'5 min ago' },
-  { id:3, customer:'9012-XYZ',   event:'click',    product:'StreamingTV',    time:'8 min ago' },
-  { id:4, customer:'1111-EFGH',  event:'add_to_cart',product:'OnlineSecurity',time:'12 min ago'},
-  { id:5, customer:'5678-IJKL',  event:'view',     product:'DeviceProtect',  time:'18 min ago'},
-];
-
-const EVENT_COLOR = { view:'#3b82f6', click:'#818cf8', add_to_cart:'#f59e0b', purchase:'#10b981' };
+const EVENT_COLOR = {
+  view: '#3b82f6',
+  click: '#818cf8',
+  add_to_cart: '#f59e0b',
+  purchase: '#10b981',
+};
 
 export default function Overview() {
   const { user, setUser } = useAuth();
-  const [modelInfo, setModelInfo] = useState(null);
-  const [loading,   setLoading]   = useState(true);
+  const [overview, setOverview] = useState(null);
+  const [events,   setEvents]   = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    else setRefreshing(true);
+
+    try {
+      const [meRes, ovRes, evRes] = await Promise.allSettled([
+        getMe(),
+        getDashboardOverview(),
+        getDashboardEvents(20),
+      ]);
+
+      if (meRes.status === 'fulfilled') setUser(meRes.value);
+      if (ovRes.status === 'fulfilled') setOverview(ovRes.value);
+      if (evRes.status === 'fulfilled') setEvents(evRes.value?.events || []);
+    } catch {
+      // Graceful fallback to empty state
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [setUser]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [me, status] = await Promise.allSettled([getMe(), onboardStatus()]);
-        if (me.status === 'fulfilled') setUser(me.value);
-        if (status.status === 'fulfilled') setModelInfo(status.value);
-      } catch {}
-      setLoading(false);
+    loadData(true);
+
+    // Auto-refresh every 30 seconds while tab is visible
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
+    }, 30000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
     };
-    load();
-  }, []);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadData]);
 
   const quickActions = [
     { to:'/onboarding/upload', label:'Upload New Dataset', icon:Zap,      color:'#3b82f6' },
@@ -54,6 +86,16 @@ export default function Overview() {
     { to:'/dashboard/model',   label:'Re-train Model',      icon:Brain,    color:'#10b981' },
     { to:'/dashboard/analytics',label:'View Analytics',     icon:BarChart3,color:'#06b6d4' },
   ];
+
+  const formatLastTrained = (ts) => {
+    if (!ts) return 'Never trained';
+    try {
+      const d = new Date(ts);
+      return d.toLocaleDateString(undefined, { month:'short', day:'numeric' }) + ' at ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    } catch {
+      return ts;
+    }
+  };
 
   return (
     <div>
@@ -63,20 +105,51 @@ export default function Overview() {
           <h3 style={{ marginBottom:4 }}>Welcome back{user?.company_name ? `, ${user.company_name}` : ''} 👋</h3>
           <p style={{ fontSize:14 }}>Here's what's happening with your recommendation engine.</p>
         </div>
-        {!user?.email_verified && (
-          <div className="badge badge-yellow"><AlertCircle size={12}/> Email not verified</div>
-        )}
-        {user?.email_verified && (
-          <div className="badge badge-green"><CheckCircle2 size={12}/> Verified</div>
-        )}
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          {refreshing && (
+            <span style={{ fontSize:12, color:'var(--text-muted)', display:'flex', alignItems:'center', gap:6 }}>
+              <RefreshCw size={12} className="animate-spin"/> Updating…
+            </span>
+          )}
+          {!user?.email_verified && (
+            <div className="badge badge-yellow"><AlertCircle size={12}/> Email not verified</div>
+          )}
+          {user?.email_verified && (
+            <div className="badge badge-green"><CheckCircle2 size={12}/> Verified</div>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid-4 mb-8">
-        <StatCard label="Model Status"     value={loading ? '…' : modelInfo?.status || 'Ready'} sub="Current state" color="#10b981" icon={Brain}/>
-        <StatCard label="Tenant ID"        value={user?.tenant_id || '—'} sub="Your identifier" color="#3b82f6" icon={Zap}/>
-        <StatCard label="Requests Today"   value="1,240" sub="+12% from yesterday" color="#818cf8" icon={BarChart3}/>
-        <StatCard label="API Keys Active"  value="2" sub="pk + sk" color="#06b6d4" icon={Key}/>
+        <StatCard
+          label="Model Status"
+          value={loading ? '…' : overview?.status || 'Not Started'}
+          sub={overview?.ready ? 'Ready for live serving' : 'Awaiting training'}
+          color="#10b981"
+          icon={Brain}
+        />
+        <StatCard
+          label="Tenant ID"
+          value={user?.tenant_id || overview?.tenant_id || '—'}
+          sub="Your identifier"
+          color="#3b82f6"
+          icon={Zap}
+        />
+        <StatCard
+          label="Requests Today"
+          value={loading ? '…' : (overview?.requests_today ?? 0).toLocaleString()}
+          sub="Live recommendation calls"
+          color="#818cf8"
+          icon={BarChart3}
+        />
+        <StatCard
+          label="Active API Keys"
+          value={loading ? '…' : String(overview?.active_key_count ?? 0)}
+          sub="Configured credentials"
+          color="#06b6d4"
+          icon={Key}
+        />
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
@@ -96,10 +169,26 @@ export default function Overview() {
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {[
-                { label:'Winning Model', val: modelInfo?.winner_model || 'XGBoost Learned Ranking', color:'#10b981' },
-                { label:'NDCG@5',        val: (modelInfo?.metrics?.ndcg ?? 0.607).toFixed(3),       color:'#3b82f6' },
-                { label:'Precision@5',   val: (modelInfo?.metrics?.precision ?? 0.316).toFixed(3),  color:'#818cf8' },
-                { label:'Last Trained',  val: 'Today at 09:14',                                     color:'var(--text-secondary)' },
+                {
+                  label: 'Winning Model',
+                  val: overview?.winning_model || (overview?.ready ? 'Deployed' : 'None yet'),
+                  color: overview?.winning_model ? '#10b981' : 'var(--text-muted)',
+                },
+                {
+                  label: 'NDCG@5',
+                  val: overview?.metrics?.ndcg != null ? Number(overview.metrics.ndcg).toFixed(3) : '—',
+                  color: overview?.metrics?.ndcg != null ? '#3b82f6' : 'var(--text-muted)',
+                },
+                {
+                  label: 'Precision@5',
+                  val: overview?.metrics?.precision != null ? Number(overview.metrics.precision).toFixed(3) : '—',
+                  color: overview?.metrics?.precision != null ? '#818cf8' : 'var(--text-muted)',
+                },
+                {
+                  label: 'Last Trained',
+                  val: formatLastTrained(overview?.last_trained),
+                  color: 'var(--text-secondary)',
+                },
               ].map(r => (
                 <div key={r.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)' }}>
                   <span style={{ fontSize:13, color:'var(--text-secondary)' }}>{r.label}</span>
@@ -141,16 +230,43 @@ export default function Overview() {
             <span style={{ width:6,height:6,borderRadius:'50%',background:'var(--success)' }}/>Live
           </span>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {RECENT_EVENTS.map(ev => (
-            <div key={ev.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
-              <span className="badge" style={{ background:`${EVENT_COLOR[ev.event]}18`, color:EVENT_COLOR[ev.event], border:`1px solid ${EVENT_COLOR[ev.event]}30`, minWidth:80, justifyContent:'center' }}>{ev.event}</span>
-              <code style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'monospace' }}>{ev.customer}</code>
-              <span style={{ flex:1, fontSize:13 }}>{ev.product}</span>
-              <span style={{ fontSize:12, color:'var(--text-muted)' }}>{ev.time}</span>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div>
+            <div className="skeleton" style={{ height:36, marginBottom:8 }}/>
+            <div className="skeleton" style={{ height:36, marginBottom:8 }}/>
+            <div className="skeleton" style={{ height:36 }}/>
+          </div>
+        ) : events.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--text-muted)' }}>
+            <Clock size={28} style={{ opacity:0.4, marginBottom:10 }}/>
+            <p style={{ fontSize:14, margin:0 }}>No client tracking events recorded yet.</p>
+            <p style={{ fontSize:12, color:'var(--text-secondary)', marginTop:4 }}>
+              Events streamed from your storefront SDK will appear here in real time.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {events.map((ev, idx) => {
+              const evColor = EVENT_COLOR[ev.event_type] || '#3b82f6';
+              return (
+                <div key={ev.ts || idx} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
+                  <span className="badge" style={{ background:`${evColor}18`, color:evColor, border:`1px solid ${evColor}30`, minWidth:80, justifyContent:'center' }}>
+                    {ev.event_type}
+                  </span>
+                  <code style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'monospace' }}>
+                    {ev.customer_id || ev.session_id || 'anonymous'}
+                  </code>
+                  <span style={{ flex:1, fontSize:13 }}>
+                    {ev.product_name || ev.product_id || '—'}
+                  </span>
+                  <span style={{ fontSize:12, color:'var(--text-muted)' }}>
+                    {ev.time_ago || 'recent'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

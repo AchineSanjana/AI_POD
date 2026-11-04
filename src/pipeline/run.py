@@ -157,6 +157,15 @@ def run_tenant_pipeline(
         # Stage 2: Splitting Data
         update_progress("splitting_data", "Creating train/test split for evaluation...")
         feature_columns = [f.name for f in tenant_cfg.customers.features]
+        ranking_specs = tenant_cfg.customers.features
+        if not feature_columns:
+            logger.info("[%s] No customer features defined in config; deriving behavioral features", tenant_id)
+            cust_counts = interactions["customer_id"].value_counts()
+            customers["interaction_count"] = customers["customer_id"].map(cust_counts).fillna(0).astype(float)
+            feature_columns = ["interaction_count"]
+            from src.core.schema import FeatureSpec
+            ranking_specs = [FeatureSpec(name="interaction_count", dtype="numeric")]
+
         train_interactions, test_interactions = create_train_test_split(
             interactions, max_test_items_per_customer=2, random_state=42
         )
@@ -269,7 +278,7 @@ def run_tenant_pipeline(
         update_progress("training_xgboost", "Training 4/4: LearnedRankingRecommender...")
         try:
             ranking_model = LearnedRankingRecommender(
-                customer_specs=tenant_cfg.customers.features
+                customer_specs=ranking_specs
             ).fit(customers, train_interactions, products)
             models_state["xgboost"] = "evaluating"
             update_progress("evaluating_xgboost", "Evaluating 4/4: LearnedRankingRecommender on holdout...")
@@ -336,7 +345,7 @@ def run_tenant_pipeline(
             )
         else:
             winning_model_instance = LearnedRankingRecommender(
-                customer_specs=tenant_cfg.customers.features
+                customer_specs=ranking_specs
             ).fit(customers, interactions, products)
 
         winning_model_instance.customers_ = customers

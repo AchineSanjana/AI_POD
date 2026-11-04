@@ -224,3 +224,98 @@ class ScheduledRetrainResponse(BaseModel):
 class ScheduledRetrainRequest(BaseModel):
     wait_for_completion: bool = Field(False, description="Wait for background training jobs to finish before responding")
     timeout_seconds: float = Field(30.0, description="Max seconds to wait if wait_for_completion is True")
+
+
+# ---------------------------------------------------------------------------
+# Dashboard Schemas
+# ---------------------------------------------------------------------------
+
+
+class DashboardDatasetStats(BaseModel):
+    customers: int | None = Field(None, description="Total unique customers in dataset")
+    products: int | None = Field(None, description="Total unique products in dataset")
+    interactions: int | None = Field(None, description="Total recorded interactions in dataset")
+
+
+class DashboardModelMetrics(BaseModel):
+    ndcg: float | None = Field(None, description="NDCG@5 ranking metric")
+    precision: float | None = Field(None, description="Precision@5 recommendation precision")
+    recall: float | None = Field(None, description="Recall@5 recommendation recall")
+
+
+class DashboardOverviewResponse(BaseModel):
+    tenant_id: str = Field(..., description="Tenant identifier")
+    status: str = Field("not_started", description="Training/model status: 'completed', 'running', 'queued', 'failed', 'stalled', 'not_started'")
+    ready: bool = Field(False, description="Whether a trained model is ready for live serving")
+    winning_model: str | None = Field(None, description="Display name of winning model")
+    winner_key: str | None = Field(None, description="Key identifier of winning model")
+    metrics: DashboardModelMetrics | None = Field(None, description="Winning model metrics")
+    dataset_stats: DashboardDatasetStats | None = Field(None, description="Dataset size statistics")
+    requests_today: int = Field(0, description="Total recommendation requests served today (UTC)")
+    active_key_count: int = Field(0, description="Number of active API keys issued for tenant")
+    last_trained: str | None = Field(None, description="ISO timestamp of last training completion")
+
+
+class DashboardModelLeaderboardItem(BaseModel):
+    id: str = Field(..., description="Model identifier: 'xgboost', 'hybrid', 'collaborative', 'content'")
+    name: str = Field(..., description="Display name of the model")
+    ndcg: float | None = Field(None, description="NDCG@5 ranking score")
+    precision: float | None = Field(None, description="Precision@5 score")
+    recall: float | None = Field(None, description="Recall@5 score")
+    status: str = Field("not_started", description="Model status: 'done', 'failed', 'training', 'stalled', 'queued', 'not_started'")
+    is_winner: bool = Field(False, description="Whether this model is the deployed tournament winner")
+    color: str | None = Field(None, description="UI accent color for model display")
+
+
+class DashboardModelsResponse(BaseModel):
+    tenant_id: str = Field(..., description="Tenant identifier")
+    status: str = Field("not_started", description="Overall training status")
+    winner_key: str | None = Field(None, description="Winning model key")
+    winner_name: str | None = Field(None, description="Winning model display name")
+    winner_metrics: DashboardModelMetrics | None = Field(None, description="Winning model metrics")
+    models: list[DashboardModelLeaderboardItem] = Field(default_factory=list, description="Leaderboard of candidate models")
+    dataset_stats: DashboardDatasetStats | None = Field(None, description="Dataset size statistics")
+    last_trained: str | None = Field(None, description="ISO timestamp of last training")
+
+
+class DashboardDailyEvent(BaseModel):
+    date: str = Field(..., description="Date (YYYY-MM-DD)")
+    day: str = Field(..., description="Day label (e.g. 'Mon', 'Tue' or 'MM/DD')")
+    views: int = Field(0, description="View event count")
+    clicks: int = Field(0, description="Click event count")
+    cart_adds: int = Field(0, description="Add to cart event count")
+    purchases: int = Field(0, description="Purchase event count")
+    total: int = Field(0, description="Total events on this date")
+
+
+class DashboardTopProduct(BaseModel):
+    product_id: str = Field(..., description="Product ID")
+    name: str = Field(..., description="Product title/display name")
+    recs: int = Field(0, description="Number of times recommended")
+
+
+class DashboardAnalyticsResponse(BaseModel):
+    tenant_id: str = Field(..., description="Tenant identifier")
+    days: int = Field(7, description="Number of days covered")
+    total_events: int = Field(0, description="Total interaction events in period")
+    total_recommendations: int = Field(0, description="Total recommendations served in period")
+    requests_today: int = Field(0, description="Recommendations served today")
+    fallback_rate: float | None = Field(None, description="Fallback recommendation percentage (0.0 to 1.0)")
+    ctr: float | None = Field(None, description="Click-through rate (null if untracked)")
+    events_by_day: list[DashboardDailyEvent] = Field(default_factory=list, description="Daily event breakdown")
+    top_products: list[DashboardTopProduct] = Field(default_factory=list, description="Top recommended products")
+
+
+class DashboardEventItem(BaseModel):
+    ts: str | None = Field(None, description="Event ISO timestamp")
+    event_type: str = Field(..., description="Event type ('view', 'add_to_cart', 'purchase', etc.)")
+    product_id: str | None = Field(None, description="Target product identifier")
+    product_name: str | None = Field(None, description="Enriched product title if known")
+    session_id: str | None = Field(None, description="Client session ID")
+    customer_id: str | None = Field(None, description="Customer ID")
+    time_ago: str | None = Field(None, description="Human-friendly relative time string")
+
+
+class DashboardEventsResponse(BaseModel):
+    tenant_id: str = Field(..., description="Tenant identifier")
+    events: list[DashboardEventItem] = Field(default_factory=list, description="Latest tracked interaction events")

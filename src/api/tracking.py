@@ -15,6 +15,7 @@ from src.api.auth import get_public_key_tenant
 from src.api.rate_limiter import check_rate_limit
 from src.api.schemas import TrackEventAcceptedResponse
 from src.queue.tracking_queue import push_tracking_event_to_sqs
+from src.telemetry import record_event
 
 router = APIRouter(
     prefix="/track",
@@ -147,6 +148,16 @@ async def track_event(
     # 4. Push validated event record onto Amazon SQS queue (and in-memory buffer)
     push_event(event_record)
     push_tracking_event_to_sqs(event_record)
+
+    # Record in telemetry buffer
+    record_event(
+        tenant_id=tenant_id,
+        event_type=event_type,
+        product_id=product_id.strip(),
+        session_id=session_id.strip(),
+        customer_id=customer_id,
+        ts=timestamp,
+    )
 
     # 5. Return fast minimal 202 Accepted response
     return {"status": "accepted"}

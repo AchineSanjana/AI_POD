@@ -4,14 +4,13 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { getRecommendations, getSampleCustomers } from '../../api/client';
 import CodeBlock from '../../components/CodeBlock';
 import KeyDisplay from '../../components/KeyDisplay';
-import { Key, Code2, ShoppingBag, Zap, ArrowRight, Search, AlertCircle } from 'lucide-react';
+import { Key, Code2, ShoppingBag, ArrowRight, Search, AlertCircle } from 'lucide-react';
 
 const KEY_UNAVAILABLE = 'Key not available, regenerate in Dashboard > API Keys';
 
 export default function IntegrateStep() {
   const { keys, tenantId } = useOnboarding();
   const pk = keys.pk || localStorage.getItem('aipod_pk') || KEY_UNAVAILABLE;
-  const sk = keys.sk || localStorage.getItem('aipod_sk') || KEY_UNAVAILABLE;
 
   const [sdkTab,          setSdkTab]          = useState(0);
   const [testId,          setTestId]          = useState('');
@@ -93,7 +92,12 @@ const recs = await aipod.getRecommendations({ top_n: 5 });`;
     setTestResult(null);
     setTestError('');
     try {
-      const data = await getRecommendations(testId, 5, pk !== KEY_UNAVAILABLE ? pk : null);
+      const data = await getRecommendations(
+        testId,
+        5,
+        pk !== KEY_UNAVAILABLE ? pk : null,
+        { 'X-AIPOD-Source': 'wizard-test' }
+      );
       setTestResult(data);
     } catch (err) {
       setTestError(err?.message || err?.detail || 'Failed to fetch recommendations.');
@@ -111,18 +115,14 @@ const recs = await aipod.getRecommendations({ top_n: 5 });`;
         <p>Copy the snippet below and drop it into your website. Recommendations are ready.</p>
       </div>
 
-      {/* Section A: API Keys */}
+      {/* Section A: API Key */}
       <div className="card mb-6">
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
           <Key size={18} color="var(--accent-1)"/>
-          <h4>Your API Keys</h4>
+          <h4>Your API Key</h4>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           <KeyDisplay label="Public Key (for client-side embedding)" value={pk} secret={false} />
-          <KeyDisplay label="Private Key (backend use only — never expose publicly)" value={sk} secret={true} />
-        </div>
-        <div className="alert alert-warning mt-4">
-          <Zap size={14}/> Your private key will not be shown again after this page. Save it securely now.
         </div>
       </div>
 

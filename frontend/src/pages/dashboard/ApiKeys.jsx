@@ -1,31 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { regenerateKeys } from '../../api/client';
 import KeyDisplay from '../../components/KeyDisplay';
-import { Key, RefreshCw, ShieldAlert, Check } from 'lucide-react';
+import { RefreshCw, ShieldAlert, Check, EyeOff } from 'lucide-react';
 
 export default function ApiKeys() {
   const { user, setUser } = useAuth();
-  const [loading,   setLoading]   = useState(false);
-  const [confirm,   setConfirm]   = useState(false);
-  const [success,   setSuccess]   = useState(false);
-  const [newKeys,   setNewKeys]   = useState(null);
-  const [error,     setError]     = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [confirm,    setConfirm]    = useState(false);
+  const [success,    setSuccess]    = useState(false);
+  const [newKeys,    setNewKeys]    = useState(null);
+  const [storedSk,   setStoredSk]   = useState(() => localStorage.getItem('aipod_sk'));
+  const [dismissed,  setDismissed]  = useState(false);
+  const [error,      setError]      = useState('');
 
-  const pk = newKeys?.public_key  || localStorage.getItem('aipod_pk') || 'pk-live-xxxx…';
-  const sk = newKeys?.private_key || localStorage.getItem('aipod_sk') || 'sk-live-xxxx…';
+  // Remove aipod_sk from localStorage when user leaves this page
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('aipod_sk');
+    };
+  }, []);
+
+  const pk = newKeys?.public_key || user?.public_key || localStorage.getItem('aipod_pk') || '';
+  const sk = !dismissed ? (storedSk || newKeys?.private_key || null) : null;
+
+  const handleDismissSk = () => {
+    localStorage.removeItem('aipod_sk');
+    setStoredSk(null);
+    setNewKeys(null);
+    setDismissed(true);
+  };
 
   const handleRotate = async () => {
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const data = await regenerateKeys();
       setNewKeys(data);
       localStorage.setItem('aipod_pk', data.public_key);
-      localStorage.setItem('aipod_sk', data.private_key);
-      setSuccess(true); setConfirm(false);
+      // Remove from localStorage; only held in component state during this view
+      localStorage.removeItem('aipod_sk');
+      setStoredSk(data.private_key);
+      setDismissed(false);
+      if (setUser) {
+        setUser(prev => (prev ? { ...prev, public_key: data.public_key } : prev));
+      }
+      setSuccess(true);
+      setConfirm(false);
     } catch (err) {
-      setError(err.message || 'Failed to regenerate keys');
-    } finally { setLoading(false); }
+      setError(err?.message || 'Failed to regenerate keys');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,7 +63,7 @@ export default function ApiKeys() {
 
       {success && (
         <div className="alert alert-success mb-6">
-          <Check size={16}/> Keys rotated successfully. Save your new private key — it won't be shown again.
+          <Check size={16}/> Keys rotated successfully. Copy this secret key now. After you leave this page it cannot be shown again.
         </div>
       )}
       {error && <div className="alert alert-error mb-6">{error}</div>}
@@ -52,7 +78,11 @@ export default function ApiKeys() {
               <span className="badge badge-blue">Public</span>
               <span style={{ fontSize:13, color:'var(--text-secondary)' }}>Safe for client-side embedding (pk-…)</span>
             </div>
-            <KeyDisplay label="" value={pk} secret={false} />
+            {pk ? (
+              <KeyDisplay label="" value={pk} secret={false} />
+            ) : (
+              <div style={{ fontSize:13, color:'var(--text-muted)' }}>No public key available.</div>
+            )}
           </div>
 
           <div className="divider" style={{ margin:'8px 0' }}/>
@@ -63,7 +93,37 @@ export default function ApiKeys() {
               <span className="badge badge-red">Private</span>
               <span style={{ fontSize:13, color:'var(--text-secondary)' }}>Backend use only — never expose in client code (sk-…)</span>
             </div>
-            <KeyDisplay label="" value={sk} secret={true} />
+            {sk ? (
+              <div>
+                <KeyDisplay label="" value={sk} secret={true} />
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:10, flexWrap:'wrap', gap:8 }}>
+                  <div style={{ fontSize:12, color:'var(--accent-1)' }}>
+                    ⚠️ Copy this secret key now. After you leave this page it cannot be shown again.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleDismissSk}
+                    style={{ fontSize:12, padding:'4px 10px' }}
+                  >
+                    I have copied my secret key
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                padding:'14px 16px', background:'var(--bg-surface)',
+                borderRadius:'var(--radius-sm)', border:'1px dashed var(--border)',
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, color:'var(--text-secondary)' }}>
+                  <EyeOff size={15} style={{ opacity:0.7 }}/>
+                  <span style={{ fontSize:13, fontWeight:500 }}>Private key is hidden for security.</span>
+                </div>
+                <p style={{ fontSize:12, color:'var(--text-muted)', margin:'6px 0 0 23px' }}>
+                  Private keys are only shown once upon creation or rotation. Regenerate below to issue a new private key.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -87,6 +147,7 @@ export default function ApiKeys() {
                 ['POST /v1/onboard/*',       '❌','✅'],
                 ['GET /v1/onboard/status',   '❌','✅'],
                 ['POST /v1/retrain/*',       '❌','✅'],
+                ['GET /v1/dashboard/*',      '❌','✅'],
                 ['GET /v1/accounts/me',      '❌','✅'],
               ].map(([ep,...cols],i) => (
                 <tr key={ep} style={{ borderBottom:'1px solid var(--border)', background: i%2?'var(--bg-surface)':'transparent' }}>

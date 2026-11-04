@@ -41,7 +41,7 @@ export default function SignUp() {
     setLoading(true);
     try {
       const data = await signup({ company_name: form.company_name, email: form.email, password: form.password });
-      // Store API keys only (so IntegrateStep can show them once)
+      // Store API keys temporarily so ApiKeys dashboard can show private key once
       localStorage.setItem('aipod_sk', data.private_key);
       localStorage.setItem('aipod_pk', data.public_key);
       navigate('/verify-email', { state: { email: form.email } });
@@ -158,7 +158,7 @@ export default function SignUp() {
         </div>
 
         <p style={{ textAlign:'center', fontSize:12, color:'var(--text-muted)', marginTop:24 }}>
-          Your private key is shown once after signup. Store it securely.
+          Your private key is shown once in your API Keys dashboard. Store it securely.
         </p>
       </div>
     </div>

@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import app
-from src.api.auth import TENANT_AUTH_MAPPING, get_current_tenant, load_tenant_auth
+from src.api.auth import TENANT_AUTH_MAPPING, get_current_tenant, get_key_record, load_tenant_auth
 from src.api.recommendations import get_model_for_tenant
 
 
@@ -294,7 +294,8 @@ def test_public_key_rejected_with_403_everywhere_else(client: TestClient):
         "/v1/recommendations/any_cust",
         headers={"X-API-Key": public_key},
     )
-    assert resp_path_rec.status_code in (200, 404)
+    assert resp_path_rec.status_code == 200
+    assert resp_path_rec.json()["fallback"] is True
 
     # POST /v1/onboard/upload
     resp_upload = client.post(
@@ -491,5 +492,57 @@ def test_issue_keys_script_and_endpoint(client: TestClient):
     assert ep_data["tenant_id"] == "endpoint_tenant"
     assert ep_data["private_key"]["key"].startswith("sk-endpoint_tenant-")
     assert ep_data["public_key"]["key"].startswith("pk-endpoint_tenant-")
+
+
+def test_alias_keys_security_and_production_lockout(client: TestClient, monkeypatch):
+    """Step 0.a Verification:
+
+    1. Confirm test alias keys ending with -xxxx are strictly unreachable in production/prod.
+    2. Confirm no alias can grant access to another real tenant.
+    3. Confirm unknown tenant aliases return None (rejected with 401).
+    """
+    # 1. In production, ALL wildcard -xxxx alias keys must be completely blocked
+    for prod_var in ["ENV", "AI_POD_ENV"]:
+        for prod_val in ["production", "prod", "PRODUCTION"]:
+            monkeypatch.setenv(prod_var, prod_val)
+            assert get_key_record("sk-telco-xxxx") is None
+            assert get_key_record("pk-telco-xxxx") is None
+            assert get_key_record("sk-movielens-xxxx") is None
+            assert get_key_record("pk-movielens-xxxx") is None
+            assert get_key_record("sk-ecommerce-xxxx") is None
+            assert get_key_record("pk-ecommerce-xxxx") is None
+
+            # TestClient request with alias key in production returns 401
+            resp = client.get(
+                "/v1/recommendations",
+                params={"customer_id": "cust1"},
+                headers={"X-API-Key": "sk-telco-xxxx"},
+            )
+            assert resp.status_code == 401
+            monkeypatch.delenv(prod_var, raising=False)
+
+    # 2. In development/testing, aliases resolve strictly to their designated tenants
+    monkeypatch.setenv("ENV", "development")
+    monkeypatch.setenv("AI_POD_ENV", "development")
+
+    rec_movie = get_key_record("sk-movielens-xxxx")
+    assert rec_movie is not None
+    assert rec_movie["tenant_id"] == "movielens_demo"
+    assert rec_movie["tenant_id"] != "telco_default"
+
+    rec_ecom = get_key_record("sk-ecommerce-xxxx")
+    assert rec_ecom is not None
+    assert rec_ecom["tenant_id"] == "fixture_ecommerce"
+    assert rec_ecom["tenant_id"] != "movielens_demo"
+
+    rec_telco = get_key_record("sk-telco-xxxx")
+    assert rec_telco is not None
+    assert rec_telco["tenant_id"] == "telco_default"
+    assert rec_telco["tenant_id"] != "movielens_demo"
+
+    # 3. An alias for an unknown/non-configured tenant cannot be exploited
+    assert get_key_record("sk-arbitrary_hacker_tenant-xxxx") is None
+    assert get_key_record("pk-arbitrary_hacker_tenant-xxxx") is None
+
 
 

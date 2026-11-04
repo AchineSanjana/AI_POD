@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.scheduler.retrain_orchestrator import run_scheduled_retraining  # noqa: E402
+from src.telemetry import cleanup_old_telemetry  # noqa: E402
 from src.utils.config import load_config  # noqa: E402
 
 logging.basicConfig(
@@ -58,6 +59,12 @@ def main() -> int:
     args = parse_args()
     config = load_config()
     logger.info("Executing scheduled retraining cycle (wait=%s, timeout=%.1fs)...", args.wait, args.timeout)
+
+    try:
+        deleted_telemetry = cleanup_old_telemetry(config=config)
+        logger.info("Telemetry retention cleanup removed %d expired part files", deleted_telemetry)
+    except Exception as exc:
+        logger.warning("Telemetry cleanup encountered an issue: %s", exc)
 
     report = run_scheduled_retraining(
         config=config,
