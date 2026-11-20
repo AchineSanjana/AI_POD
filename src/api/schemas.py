@@ -37,6 +37,32 @@ class RecommendationsResponse(BaseModel):
     )
 
 
+class SimilarProductItem(BaseModel):
+    rank: int = Field(..., description="1-indexed priority ranking of similar product")
+    product_id: str = Field(..., description="Unique product or service identifier")
+    product_name: str = Field(..., description="Product display name")
+    category: str | None = Field(None, description="Product category if available")
+    brand: str | None = Field(None, description="Product brand if available")
+    price: float | None = Field(None, description="Product price if available")
+    image_url: str | None = Field(None, description="Product image URL if available")
+    similarity: float = Field(..., description="Similarity score between 0.0 and 1.0 (rounded)")
+    reasons: list[str] = Field(default_factory=list, description="Explanations for similarity recommendation")
+
+
+class SimilarProductsResponse(BaseModel):
+    tenant_id: str = Field(..., description="Authenticated tenant identifier")
+    product_id: str = Field(..., description="Target product identifier queried")
+    product_name: str = Field(..., description="Target product name")
+    similar: list[SimilarProductItem] = Field(
+        default_factory=list, description="Ranked list of similar products"
+    )
+    fallback: bool = Field(False, description="Whether fallback recommendations were used")
+    reason: str | None = Field(
+        None,
+        description="Explanation when fallback is true: unknown_product, inactive_product, or limited_product_data",
+    )
+
+
 class SampleCustomersResponse(BaseModel):
     tenant_id: str = Field(..., description="Authenticated tenant identifier")
     customer_ids: list[str] = Field(
@@ -306,6 +332,10 @@ class DashboardAnalyticsResponse(BaseModel):
     ctr: float | None = Field(None, description="Click-through rate (null if untracked)")
     events_by_day: list[DashboardDailyEvent] = Field(default_factory=list, description="Daily event breakdown")
     top_products: list[DashboardTopProduct] = Field(default_factory=list, description="Top recommended products")
+    similar_requests: int = Field(0, description="Total similar product requests served in period")
+    top_similar_source_products: list[DashboardTopProduct] = Field(
+        default_factory=list, description="Top 5 queried source products for similar recommendations"
+    )
 
 
 class DashboardEventItem(BaseModel):

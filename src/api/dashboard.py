@@ -449,6 +449,15 @@ def get_dashboard_analytics(
         for p in telem.get("top_products", [])
     ]
 
+    top_similar_sources = [
+        DashboardTopProduct(
+            product_id=p["product_id"],
+            name=p["product_name"],
+            recs=p["count"],
+        )
+        for p in telem.get("top_similar_source_products", [])
+    ]
+
     return DashboardAnalyticsResponse(
         tenant_id=tenant_id,
         days=days,
@@ -459,6 +468,8 @@ def get_dashboard_analytics(
         ctr=telem.get("ctr"),
         events_by_day=daily_events,
         top_products=top_products,
+        similar_requests=telem.get("similar_requests", 0),
+        top_similar_source_products=top_similar_sources,
     )
 
 

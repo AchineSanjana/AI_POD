@@ -43,12 +43,15 @@ def record_recommendation(
     latency_ms: float,
     source: str = "live",
     recommended_products: list[str] | None = None,
+    kind: str = "recommendation",
+    target_product_id: str | None = None,
 ) -> None:
     """Record a recommendation request in the telemetry buffer without raising or blocking."""
     try:
         now_iso = datetime.now(timezone.utc).isoformat()
         rec = {
             "type": "recommendation",
+            "kind": str(kind or "recommendation"),
             "tenant_id": str(tenant_id),
             "ts": now_iso,
             "customer_id": str(customer_id),
@@ -58,6 +61,7 @@ def record_recommendation(
             "latency_ms": round(float(latency_ms), 2),
             "source": str(source or "live"),
             "recommended_products": [str(p) for p in (recommended_products or [])],
+            "target_product_id": str(target_product_id) if target_product_id else None,
         }
         with _BUFFER_LOCK:
             _BUFFER.append(rec)

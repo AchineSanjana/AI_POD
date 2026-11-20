@@ -23,8 +23,10 @@ from src.api.schemas import (
     RecommendationRequest,
     RecommendationsResponse,
     SampleCustomersResponse,
+    SimilarProductsResponse,
 )
 from src.catalog.active_set import get_active_catalog
+from src.similarity import find_similar_products
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.telemetry import record_recommendation
@@ -618,6 +620,61 @@ def get_sample_customers(
         logger.warning("[%s] Failed to extract sample customers from %s: %s", tenant_id, proc_path, exc)
 
     return {"tenant_id": tenant_id, "customer_ids": []}
+
+
+@router.get(
+    "/similar/{product_id}",
+    response_model=SimilarProductsResponse,
+    summary="Get similar products",
+    description=(
+        "Retrieve similar products based on category, brand, price, specifications, "
+        "and text similarity. Public (pk-) and private (sk-) API keys permitted."
+    ),
+)
+def get_similar_products(
+    product_id: str,
+    top_n: int = Query(4, ge=1, le=20, description="Number of similar products to return (1-20)"),
+    same_category: bool = Query(True, description="Restrict similar products to same category"),
+    max_price_ratio: float = Query(2.0, ge=0.0, description="Filter candidates by price ratio (0 to disable)"),
+    request: Request = None,
+    tenant_id: str = Depends(get_current_tenant),
+) -> dict[str, Any]:
+    """Retrieve similar products for a target product ID."""
+    clean_pid = (product_id or "").strip()
+    start_t = time.perf_counter()
+
+    result = find_similar_products(
+        tenant_id=tenant_id,
+        product_id=clean_pid,
+        top_n=top_n,
+        same_category=same_category,
+        max_price_ratio=max_price_ratio,
+    )
+
+    latency_ms = (time.perf_counter() - start_t) * 1000.0
+
+    source = "live"
+    if request is not None:
+        header_src = request.headers.get("x-aipod-source") or request.headers.get("X-AIPOD-Source")
+        if header_src == "wizard-test":
+            source = "test"
+
+    recommended_pids = [item["product_id"] for item in result.get("similar", [])]
+
+    record_recommendation(
+        tenant_id=tenant_id,
+        customer_id=clean_pid,
+        top_n=top_n,
+        fallback=result.get("fallback", False),
+        reason=result.get("reason"),
+        latency_ms=latency_ms,
+        source=source,
+        recommended_products=recommended_pids,
+        kind="similar",
+        target_product_id=clean_pid,
+    )
+
+    return result
 
 
 @router.get(

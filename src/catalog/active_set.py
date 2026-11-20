@@ -188,15 +188,17 @@ def get_active_catalog(
             if pd.isna(brand_val):
                 brand_val = None
 
-            active_map[pid_str] = {
-                "product_id": pid_str,
-                "product_name": str(p_name).strip(),
-                "category": str(cat).strip() if cat else None,
-                "price": price_val,
-                "image_url": str(img_url).strip() if img_url else None,
-                "in_stock": stock_val,
-                "brand": str(brand_val).strip() if brand_val else None,
-            }
+            # Preserve all original row attributes while standardizing core keys
+            p_dict = {k: (None if pd.isna(v) else v) for k, v in rec.items()}
+            p_dict["product_id"] = pid_str
+            p_dict["product_name"] = str(p_name).strip()
+            p_dict["category"] = str(cat).strip() if cat else None
+            p_dict["price"] = price_val
+            p_dict["image_url"] = str(img_url).strip() if img_url else None
+            p_dict["in_stock"] = stock_val
+            p_dict["brand"] = str(brand_val).strip() if brand_val else None
+
+            active_map[pid_str] = p_dict
 
     with _CACHE_LOCK:
         _ACTIVE_METADATA[tenant_id] = {

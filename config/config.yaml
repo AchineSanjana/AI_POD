@@ -899,3 +899,10 @@ dummyjson:
   page_size: 30
 telemetry:
   retention_days: 30
+similarity:
+  weights:
+    category: 0.3
+    specs: 0.35
+    brand: 0.15
+    text: 0.15
+    price: 0.05

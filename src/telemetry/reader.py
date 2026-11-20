@@ -131,6 +131,8 @@ def get_tenant_telemetry(
     requests_today = 0
     fallback_count = 0
     product_rec_counter: Counter[str] = Counter()
+    similar_requests = 0
+    similar_source_counter: Counter[str] = Counter()
     daily_events: dict[str, Counter[str]] = {ds: Counter() for ds in date_strs}
 
     files_read = 0
@@ -158,15 +160,22 @@ def get_tenant_telemetry(
                         # CRITICAL: Exclude test traffic from all dashboard metrics
                         if rec.get("source") == "test":
                             continue
-                        total_recommendations += 1
-                        rec_date = rec.get("ts", "")[:10]
-                        if rec_date == today_str:
-                            requests_today += 1
-                        if rec.get("fallback"):
-                            fallback_count += 1
-                        for pid in rec.get("recommended_products", []):
-                            if pid:
-                                product_rec_counter[str(pid)] += 1
+                        r_kind = rec.get("kind", "recommendation")
+                        if r_kind == "similar":
+                            similar_requests += 1
+                            src_pid = rec.get("target_product_id") or rec.get("customer_id")
+                            if src_pid:
+                                similar_source_counter[str(src_pid)] += 1
+                        else:
+                            total_recommendations += 1
+                            rec_date = rec.get("ts", "")[:10]
+                            if rec_date == today_str:
+                                requests_today += 1
+                            if rec.get("fallback"):
+                                fallback_count += 1
+                            for pid in rec.get("recommended_products", []):
+                                if pid:
+                                    product_rec_counter[str(pid)] += 1
 
                     elif r_type == "event":
                         rec_date = rec.get("ts", "")[:10]
@@ -187,15 +196,22 @@ def get_tenant_telemetry(
         if r_type == "recommendation":
             if rec.get("source") == "test":
                 continue
-            total_recommendations += 1
-            rec_date = rec.get("ts", "")[:10]
-            if rec_date == today_str:
-                requests_today += 1
-            if rec.get("fallback"):
-                fallback_count += 1
-            for pid in rec.get("recommended_products", []):
-                if pid:
-                    product_rec_counter[str(pid)] += 1
+            r_kind = rec.get("kind", "recommendation")
+            if r_kind == "similar":
+                similar_requests += 1
+                src_pid = rec.get("target_product_id") or rec.get("customer_id")
+                if src_pid:
+                    similar_source_counter[str(src_pid)] += 1
+            else:
+                total_recommendations += 1
+                rec_date = rec.get("ts", "")[:10]
+                if rec_date == today_str:
+                    requests_today += 1
+                if rec.get("fallback"):
+                    fallback_count += 1
+                for pid in rec.get("recommended_products", []):
+                    if pid:
+                        product_rec_counter[str(pid)] += 1
         elif r_type == "event":
             rec_date = rec.get("ts", "")[:10]
             if rec_date in daily_events:
@@ -218,6 +234,14 @@ def get_tenant_telemetry(
     top_products = []
     for pid, count in filtered_counter.most_common(5):
         top_products.append({
+            "product_id": pid,
+            "product_name": prod_names.get(pid, pid),
+            "count": count,
+        })
+
+    top_similar_source_products = []
+    for pid, count in similar_source_counter.most_common(5):
+        top_similar_source_products.append({
             "product_id": pid,
             "product_name": prod_names.get(pid, pid),
             "count": count,
@@ -252,6 +276,8 @@ def get_tenant_telemetry(
         "total_events": total_events,
         "events_by_day": events_by_day,
         "top_products": top_products,
+        "similar_requests": similar_requests,
+        "top_similar_source_products": top_similar_source_products,
     }
 
     if use_cache:

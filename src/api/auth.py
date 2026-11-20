@@ -28,7 +28,7 @@ PUBLIC_KEY_ALLOWED_ACTIONS: set[tuple[str, str]] = {
     ("GET", "/recommendations"),
 }
 
-# Path prefixes also permitted for public API keys (covers /{customer_id} SDK variant)
+# Path prefixes also permitted for public API keys (covers /{customer_id} and /similar/{product_id} variants)
 PUBLIC_KEY_ALLOWED_PREFIXES: list[tuple[str, str]] = [
     ("GET", "/v1/recommendations/"),
     ("GET", "/recommendations/"),
