@@ -698,6 +698,80 @@ tenants:
     segmentation:
       field: account_age
       split: median
+  sanjtelco:
+    data_source:
+      type: csv
+      path: data/raw/sanjtelco_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: contract_type
+        dtype: categorical
+        allowed_values:
+        - Month-to-month
+        - One year
+        - Two year
+        encoding: one_hot
+      - name: monthly_charges
+        dtype: numeric
+      - name: tenure_months
+        dtype: numeric
+      - name: internet_type
+        dtype: categorical
+        allowed_values:
+        - 5G Home
+        - Cable
+        - DSL
+        - Fiber optic
+        encoding: one_hot
+      - name: has_5g_unlimited
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_streaming_pass
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_device_protection
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_cloud_backup
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+      - name: has_international_roaming
+        dtype: categorical
+        allowed_values:
+        - 'No'
+        - 'Yes'
+        encoding: one_hot
+    products:
+      derived_from: interaction_source
+      category_column: category
+    interactions:
+      source: custom_services
+      service_columns:
+      - has_5g_unlimited
+      - has_streaming_pass
+      - has_device_protection
+      - has_cloud_backup
+      - has_international_roaming
+      positive_values:
+      - 'Yes'
+      negative_values:
+      - 'No'
+    segmentation:
+      field: monthly_charges
+      split: median
 model:
   content_based:
     similarity_metric: cosine
