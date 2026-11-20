@@ -44,7 +44,12 @@ export default function SignUp() {
       // Store API keys temporarily so ApiKeys dashboard can show private key once
       localStorage.setItem('aipod_sk', data.private_key);
       localStorage.setItem('aipod_pk', data.public_key);
-      navigate('/verify-email', { state: { email: form.email } });
+      navigate('/verify-email', {
+        state: {
+          email: form.email,
+          email_dispatched: data.email_dispatched,
+        },
+      });
     } catch (err) {
       setError(err.message || 'Signup failed');
     } finally {

@@ -662,6 +662,7 @@ def get_tenant_rate_limit(
         "recommendations": 60,
         "onboarding": 5,
         "tracking": 120,
+        "catalog": 60,
     }
     fallback_limit = default_limits.get(scope, 60)
 

@@ -28,6 +28,7 @@ from src.api.retrain import router as retrain_router
 from src.api.tracking import router as tracking_router
 from src.api.ui import build_home_page, router as ui_router
 from src.api.accounts import router as accounts_router
+from src.api.catalog import router as catalog_router
 from src.api.dashboard import router as dashboard_router
 from src.integrations.shopify.api import router as shopify_router
 from src.utils.config import PROJECT_ROOT
@@ -91,8 +92,24 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_headers=[
+        "*",
+        "Authorization",
+        "Content-Type",
+        "X-API-Key",
+        "X-Session-Token",
+        "X-AIPOD-Source",
+        "If-Match",
+        "X-Catalog-Version",
+        "authorization",
+        "content-type",
+        "x-api-key",
+        "x-session-token",
+        "x-aipod-source",
+        "if-match",
+        "x-catalog-version",
+    ],
+    expose_headers=["*", "ETag", "X-Catalog-Version", "etag", "x-catalog-version"],
 )
 
 
@@ -128,6 +145,7 @@ v1_router.include_router(shopify_router)
 v1_router.include_router(retrain_router)
 v1_router.include_router(accounts_router)
 v1_router.include_router(dashboard_router)
+v1_router.include_router(catalog_router)
 
 
 @v1_router.get("/sdk.js", include_in_schema=False)
@@ -241,6 +259,7 @@ app.include_router(shopify_router)
 app.include_router(retrain_router)
 app.include_router(accounts_router)
 app.include_router(dashboard_router)
+app.include_router(catalog_router)
 
 
 @app.get(

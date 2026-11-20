@@ -17,6 +17,7 @@ import logging
 import time
 from typing import Any
 
+from src.catalog.active_set import get_active_catalog
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.telemetry.collector import _BUFFER, _BUFFER_LOCK
@@ -35,8 +36,21 @@ def clear_telemetry_cache() -> None:
     _AGGREGATE_CACHE.clear()
 
 
-def _get_product_names(tenant_id: str, storage: StorageBackend) -> dict[str, str]:
-    """Load product_id -> product_name mapping from processed storage."""
+def _get_product_names(
+    tenant_id: str,
+    storage: StorageBackend,
+    active_cat: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    """Load product_id -> product_name mapping from active catalog or processed storage."""
+    if active_cat is None:
+        active_cat = get_active_catalog(tenant_id, storage=storage)
+
+    if active_cat is not None:
+        return {
+            pid: str(item.get("product_name") or pid)
+            for pid, item in active_cat.items()
+        }
+
     product_path = f"data/processed/{tenant_id}/products.csv"
     if not storage.exists(product_path) and tenant_id == "telco_default":
         if storage.exists("data/processed/products.csv"):
@@ -188,10 +202,21 @@ def get_tenant_telemetry(
                 ev_type = rec.get("event_type", "view")
                 daily_events[rec_date][ev_type] += 1
 
-    # Product names enrichment
-    prod_names = _get_product_names(tenant_id, storage)
+    # Product names enrichment & top products (excluding archived products)
+    active_cat = get_active_catalog(tenant_id, storage=storage)
+    prod_names = _get_product_names(tenant_id, storage, active_cat=active_cat)
+
+    if active_cat is not None:
+        filtered_counter = Counter({
+            pid: count
+            for pid, count in product_rec_counter.items()
+            if pid in active_cat
+        })
+    else:
+        filtered_counter = product_rec_counter
+
     top_products = []
-    for pid, count in product_rec_counter.most_common(5):
+    for pid, count in filtered_counter.most_common(5):
         top_products.append({
             "product_id": pid,
             "product_name": prod_names.get(pid, pid),

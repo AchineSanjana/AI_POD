@@ -61,10 +61,13 @@ def run_tenant_pipeline(
 
     models_state: dict[str, str] = {k: "queued" for k in MODEL_KEYS}
     metrics_state: dict[str, dict[str, float]] = {}
-    current_dataset: dict[str, int] = {}
+    current_dataset: dict[str, Any] = {}
     current_winner_key: str | None = None
     current_winner_model: str | None = None
     current_model_path: str | None = None
+    current_trained_count: int | None = None
+    current_trained_at: str | None = None
+    products_added_from_interactions: int = 0
 
     def update_progress(
         stage: str,
@@ -73,7 +76,7 @@ def run_tenant_pipeline(
         error: str | None = None,
         ready: bool = False,
     ) -> dict[str, Any]:
-        nonlocal current_winner_key, current_winner_model, current_model_path
+        nonlocal current_winner_key, current_winner_model, current_model_path, current_trained_count, current_trained_at, products_added_from_interactions
         now_iso = datetime.now(timezone.utc).isoformat()
         state = {
             "tenant_id": tenant_id,
@@ -91,6 +94,9 @@ def run_tenant_pipeline(
             "updated_at": now_iso,
             "model_path": current_model_path,
             "error": error,
+            "trained_product_ids_count": current_trained_count,
+            "trained_at": current_trained_at,
+            "products_added_from_interactions": products_added_from_interactions,
         }
 
         try:
@@ -119,10 +125,83 @@ def run_tenant_pipeline(
         adapter = GenericConfigAdapter(tenant_cfg, storage=storage)
         customers, products, interactions = adapter.run()
 
+        # Check for tenant-managed catalogue (Step C2 integration)
+        cat_path = f"data/catalog/{tenant_id}/catalog.csv"
+        if storage.exists(cat_path):
+            logger.info("[%s] Found managed catalog '%s'. Using catalog as authoritative source of truth.", tenant_id, cat_path)
+            from src.catalog.service import load_catalog, save_catalog, ConcurrentModificationError
+
+            # 3b: Products in interaction data missing from catalogue are ADDED as status=active, in_stock=1
+            interaction_pids = set(interactions["product_id"].dropna().astype(str).str.strip()) - {"", "nan", "None"}
+            for attempt in range(2):
+                try:
+                    cat_df, cat_ver = load_catalog(tenant_id, storage=storage, auto_seed=False)
+                    current_cat_pids = set(cat_df["product_id"].astype(str).str.strip()) if not cat_df.empty else set()
+                    missing_pids = sorted(interaction_pids - current_cat_pids)
+                    if missing_pids:
+                        now_iso = datetime.now(timezone.utc).isoformat()
+                        new_rows = []
+                        for m_pid in missing_pids:
+                            new_rows.append({
+                                "product_id": m_pid,
+                                "product_name": m_pid,
+                                "category": "General",
+                                "status": "active",
+                                "in_stock": 1,
+                                "created_at": now_iso,
+                                "updated_at": now_iso,
+                            })
+                        updated_cat_df = pd.concat([cat_df, pd.DataFrame(new_rows)], ignore_index=True)
+                        save_catalog(
+                            tenant_id=tenant_id,
+                            df=updated_cat_df,
+                            expected_version=cat_ver,
+                            who="pipeline",
+                            action="interaction_sync",
+                            product_ids=missing_pids,
+                            storage=storage,
+                        )
+                        products_added_from_interactions = len(missing_pids)
+                        logger.info("[%s] Added %d missing interaction products to catalogue.", tenant_id, products_added_from_interactions)
+                        cat_df = updated_cat_df
+                    break
+                except ConcurrentModificationError:
+                    if attempt == 1:
+                        logger.warning("[%s] Concurrency conflict syncing interaction products; proceeding with current catalog.", tenant_id)
+                        cat_df, _ = load_catalog(tenant_id, storage=storage, auto_seed=False)
+                    else:
+                        time.sleep(0.1)
+
+            # 3e: If active set is empty or has fewer than 2 products, fail training with a clear error
+            active_mask = cat_df["status"].astype(str).str.lower().str.strip() == "active"
+            active_cat_df = cat_df[active_mask].copy()
+            if len(active_cat_df) < 2:
+                err_msg = (
+                    f"Catalogue for tenant '{tenant_id}' has fewer than 2 active products "
+                    f"({len(active_cat_df)} active). At least 2 active products are required for model training."
+                )
+                update_progress(
+                    stage="failed",
+                    message=f"Training failed: {err_msg}",
+                    status_val="failed",
+                    error=err_msg,
+                    ready=False,
+                )
+                raise ValueError(err_msg)
+
+            # 3c & 3d: Build products DataFrame from catalogue's active products
+            # Declared ProductSchema features feed content-based features; undeclared columns are omitted.
+            product_schema_cols = {"product_id", "product_name", "category"}
+            if hasattr(tenant_cfg, "products") and hasattr(tenant_cfg.products, "features"):
+                product_schema_cols.update(f.name for f in tenant_cfg.products.features)
+            cols_to_keep = [c for c in active_cat_df.columns if c in product_schema_cols or c in ("brand", "price")]
+            products = active_cat_df[cols_to_keep].copy()
+
         current_dataset = {
             "customers": len(customers),
             "products": len(products),
             "interactions": len(interactions),
+            "products_added_from_interactions": products_added_from_interactions,
         }
         update_progress(
             "adapting_data",
@@ -378,8 +457,20 @@ def run_tenant_pipeline(
             )
 
         clear_model_cache()
+        from src.catalog.active_set import clear_active_catalog_cache
+        clear_active_catalog_cache(tenant_id)
 
-        # Stage 7: Complete
+        # Stage 7: Complete - Write trained products marker
+        trained_pids = sorted(products["product_id"].astype(str).unique().tolist())
+        trained_at_iso = datetime.now(timezone.utc).isoformat()
+        current_trained_count = len(trained_pids)
+        current_trained_at = trained_at_iso
+
+        storage.write_file(
+            f"models/{tenant_id}/trained_products.json",
+            json.dumps(trained_pids, indent=2).encode("utf-8"),
+        )
+
         final_state = update_progress(
             stage="completed",
             message=f"Model tournament successfully completed. Winner: {current_winner_model}.",

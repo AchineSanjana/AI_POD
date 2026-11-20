@@ -718,4 +718,53 @@ def test_signup_ip_rate_limiting_rejects_burst_and_permits_different_ip(
     assert still_blocked_resp.status_code == 429
 
 
+def test_last_verification_retrieval_and_storage_fallback(client: TestClient, clean_accounts_file):
+    """Test /last-verification and /dev/last-verification endpoints with storage fallback."""
+    from src.accounts.verification import RECENT_VERIFICATION_EMAILS
+
+    email = "any_user_123@anydomain.io"
+    signup_resp = client.post(
+        "/v1/accounts/signup",
+        json={
+            "company_name": "Any Email Corp",
+            "email": email,
+            "password": "PasswordSecure123!",
+        },
+    )
+    assert signup_resp.status_code == 201
+
+    # 1. Retrieve code from /last-verification (in-memory cache)
+    resp1 = client.get(f"/v1/accounts/last-verification?email={email}")
+    assert resp1.status_code == 200
+    data1 = resp1.json()
+    assert data1["email"] == email
+    code1 = data1["code"]
+    assert len(code1) == 6
+
+    # 2. Clear in-memory dictionary to simulate server restart / worker boundary
+    RECENT_VERIFICATION_EMAILS.clear()
+    assert email not in RECENT_VERIFICATION_EMAILS
+
+    # 3. Retrieve code from storage fallback via /last-verification
+    resp2 = client.get(f"/v1/accounts/last-verification?email={email}")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["email"] == email
+    assert data2["code"] == code1
+
+    # 4. Check /dev/last-verification alias
+    resp3 = client.get(f"/v1/accounts/dev/last-verification?email={email}")
+    assert resp3.status_code == 200
+    assert resp3.json()["code"] == code1
+
+    # 5. Successfully verify the account using the retrieved code
+    verif_resp = client.post(
+        "/v1/accounts/verify-email",
+        json={"email": email, "code": code1},
+    )
+    assert verif_resp.status_code == 200
+    assert verif_resp.json()["email_verified"] is True
+
+
+
 

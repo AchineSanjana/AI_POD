@@ -389,6 +389,12 @@ def resend_verification(
     summary="Retrieve latest verification code for testing (dev only)",
     description="Returns the latest verification code dispatched to this email. Returns 404 in production.",
 )
+@router.get(
+    "/last-verification",
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve latest verification code for testing/development",
+    description="Returns the latest verification code dispatched to this email. Returns 404 in production.",
+)
 def get_last_verification(
     email: str = Query(..., description="Account email address"),
 ) -> dict[str, Any]:
@@ -404,8 +410,29 @@ def get_last_verification(
         )
 
     clean_email = (email or "").strip().lower()
+    code: str | None = None
+    sent_at: str | None = None
+    dispatched: bool = False
+
+    # 1. Check in-memory inspection cache
     record = RECENT_VERIFICATION_EMAILS.get(clean_email)
-    if not record or not record.get("code"):
+    if record and record.get("code"):
+        code = record["code"]
+        sent_at = record.get("sent_at")
+        dispatched = record.get("email_dispatched", False)
+
+    # 2. Fall back to persistent storage
+    if not code:
+        from src.accounts.storage import get_account_by_email
+
+        account_info = get_account_by_email(clean_email)
+        if account_info:
+            _, acct_record = account_info
+            code = acct_record.get("verification_code")
+            sent_at = acct_record.get("verification_sent_at")
+            dispatched = acct_record.get("email_dispatched", False)
+
+    if not code:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No verification code found for '{clean_email}'",
@@ -413,8 +440,9 @@ def get_last_verification(
 
     return {
         "email": clean_email,
-        "code": record["code"],
-        "sent_at": record.get("sent_at"),
+        "code": code,
+        "sent_at": sent_at,
+        "email_dispatched": dispatched,
     }
 
 

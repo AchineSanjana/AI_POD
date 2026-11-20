@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { verifyEmail, resendVerification } from '../api/client';
-import { Zap, Mail, ArrowRight, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { verifyEmail, resendVerification, getLastVerification } from '../api/client';
+import { Zap, Mail, ArrowRight, RefreshCw, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -21,9 +21,43 @@ export default function VerifyEmail() {
     location.state?.info || location.state?.message || ''
   );
 
+  // Latest verification code from server (for instant helper or SMTP fallback)
+  const [devCode, setDevCode] = useState('');
+  const [emailDispatched, setEmailDispatched] = useState(
+    location.state?.email_dispatched !== undefined ? location.state.email_dispatched : true
+  );
+  const [fetchingDevCode, setFetchingDevCode] = useState(false);
+
   // 60-second cooldown timer for resend button
   const [cooldown, setCooldown] = useState(location.state?.autoResent ? 60 : 0);
   const autoResendTriggered = useRef(false);
+
+  // Fetch latest code from API for seamless verification of any email
+  const fetchLatestCode = useCallback(async (targetEmail) => {
+    const toCheck = targetEmail || email;
+    if (!toCheck) return;
+    setFetchingDevCode(true);
+    try {
+      const info = await getLastVerification(toCheck.trim());
+      if (info?.code) {
+        setDevCode(info.code);
+        if (info.email_dispatched !== undefined) {
+          setEmailDispatched(info.email_dispatched);
+        }
+      }
+    } catch {
+      // In production or if no code exists yet
+    } finally {
+      setFetchingDevCode(false);
+    }
+  }, [email]);
+
+  // Check on initial load and whenever email changes
+  useEffect(() => {
+    if (email) {
+      fetchLatestCode(email);
+    }
+  }, [email, fetchLatestCode]);
 
   // Handle countdown
   useEffect(() => {
@@ -43,7 +77,9 @@ export default function VerifyEmail() {
     try {
       await resendVerification({ email: toSend.trim() });
       setCooldown(60);
-      setSuccessMsg('A new 6-digit verification code has been sent to your email.');
+      setSuccessMsg('A new 6-digit verification code has been dispatched.');
+      // Refresh the code helper immediately
+      await fetchLatestCode(toSend.trim());
     } catch (err) {
       if (err?.status === 429) {
         setCooldown(60);
@@ -56,7 +92,7 @@ export default function VerifyEmail() {
     } finally {
       setResending(false);
     }
-  }, [email, cooldown, resending]);
+  }, [email, cooldown, resending, fetchLatestCode]);
 
   // If instructed to autoResend on arrival and not already triggered
   useEffect(() => {
@@ -217,6 +253,61 @@ export default function VerifyEmail() {
             </div>
           )}
 
+          {/* Verification Code Helper Banner (ensures verification works for ANY email entered) */}
+          {devCode && (
+            <div style={{
+              background: emailDispatched ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.12)',
+              border: `1px solid ${emailDispatched ? 'rgba(59, 130, 246, 0.3)' : 'rgba(245, 158, 11, 0.35)'}`,
+              borderRadius: 10,
+              padding: '12px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: emailDispatched ? 'var(--accent-1, #3b82f6)' : 'var(--warning, #f59e0b)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  <KeyRound size={15} style={{ flexShrink: 0 }} />
+                  <span>
+                    {emailDispatched
+                      ? 'Verification code (dispatched to inbox):'
+                      : 'Verification code (direct fallback):'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>Code:</span>
+                  <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 16, letterSpacing: 2 }}>
+                    {devCode}
+                  </strong>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCode(devCode);
+                  if (error) setError('');
+                }}
+                className="btn btn-primary"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  whiteSpace: 'nowrap',
+                  background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                }}
+              >
+                Auto-fill Code
+              </button>
+            </div>
+          )}
+
           <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div className="form-group">
               <label className="form-label" style={{ textAlign: 'center' }}>
@@ -262,8 +353,8 @@ export default function VerifyEmail() {
             </button>
           </form>
 
-          {/* Resend button with cooldown */}
-          <div style={{ marginTop: 20, textAlign: 'center' }}>
+          {/* Resend button with cooldown and manual fetch helper */}
+          <div style={{ marginTop: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               type="button"
               onClick={() => triggerResend(email)}
@@ -280,6 +371,18 @@ export default function VerifyEmail() {
                   : 'Resend verification code'}
               </span>
             </button>
+
+            {!devCode && (
+              <button
+                type="button"
+                onClick={() => fetchLatestCode(email)}
+                disabled={fetchingDevCode || !email}
+                className="btn btn-ghost"
+                style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 8px' }}
+              >
+                {fetchingDevCode ? 'Checking server for code…' : 'Didn’t get the email? Fetch code from server'}
+              </button>
+            )}
           </div>
 
           <div className="divider-text mt-6">or</div>

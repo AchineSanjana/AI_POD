@@ -1,0 +1,1 @@
+{"tenant_id": "e2e_test_c1_9e1355b8", "who": "account:acc_awpv3h", "when": "2026-11-20T09:39:03.982682+00:00", "action": "upload_commit", "product_ids_count": 2, "product_ids": ["LIVE-P5", "LIVE-P6"], "details": {"upload_id": "0dc4ee5de03e333cba1bb89025711339", "mode": "upsert", "snapshot": "snapshot-1795167543874-0dc4ee5de03e333cba1bb89025711339.csv"}}

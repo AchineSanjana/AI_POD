@@ -1,0 +1,1 @@
+{"tenant_id": "sanjtelco", "who": "system", "when": "2026-11-20T14:32:54.885492+00:00", "action": "seed", "product_ids_count": 5, "product_ids": ["has_5g_unlimited", "has_streaming_pass", "has_device_protection", "has_cloud_backup", "has_international_roaming"], "details": {"source": "data/processed/sanjtelco/products.csv"}}

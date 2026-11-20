@@ -3,12 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import UnverifiedBanner from '../../components/UnverifiedBanner';
 import {
   LayoutDashboard, Key, Brain, BarChart3,
-  Settings, ExternalLink, LogOut, Zap, Menu, Sparkles,
+  Settings, ExternalLink, LogOut, Zap, Menu, Sparkles, Package,
 } from 'lucide-react';
 import { useState } from 'react';
 
 const NAV = [
   { to:'/dashboard',          icon:LayoutDashboard, label:'Overview'        },
+  { to:'/dashboard/catalog',  icon:Package,         label:'Catalogue'       },
   { to:'/ui',                 icon:Sparkles,        label:'Recommendations', external: true },
   { to:'/dashboard/keys',     icon:Key,             label:'API Keys'        },
   { to:'/dashboard/model',    icon:Brain,           label:'Model Status'    },

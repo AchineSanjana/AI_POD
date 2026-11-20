@@ -20,6 +20,7 @@ import IntegrateStep    from './pages/onboarding/IntegrateStep';
 
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import Overview        from './pages/dashboard/Overview';
+import Catalog         from './pages/dashboard/Catalog';
 import ApiKeys         from './pages/dashboard/ApiKeys';
 import ModelStatus     from './pages/dashboard/ModelStatus';
 import Analytics       from './pages/dashboard/Analytics';
@@ -68,6 +69,7 @@ function AppRoutes() {
       {/* Dashboard — protected */}
       <Route path="/dashboard" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
         <Route index              element={<Overview    />} />
+        <Route path="catalog"     element={<Catalog     />} />
         <Route path="keys"        element={<ApiKeys     />} />
         <Route path="model"       element={<ModelStatus />} />
         <Route path="analytics"   element={<Analytics   />} />

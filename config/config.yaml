@@ -772,6 +772,93 @@ tenants:
     segmentation:
       field: monthly_charges
       split: median
+  e2e_test_c2_fdac2167:
+    data_source:
+      type: csv
+      path: data/raw/e2e_test_c2_fdac2167_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: category
+        dtype: categorical
+        allowed_values:
+        - Apparel
+        - Books
+        - Electronics
+        - Home
+        - Sports
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: product_id
+      name_column: product_name
+    interactions:
+      source: transactional
+      customer_id_column: customer_id
+      product_id_column: product_id
+      product_name_column: product_name
+      quantity_column: quantity
+    segmentation:
+      field: category
+      split: categorical
+  e2e_test_c2_4647f65f:
+    data_source:
+      type: csv
+      path: data/raw/e2e_test_c2_4647f65f_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: category
+        dtype: categorical
+        allowed_values:
+        - Apparel
+        - Books
+        - Electronics
+        - Home
+        - Sports
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: product_id
+      name_column: product_name
+    interactions:
+      source: transactional
+      customer_id_column: customer_id
+      product_id_column: product_id
+      product_name_column: product_name
+      quantity_column: quantity
+    segmentation:
+      field: category
+      split: categorical
+  e2e_test_c2_57444882:
+    data_source:
+      type: csv
+      path: data/raw/e2e_test_c2_57444882_raw.csv
+    customers:
+      id_column: customer_id
+      features:
+      - name: category
+        dtype: categorical
+        allowed_values:
+        - Apparel
+        - Books
+        - Electronics
+        - Home
+        - Sports
+        encoding: one_hot
+    products:
+      derived_from: transactional
+      id_column: product_id
+      name_column: product_name
+    interactions:
+      source: transactional
+      customer_id_column: customer_id
+      product_id_column: product_id
+      product_name_column: product_name
+      quantity_column: quantity
+    segmentation:
+      field: category
+      split: categorical
 model:
   content_based:
     similarity_metric: cosine

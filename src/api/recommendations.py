@@ -24,6 +24,7 @@ from src.api.schemas import (
     RecommendationsResponse,
     SampleCustomersResponse,
 )
+from src.catalog.active_set import get_active_catalog
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.telemetry import record_recommendation
@@ -180,10 +181,42 @@ def is_tenant_trained(tenant_id: str, storage: StorageBackend | None = None) -> 
     return False
 
 
+def _get_active_popular_products(
+    tenant_id: str,
+    counter: Counter[str],
+    active_set: dict[str, dict[str, Any]],
+    exclude_ids: set[str],
+    needed: int,
+) -> list[str]:
+    """Return list of active product IDs ordered by popularity, excluding exclude_ids."""
+    result: list[str] = []
+    # 1. From popularity counter among active products
+    sorted_items = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
+    for pid, _ in sorted_items:
+        pid_str = str(pid).strip()
+        if pid_str in active_set and pid_str not in exclude_ids and pid_str not in result:
+            result.append(pid_str)
+            if len(result) >= needed:
+                return result
+
+    # 2. If still needed, fill from any remaining active products in active_set
+    for pid in sorted(active_set.keys()):
+        pid_str = str(pid).strip()
+        if pid_str not in exclude_ids and pid_str not in result:
+            result.append(pid_str)
+            if len(result) >= needed:
+                return result
+
+    return result
+
+
 def _get_fallback_recommendations(
-    tenant_id: str, top_n: int, storage: StorageBackend | None = None
+    tenant_id: str,
+    top_n: int,
+    storage: StorageBackend | None = None,
+    active_set: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Generate popularity-based fallback recommendations for an untrained tenant."""
+    """Generate popularity-based fallback recommendations for an untrained tenant or customer cold-start."""
     if storage is None:
         config = load_config()
         storage = get_storage_backend(config)
@@ -236,7 +269,41 @@ def _get_fallback_recommendations(
         except Exception:
             pass
 
-    # 4. Lookup product metadata if available
+    # Candidate over-fetch when filtering by active_set
+    candidate_k = min(100, max(top_n * 3, 10)) if active_set is not None else top_n
+    sorted_items = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
+    candidate_pids = [str(pid).strip() for pid, _ in sorted_items[:candidate_k]]
+
+    if active_set is not None:
+        # Filter candidates to active catalogue items only
+        filtered_pids = [pid for pid in candidate_pids if pid in active_set]
+        if len(filtered_pids) < top_n:
+            top_up = _get_active_popular_products(
+                tenant_id=tenant_id,
+                counter=counter,
+                active_set=active_set,
+                exclude_ids=set(filtered_pids),
+                needed=top_n - len(filtered_pids),
+            )
+            filtered_pids.extend(top_up)
+
+        final_pids = filtered_pids[:top_n]
+        recommendations: list[dict[str, Any]] = []
+        for rank, pid in enumerate(final_pids, start=1):
+            info = active_set.get(pid, {})
+            recommendations.append(
+                {
+                    "rank": rank,
+                    "product_id": pid,
+                    "product_name": info.get("product_name"),
+                    "category": info.get("category"),
+                    "price": info.get("price"),
+                    "image_url": info.get("image_url"),
+                }
+            )
+        return recommendations
+
+    # 4. Backward-compatible lookup when tenant has no catalog.csv
     product_lookup = None
     prod_path = f"data/processed/{tenant_id}/products.csv"
     if storage.exists(prod_path):
@@ -251,11 +318,8 @@ def _get_fallback_recommendations(
         except Exception:
             pass
 
-    # Order most common products (break ties by product_id string for deterministic ranking)
-    sorted_items = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
-    top_product_ids = [pid for pid, _ in sorted_items[:top_n]]
-
-    recommendations: list[dict[str, Any]] = []
+    top_product_ids = candidate_pids[:top_n]
+    recommendations = []
     for rank, pid in enumerate(top_product_ids, start=1):
         p_name = None
         category = None
@@ -291,15 +355,17 @@ def _recommend_for_customer(
         config = load_config()
         storage = get_storage_backend(config)
 
+    active_set = get_active_catalog(tenant_id, storage=storage)
+
     # Fallback path for untrained tenants: do not error, return most-frequently-interacted-with products
     if not is_tenant_trained(tenant_id, storage=storage):
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "model_not_trained"
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage, active_set=active_set), True, "model_not_trained"
 
     try:
         customers, products = _get_model_tables(tenant_id, storage=storage)
     except Exception as exc:
         logger.warning("Could not load model tables for tenant '%s' (%s). Falling back.", tenant_id, exc)
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "model_not_trained"
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage, active_set=active_set), True, "model_not_trained"
 
     customer_ids = (
         set(customers["customer_id"].astype(str))
@@ -308,7 +374,7 @@ def _recommend_for_customer(
     )
 
     if str(customer_id) not in customer_ids:
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "unknown_customer"
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage, active_set=active_set), True, "unknown_customer"
 
     customer_lookup = customers.set_index("customer_id")
     customer_row = (
@@ -318,21 +384,54 @@ def _recommend_for_customer(
     )
 
     model = get_model_for_tenant(tenant_id, storage=storage)
+    # Over-fetch candidates if active_set is active
+    candidate_k = min(100, max(top_n * 3, 10)) if active_set is not None else top_n
     try:
-        recommended_ids = model.recommend(customer_id, top_k=top_n)
+        recommended_ids = model.recommend(customer_id, top_k=candidate_k)
     except TypeError:
         try:
-            recommended_ids = model.recommend(customer_id, customer_row, top_k=top_n)
+            recommended_ids = model.recommend(customer_id, customer_row, top_k=candidate_k)
         except TypeError:
-            recommended_ids = model.recommend(customer_row, top_k=top_n)
+            recommended_ids = model.recommend(customer_row, top_k=candidate_k)
 
     if not recommended_ids:
-        return _get_fallback_recommendations(tenant_id, top_n, storage=storage), True, "no_history"
+        return _get_fallback_recommendations(tenant_id, top_n, storage=storage, active_set=active_set), True, "no_history"
 
+    if active_set is not None:
+        # Filter candidates to active catalogue products only
+        filtered_ids = [str(pid).strip() for pid in recommended_ids if str(pid).strip() in active_set]
+        if len(filtered_ids) < top_n:
+            fallback_items = _get_fallback_recommendations(
+                tenant_id, top_n=top_n, storage=storage, active_set=active_set
+            )
+            for it in fallback_items:
+                f_pid = str(it["product_id"]).strip()
+                if f_pid not in filtered_ids:
+                    filtered_ids.append(f_pid)
+                if len(filtered_ids) >= top_n:
+                    break
+
+        final_ids = filtered_ids[:top_n]
+        recommendations = []
+        for rank, pid in enumerate(final_ids, start=1):
+            info = active_set.get(pid, {})
+            recommendations.append(
+                {
+                    "rank": rank,
+                    "product_id": pid,
+                    "product_name": info.get("product_name"),
+                    "category": info.get("category"),
+                    "price": info.get("price"),
+                    "image_url": info.get("image_url"),
+                }
+            )
+        return recommendations, False, None
+
+    # Backward-compatible branch without catalog.csv
     product_lookup = products.set_index("product_id")
-    recommendations: list[dict[str, Any]] = []
+    recommendations = []
 
-    for rank, product_id in enumerate(recommended_ids, start=1):
+    for rank, product_id in enumerate(recommended_ids[:top_n], start=1):
         product_row = (
             product_lookup.loc[product_id]
             if product_id in product_lookup.index

@@ -1,0 +1,1 @@
+{"tenant_id": "e2e_test_c1_9e1355b8", "who": "system", "when": "2026-11-20T09:39:00.005152+00:00", "action": "seed", "product_ids_count": 4, "product_ids": ["LIVE-P1", "LIVE-P2", "LIVE-P3", "LIVE-P4"], "details": {"source": "data/processed/e2e_test_c1_9e1355b8/products.csv"}}

@@ -17,6 +17,8 @@ class RecommendationItem(BaseModel):
     product_id: str = Field(..., description="Unique product or service identifier")
     product_name: str | None = Field(None, description="Human-readable product name if available")
     category: str | None = Field(None, description="Product category or tier if available")
+    price: float | None = Field(None, description="Product price if available")
+    image_url: str | None = Field(None, description="Product image URL if available")
 
 
 class RecommendationsResponse(BaseModel):
@@ -319,3 +321,119 @@ class DashboardEventItem(BaseModel):
 class DashboardEventsResponse(BaseModel):
     tenant_id: str = Field(..., description="Tenant identifier")
     events: list[DashboardEventItem] = Field(default_factory=list, description="Latest tracked interaction events")
+
+
+# ---------------------------------------------------------------------------
+# Tenant Catalogue Schemas
+# ---------------------------------------------------------------------------
+
+class ProductCreateRequest(BaseModel):
+    product_id: str = Field(..., description="Unique product identifier (required)")
+    product_name: str = Field(..., description="Product title/display name (required)")
+    category: str = Field(..., description="Product category (required)")
+    brand: str | None = Field(None, description="Brand name")
+    price: float | None = Field(None, ge=0.0, description="Product unit price (>= 0)")
+    in_stock: int | None = Field(1, description="Stock status (1 for in stock, 0 for out of stock)")
+    description: str | None = Field(None, description="Product description")
+    image_url: str | None = Field(None, description="URL of product image")
+    product_url: str | None = Field(None, description="URL of product page")
+
+    model_config = {"extra": "allow"}
+
+
+class ProductUpdateRequest(BaseModel):
+    product_name: str | None = Field(None, description="Updated product name")
+    category: str | None = Field(None, description="Updated category")
+    brand: str | None = Field(None, description="Updated brand")
+    price: float | None = Field(None, ge=0.0, description="Updated price (>= 0)")
+    in_stock: int | None = Field(None, description="Updated stock status (1 or 0)")
+    description: str | None = Field(None, description="Updated description")
+    image_url: str | None = Field(None, description="Updated image URL")
+    product_url: str | None = Field(None, description="Updated product URL")
+    status: str | None = Field(None, description="Updated status ('active' or 'archived')")
+
+    model_config = {"extra": "allow"}
+
+
+class CatalogProductsResponse(BaseModel):
+    items: list[dict[str, Any]] = Field(default_factory=list, description="List of product records")
+    total: int = Field(0, description="Total matching products count")
+    page: int = Field(1, description="Current page number")
+    page_size: int = Field(20, description="Page size limit")
+    total_pages: int = Field(1, description="Total number of pages")
+
+
+class CatalogSummaryResponse(BaseModel):
+    active: int = Field(0, description="Count of active products")
+    archived: int = Field(0, description="Count of archived products")
+    out_of_stock: int = Field(0, description="Count of active products with in_stock=0")
+    by_category: dict[str, int] = Field(default_factory=dict, description="Product counts grouped by category")
+    products_added_since_last_training: int | None = Field(
+        0, description="Number of products created since the last completed model training run"
+    )
+    products_changed_since_last_training: int = Field(
+        0, description="Number of active products updated since the last completed model training run"
+    )
+    never_trained: bool = Field(
+        False, description="Whether the tenant has never completed a model training run"
+    )
+
+
+class BulkCatalogActionRequest(BaseModel):
+    action: str = Field(..., description="Action to perform: 'archive', 'restore', or 'delete'")
+    product_ids: list[str] = Field(..., max_length=500, description="List of product IDs (up to 500)")
+
+
+class BulkCatalogActionResponse(BaseModel):
+    action: str = Field(..., description="Executed bulk action")
+    affected: int = Field(..., description="Number of products affected")
+    product_ids: list[str] = Field(default_factory=list, description="IDs of affected products")
+
+
+class UploadRowError(BaseModel):
+    row: int = Field(..., description="1-indexed row number in the uploaded file")
+    message: str = Field(..., description="Description of the validation failure")
+
+
+class UploadPreviewResponse(BaseModel):
+    upload_id: str = Field(..., description="Unique pending upload identifier")
+    mode: str = Field(..., description="Upload mode ('upsert' or 'replace')")
+    to_add: int = Field(0, description="Number of new products that will be added")
+    to_update: int = Field(0, description="Number of existing products that will be updated")
+    to_archive: int = Field(
+        0, description="Number of active products that will be archived (replace mode only)"
+    )
+    total_rows: int = Field(0, description="Total valid rows parsed from the file")
+    errors: list[UploadRowError] = Field(default_factory=list, description="List of row-level errors")
+
+
+class UploadCommitResponse(BaseModel):
+    status: str = Field("committed", description="Commit status")
+    upload_id: str = Field(..., description="ID of the committed upload")
+    mode: str = Field(..., description="Upload mode applied")
+    applied: int = Field(0, description="Total items processed")
+    added: int = Field(0, description="Number of new items added")
+    updated: int = Field(0, description="Number of existing items updated")
+    archived: int = Field(0, description="Number of items archived")
+
+
+class CatalogHistoryItem(BaseModel):
+    tenant_id: str = Field(..., description="Tenant ID")
+    who: str = Field(..., description="Identifier of the actor")
+    when: str = Field(..., description="ISO 8601 UTC timestamp")
+    action: str = Field(..., description="Action name (create, update, archive, restore, etc.)")
+    product_ids_count: int = Field(0, description="Count of affected product IDs")
+    product_ids: list[str] = Field(default_factory=list, description="Sample of affected product IDs")
+    details: dict[str, Any] = Field(default_factory=dict, description="Additional context")
+
+
+class CatalogHistoryResponse(BaseModel):
+    changes: list[CatalogHistoryItem] = Field(default_factory=list, description="Audit change history")
+
+
+class CatalogUndoResponse(BaseModel):
+    status: str = Field("restored", description="Status of the undo operation")
+    snapshot: str = Field(..., description="Filename of the snapshot restored")
+    message: str = Field(..., description="Confirmation message")
+    total_products: int = Field(0, description="Total products in the restored catalogue")
+

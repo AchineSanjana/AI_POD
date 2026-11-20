@@ -15,7 +15,7 @@ select = ["E", "F", "I", "UP"]
 pythonpath = ["."]
 filterwarnings = [
     "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*",
-    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    "ignore::DeprecationWarning",
 ]
 
 markers = [
