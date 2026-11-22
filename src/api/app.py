@@ -331,6 +331,16 @@ def telco_portal():
     return HTMLResponse("<h1>Telco Portal Not Found</h1>", status_code=404)
 
 
+@app.get("/similar", response_class=HTMLResponse)
+@app.get("/similar_products.html", response_class=HTMLResponse)
+@app.get("/demo/similar_products.html", response_class=HTMLResponse)
+def similar_products_portal():
+    similar_file = PROJECT_ROOT / "demo" / "similar_products.html"
+    if similar_file.exists():
+        return HTMLResponse(similar_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Similar Products Demo Not Found</h1>", status_code=404)
+
+
 @app.get("/test-sdk", response_class=HTMLResponse)
 @app.get("/test_sdk.html", response_class=HTMLResponse)
 @app.get("/demo/test_sdk.html", response_class=HTMLResponse)

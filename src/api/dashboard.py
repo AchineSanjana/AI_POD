@@ -470,6 +470,14 @@ def get_dashboard_analytics(
         top_products=top_products,
         similar_requests=telem.get("similar_requests", 0),
         top_similar_source_products=top_similar_sources,
+        similar_clicks=telem.get("similar_clicks", 0),
+        similar_add_to_carts=telem.get("similar_add_to_carts", 0),
+        similar_purchases=telem.get("similar_purchases", 0),
+        similar_ctr=telem.get("similar_ctr"),
+        recommendation_clicks=telem.get("recommendation_clicks", 0),
+        recommendation_add_to_carts=telem.get("recommendation_add_to_carts", 0),
+        recommendation_purchases=telem.get("recommendation_purchases", 0),
+        recommendation_ctr=telem.get("recommendation_ctr"),
     )
 
 

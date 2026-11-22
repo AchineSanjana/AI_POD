@@ -7,6 +7,7 @@ an in-memory ingestion queue (stubbed for Step 19) and returns 202 Accepted.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -81,10 +82,10 @@ async def track_event(
 
     # 2. Validate payload shape
     event_type = raw_body.get("event_type")
-    if event_type not in {"view", "add_to_cart", "purchase"}:
+    if event_type not in {"view", "click", "add_to_cart", "purchase"}:
         raise HTTPException(
             status_code=400,
-            detail="Invalid 'event_type': must be one of 'view', 'add_to_cart', 'purchase'",
+            detail="Invalid 'event_type': must be one of 'view', 'click', 'add_to_cart', 'purchase'",
         )
 
     session_id = raw_body.get("session_id")
@@ -123,6 +124,22 @@ async def track_event(
                 detail="Invalid 'quantity': cannot be negative",
             )
 
+    source = raw_body.get("source")
+    if source is not None:
+        if not isinstance(source, str) or source not in {"similar", "recommendation", "organic"}:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid 'source': must be one of 'similar', 'recommendation', 'organic'",
+            )
+
+    rec_id = raw_body.get("rec_id")
+    if rec_id is not None:
+        if not isinstance(rec_id, str) or not re.match(r"^[0-9a-fA-F]{1,32}$", rec_id):
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid 'rec_id': must be up to 32 hex characters",
+            )
+
     ts = raw_body.get("timestamp")
     if ts is not None and not isinstance(ts, str):
         raise HTTPException(
@@ -134,6 +151,9 @@ async def track_event(
     else:
         timestamp = str(ts).strip()
 
+    header_src = request.headers.get("x-aipod-source") or request.headers.get("X-AIPOD-Source")
+    request_source = "test" if header_src == "wizard-test" else "live"
+
     # 3. Build event record: tenant_id strictly resolved from public key
     event_record = {
         "tenant_id": tenant_id,
@@ -143,6 +163,9 @@ async def track_event(
         "product_id": product_id.strip(),
         "quantity": quantity,
         "timestamp": timestamp,
+        "source": source,
+        "rec_id": rec_id,
+        "request_source": request_source,
     }
 
     # 4. Push validated event record onto Amazon SQS queue (and in-memory buffer)
@@ -157,6 +180,9 @@ async def track_event(
         session_id=session_id.strip(),
         customer_id=customer_id,
         ts=timestamp,
+        source=source,
+        rec_id=rec_id,
+        request_source=request_source,
     )
 
     # 5. Return fast minimal 202 Accepted response

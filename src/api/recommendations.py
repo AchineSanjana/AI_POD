@@ -7,6 +7,7 @@ from collections import Counter
 import csv
 import io
 import logging
+import secrets
 import sys
 import time
 from pathlib import Path
@@ -500,6 +501,7 @@ def _handle_recommendation(
         r["product_id"] if isinstance(r, dict) else getattr(r, "product_id", str(r))
         for r in recs
     ]
+    rec_id = secrets.token_hex(8)
     record_recommendation(
         tenant_id=tenant_id,
         customer_id=clean_cid,
@@ -509,6 +511,7 @@ def _handle_recommendation(
         latency_ms=latency_ms,
         source=source,
         recommended_products=recommended_pids,
+        rec_id=rec_id,
     )
 
     return {
@@ -517,6 +520,7 @@ def _handle_recommendation(
         "recommendations": recs,
         "fallback": is_fallback,
         "reason": reason,
+        "rec_id": rec_id,
     }
 
 
@@ -672,6 +676,7 @@ def get_similar_products(
         recommended_products=recommended_pids,
         kind="similar",
         target_product_id=clean_pid,
+        rec_id=result.get("rec_id"),
     )
 
     return result

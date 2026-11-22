@@ -35,6 +35,20 @@ class RecommendationsResponse(BaseModel):
         None,
         description="Explanation when fallback is true: model_not_trained, unknown_customer, or no_history",
     )
+    rec_id: str | None = Field(
+        None,
+        description="Unique 16-hex recommendation request identifier",
+    )
+
+
+class SimilarProductTarget(BaseModel):
+    product_id: str = Field(..., description="Target product identifier queried")
+    product_name: str = Field(..., description="Target product name")
+    category: str | None = Field(None, description="Target product category if available")
+    brand: str | None = Field(None, description="Target product brand if available")
+    price: float | None = Field(None, description="Target product price if available")
+    image_url: str | None = Field(None, description="Target product image URL if available")
+    specs: dict[str, Any] = Field(default_factory=dict, description="Formatted specifications dictionary")
 
 
 class SimilarProductItem(BaseModel):
@@ -47,6 +61,9 @@ class SimilarProductItem(BaseModel):
     image_url: str | None = Field(None, description="Product image URL if available")
     similarity: float = Field(..., description="Similarity score between 0.0 and 1.0 (rounded)")
     reasons: list[str] = Field(default_factory=list, description="Explanations for similarity recommendation")
+    specs: dict[str, Any] = Field(default_factory=dict, description="Human-readable specifications")
+    price_diff: float | None = Field(None, description="Price difference relative to target (item.price - target.price)")
+    price_diff_pct: float | None = Field(None, description="Percentage price difference relative to target")
 
 
 class SimilarProductsResponse(BaseModel):
@@ -56,10 +73,17 @@ class SimilarProductsResponse(BaseModel):
     similar: list[SimilarProductItem] = Field(
         default_factory=list, description="Ranked list of similar products"
     )
+    similar_products: list[SimilarProductItem] | None = Field(
+        default_factory=list, description="Ranked list of similar products (alias)"
+    )
     fallback: bool = Field(False, description="Whether fallback recommendations were used")
     reason: str | None = Field(
         None,
         description="Explanation when fallback is true: unknown_product, inactive_product, or limited_product_data",
+    )
+    rec_id: str = Field(..., description="Unique 16-hex recommendation request identifier")
+    target: SimilarProductTarget | dict[str, Any] | None = Field(
+        None, description="Target product details"
     )
 
 
@@ -336,6 +360,14 @@ class DashboardAnalyticsResponse(BaseModel):
     top_similar_source_products: list[DashboardTopProduct] = Field(
         default_factory=list, description="Top 5 queried source products for similar recommendations"
     )
+    similar_clicks: int = Field(0, description="Total clicks on similar product recommendations")
+    similar_add_to_carts: int = Field(0, description="Total add_to_cart events from similar recommendations")
+    similar_purchases: int = Field(0, description="Total purchase events from similar recommendations")
+    similar_ctr: float | None = Field(None, description="Click-through rate on similar product recommendations")
+    recommendation_clicks: int = Field(0, description="Total clicks on recommendations")
+    recommendation_add_to_carts: int = Field(0, description="Total add_to_cart events from recommendations")
+    recommendation_purchases: int = Field(0, description="Total purchase events from recommendations")
+    recommendation_ctr: float | None = Field(None, description="Click-through rate on recommendations")
 
 
 class DashboardEventItem(BaseModel):

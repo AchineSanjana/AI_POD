@@ -45,6 +45,7 @@ def record_recommendation(
     recommended_products: list[str] | None = None,
     kind: str = "recommendation",
     target_product_id: str | None = None,
+    rec_id: str | None = None,
 ) -> None:
     """Record a recommendation request in the telemetry buffer without raising or blocking."""
     try:
@@ -62,6 +63,7 @@ def record_recommendation(
             "source": str(source or "live"),
             "recommended_products": [str(p) for p in (recommended_products or [])],
             "target_product_id": str(target_product_id) if target_product_id else None,
+            "rec_id": str(rec_id) if rec_id else None,
         }
         with _BUFFER_LOCK:
             _BUFFER.append(rec)
@@ -76,6 +78,9 @@ def record_event(
     session_id: str | None,
     customer_id: str | None = None,
     ts: str | None = None,
+    source: str | None = None,
+    rec_id: str | None = None,
+    request_source: str = "live",
 ) -> None:
     """Record an interaction event in the telemetry buffer without raising or blocking."""
     try:
@@ -88,6 +93,9 @@ def record_event(
             "product_id": str(product_id) if product_id else None,
             "session_id": str(session_id) if session_id else None,
             "customer_id": str(customer_id) if customer_id else None,
+            "source": str(source) if source else None,
+            "rec_id": str(rec_id) if rec_id else None,
+            "request_source": str(request_source or "live"),
         }
         with _BUFFER_LOCK:
             _BUFFER.append(rec)

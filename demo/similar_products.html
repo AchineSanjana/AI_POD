@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobitel LifeStore | Smartphones &amp; Connected Devices</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <!-- AI_POD Storefront SDK -->
+  <script src="/sdk.js" data-currency="LKR" data-locale="en-LK" id="aipod-sdk"></script>
+
+  <style>
+    :root {
+      --primary: #003399;
+      --primary-hover: #002266;
+      --primary-light: #e0edff;
+      --secondary: #00a3e0;
+      --success: #059669;
+      --success-light: #d1fae5;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --danger: #dc2626;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 14px rgba(0, 51, 153, 0.08);
+      --shadow-lg: 0 10px 25px rgba(0, 51, 153, 0.12);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 60px;
+    }
+
+    /* Top Navigation */
+    .store-header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+    .header-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: -0.5px;
+    }
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.3px;
+    }
+    .brand-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--secondary);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: block;
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .status-dot.active { background: var(--success); }
+    .btn-settings {
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-main);
+      transition: all 0.15s;
+    }
+    .btn-settings:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* Product Switcher Bar */
+    .switcher-bar {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .switcher-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .switcher-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .switch-pill {
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .switch-pill:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .switch-pill.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .custom-product-input {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .custom-product-input input {
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      width: 140px;
+    }
+    .custom-product-input button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Target Product Detail Card */
+    .target-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 28px;
+      box-shadow: var(--shadow-md);
+    }
+    @media (max-width: 768px) {
+      .target-card {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+    }
+    .target-image-wrap {
+      background: #f8fafc;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+      border: 1px solid #f1f5f9;
+      position: relative;
+    }
+    .target-image {
+      max-width: 90%;
+      max-height: 240px;
+      object-fit: contain;
+    }
+    .target-badge-stock {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: var(--success-light);
+      color: var(--success);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .target-brand {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .target-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.3;
+      margin-bottom: 8px;
+    }
+    .target-category-pill {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+    .target-price-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .target-price {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .target-specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .spec-item {
+      background: #f8fafc;
+      border: 1px solid #f1f5f9;
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+    }
+    .spec-item-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+    }
+    .spec-item-val {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .target-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary {
+      background: #fff;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { background: var(--primary-light); }
+
+    /* Sections */
+    .section-wrap {
+      margin-bottom: 32px;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .section-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .section-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .filter-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Live Telemetry Drawer / Panel */
+    .telemetry-panel {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-top: 28px;
+      font-family: monospace;
+      font-size: 0.78rem;
+    }
+    .telemetry-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .telemetry-log {
+      max-height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-line {
+      display: flex;
+      gap: 8px;
+    }
+    .log-time { color: #64748b; }
+    .log-tag { color: #38bdf8; font-weight: 700; }
+    .log-detail { color: #cbd5e1; }
+
+    /* Settings Modal / Overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      max-width: 480px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .modal-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    /* Error Message */
+    .error-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="store-header">
+    <div class="header-inner">
+      <a href="/similar" class="brand-wrap">
+        <div class="brand-logo">M</div>
+        <div>
+          <span class="brand-title">Mobitel LifeStore</span>
+          <span class="brand-tag">Smartphones &amp; Connected Devices</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <div class="status-badge">
+          <span class="status-dot" id="sdk-status-dot"></span>
+          <span id="sdk-status-text">Connecting SDK...</span>
+        </div>
+        <button class="btn-settings" id="open-settings-btn" title="Configure Base URL &amp; API Key">
+          ⚙ Settings
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="error-banner" class="error-banner"></div>
+
+    <!-- Product Switcher Bar -->
+    <div class="switcher-bar">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span class="switcher-label">Select Device:</span>
+        <div class="switcher-pills" id="switcher-pills">
+          <!-- Populated dynamically or static pills -->
+          <button class="switch-pill active" data-pid="SP-01">Galaxy S24 Ultra</button>
+          <button class="switch-pill" data-pid="SP-02">iPhone 15 Pro</button>
+          <button class="switch-pill" data-pid="SP-03">Pixel 8 Pro</button>
+          <button class="switch-pill" data-pid="SP-04">Redmi Note 13</button>
+        </div>
+      </div>
+      <div class="custom-product-input">
+        <input type="text" id="custom-pid-input" placeholder="Custom product_id...">
+        <button type="button" id="load-custom-pid-btn">Load</button>
+      </div>
+    </div>
+
+    <!-- Target Product Section -->
+    <section class="target-card" id="target-product-card">
+      <div class="target-image-wrap">
+        <span class="target-badge-stock" id="target-stock-badge">In Stock</span>
+        <img src="" alt="" class="target-image" id="target-image" style="display:none;">
+        <span id="target-image-fallback" style="font-size: 3.5rem; opacity: 0.35;">📱</span>
+      </div>
+      <div class="target-info">
+        <div class="target-brand" id="target-brand">Samsung</div>
+        <h1 class="target-name" id="target-name">Galaxy S24 Ultra 5G</h1>
+        <div class="target-category-pill" id="target-category">Smartphones</div>
+        <div class="target-price-wrap">
+          <div class="target-price" id="target-price">LKR 285,000</div>
+        </div>
+        <div class="target-specs-grid" id="target-specs-grid">
+          <!-- Dynamically filled with specs -->
+        </div>
+        <div class="target-actions">
+          <button class="btn-primary" id="btn-add-to-cart">🛒 Add to Cart</button>
+          <button class="btn-secondary" id="btn-buy-now">⚡ Buy Now with Plan</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Similar Products Carousel Section -->
+    <section class="section-wrap">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Similar products you might like</h2>
+          <p class="section-sub">Algorithmic alternatives based on category, specifications, brand, and price tier</p>
+        </div>
+        <div class="section-controls">
+          <label class="filter-toggle">
+            <input type="checkbox" id="same-category-toggle" checked>
+            Same category only
+          </label>
+        </div>
+      </div>
+      <div id="similar-products-container">
+        <!-- Rendered by aipod.getSimilar() -->
+      </div>
+    </section>
+
+    <!-- Comparison Table Section -->
+    <section class="section-wrap">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Compare with similar models</h2>
+          <p class="section-sub">Side-by-side specification and pricing comparison</p>
+        </div>
+      </div>
+      <div id="compare-table-container">
+        <!-- Rendered by aipod.compare() -->
+      </div>
+    </section>
+
+    <!-- Live Telemetry / Event Log Console -->
+    <section class="telemetry-panel">
+      <div class="telemetry-head">
+        <span>📡 AI_POD Real-time Telemetry &amp; Click Tracking</span>
+        <span id="log-count">0 events</span>
+      </div>
+      <div class="telemetry-log" id="telemetry-log">
+        <div class="log-line">
+          <span class="log-time">[Ready]</span>
+          <span class="log-detail">Awaiting storefront interactions...</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings / Connection Modal -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 class="modal-title">API Connection Settings</h3>
+        <button id="close-settings-btn" style="border:none;background:none;font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+      <form id="settings-form">
+        <div class="form-group">
+          <label for="cfg-base">API Base URL</label>
+          <input type="text" id="cfg-base" placeholder="http://localhost:8000">
+        </div>
+        <div class="form-group">
+          <label for="cfg-key">Tenant Public Key (pk-...)</label>
+          <input type="text" id="cfg-key" placeholder="pk-telco-xxxx">
+        </div>
+        <div class="form-group">
+          <label for="cfg-product">Active Product ID</label>
+          <input type="text" id="cfg-product" placeholder="SP-01">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancel-settings-btn">Cancel</button>
+          <button type="submit" class="btn-primary">Save &amp; Reload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // 1. Read URL query parameters
+      var urlParams = new URLSearchParams(window.location.search);
+      var currentBase = urlParams.get('base') || window.location.origin;
+      var currentKey = urlParams.get('key') || 'pk-telco-xxxx';
+      var currentPid = urlParams.get('product') || 'SP-01';
+
+      var currentTargetData = null;
+      var currentRecId = null;
+
+      // DOM Elements
+      var sdkStatusDot = document.getElementById('sdk-status-dot');
+      var sdkStatusText = document.getElementById('sdk-status-text');
+      var errorBanner = document.getElementById('error-banner');
+      var telemetryLog = document.getElementById('telemetry-log');
+      var logCountEl = document.getElementById('log-count');
+      var eventCount = 0;
+
+      function logEvent(type, detail) {
+        eventCount++;
+        logCountEl.textContent = eventCount + ' event' + (eventCount > 1 ? 's' : '');
+        var line = document.createElement('div');
+        line.className = 'log-line';
+        var timeStr = new Date().toLocaleTimeString();
+        line.innerHTML = '<span class="log-time">[' + timeStr + ']</span>' +
+          '<span class="log-tag">' + (window.aipod ? window.aipod.escape(type) : type) + '</span>' +
+          '<span class="log-detail">' + (window.aipod ? window.aipod.escape(detail) : detail) + '</span>';
+        telemetryLog.prepend(line);
+      }
+
+      function showError(msg) {
+        if (!msg) {
+          errorBanner.style.display = 'none';
+          errorBanner.textContent = '';
+        } else {
+          errorBanner.style.display = 'block';
+          errorBanner.textContent = '⚠ ' + msg;
+        }
+      }
+
+      // Initialize Settings Modal values
+      document.getElementById('cfg-base').value = currentBase;
+      document.getElementById('cfg-key').value = currentKey;
+      document.getElementById('cfg-product').value = currentPid;
+
+      // 2. Initialize SDK
+      function initSDK() {
+        if (!window.aipod) {
+          sdkStatusText.textContent = 'SDK not loaded';
+          showError('AI_POD SDK script failed to load. Ensure /sdk.js is available.');
+          return;
+        }
+        window.aipod.init({
+          baseUrl: currentBase,
+          apiKey: currentKey,
+          currency: 'LKR',
+          locale: 'en-LK'
+        });
+        sdkStatusDot.classList.add('active');
+        sdkStatusText.textContent = 'Connected (' + currentKey.slice(0, 10) + '...)';
+        logEvent('SDK_INIT', 'Base: ' + currentBase + ' | Key: ' + currentKey);
+      }
+
+      // 3. Render Target Product Card
+      function updateTargetCard(target) {
+        currentTargetData = target;
+        if (!target) return;
+        document.getElementById('target-brand').textContent = target.brand || 'Electronics';
+        document.getElementById('target-name').textContent = target.product_name || target.product_id;
+        document.getElementById('target-category').textContent = target.category || 'General';
+        
+        var priceStr = target.price !== undefined && target.price !== null ? (window.aipod ? window.aipod.formatPrice(target.price) : 'LKR ' + target.price) : 'Contact for Price';
+        document.getElementById('target-price').textContent = priceStr;
+
+        var img = document.getElementById('target-image');
+        var fallback = document.getElementById('target-image-fallback');
+        var cleanImg = window.aipod ? window.aipod.sanitizeUrl(target.image_url) : '';
+        if (cleanImg) {
+          img.src = cleanImg;
+          img.style.display = 'block';
+          fallback.style.display = 'none';
+        } else {
+          img.style.display = 'none';
+          fallback.style.display = 'block';
+        }
+
+        // Render Specs
+        var specsGrid = document.getElementById('target-specs-grid');
+        specsGrid.innerHTML = '';
+        var specs = target.specs || {};
+        for (var k in specs) {
+          var div = document.createElement('div');
+          div.className = 'spec-item';
+          div.innerHTML = '<div class="spec-item-label">' + (window.aipod ? window.aipod.escape(k.replace(/_/g, ' ')) : k) + '</div>' +
+            '<div class="spec-item-val">' + (window.aipod ? window.aipod.escape(specs[k]) : specs[k]) + '</div>';
+          specsGrid.appendChild(div);
+        }
+      }
+
+      // 4. Load Similar Products & Compare Table
+      function loadStorefront() {
+        showError(null);
+        var sameCat = document.getElementById('same-category-toggle').checked;
+
+        // Track page view for the current product
+        if (window.aipod) {
+          window.aipod.track('view', currentPid).then(function(res) {
+            logEvent('TRACK_VIEW', 'product: ' + currentPid + ' | status: ' + (res.status || 'sent'));
+          });
+        }
+
+        // Call aipod.getSimilar()
+        if (window.aipod) {
+          window.aipod.getSimilar({
+            product_id: currentPid,
+            top_n: 6,
+            same_category: sameCat,
+            containerId: 'similar-products-container',
+            onRender: function(data) {
+              if (data && data.rec_id) currentRecId = data.rec_id;
+              if (data && data.target) {
+                updateTargetCard(data.target);
+              }
+              logEvent('SIMILAR_RENDERED', 'Found ' + ((data && data.similar_products) ? data.similar_products.length : 0) + ' items (rec_id: ' + currentRecId + ')');
+            },
+            onProductClick: function(item, e) {
+              logEvent('TRACK_CLICK', 'product: ' + (item.product_id || item.product_name) + ' | source: similar | rec_id: ' + currentRecId);
+            },
+            onError: function(err) {
+              showError('Failed to load similar products: ' + (err.message || err));
+              logEvent('ERROR', err.message || 'getSimilar failed');
+            }
+          });
+
+          // Call aipod.compare()
+          window.aipod.compare({
+            product_id: currentPid,
+            max_items: 4,
+            same_category: sameCat,
+            containerId: 'compare-table-container',
+            onRender: function(data) {
+              logEvent('COMPARE_RENDERED', 'Rendered comparison table with target + ' + (data && data.similar_products ? data.similar_products.length : 0) + ' models');
+            },
+            onError: function(err) {
+              logEvent('COMPARE_ERROR', err.message || 'compare failed');
+            }
+          });
+        }
+      }
+
+      // 5. Button Actions & Tracking
+      document.getElementById('btn-add-to-cart').addEventListener('click', function() {
+        if (window.aipod) {
+          window.aipod.track('add_to_cart', currentPid, {
+            source: 'organic',
+            quantity: 1
+          }).then(function(res) {
+            logEvent('TRACK_ATC', 'product: ' + currentPid + ' | source: organic | status: ' + (res.status || 'sent'));
+          });
+        }
+      });
+
+      document.getElementById('btn-buy-now').addEventListener('click', function() {
+        if (window.aipod) {
+          window.aipod.track('purchase', currentPid, {
+            source: 'organic',
+            quantity: 1
+          }).then(function(res) {
+            logEvent('TRACK_PURCHASE', 'product: ' + currentPid + ' | source: organic | status: ' + (res.status || 'sent'));
+          });
+        }
+      });
+
+      // 6. Switcher Pills
+      var pills = document.querySelectorAll('.switch-pill');
+      pills.forEach(function(pill) {
+        pill.addEventListener('click', function() {
+          pills.forEach(function(p) { p.classList.remove('active'); });
+          pill.classList.add('active');
+          currentPid = pill.getAttribute('data-pid');
+          document.getElementById('cfg-product').value = currentPid;
+          loadStorefront();
+        });
+      });
+
+      document.getElementById('load-custom-pid-btn').addEventListener('click', function() {
+        var inputVal = document.getElementById('custom-pid-input').value.trim();
+        if (inputVal) {
+          currentPid = inputVal;
+          pills.forEach(function(p) { p.classList.remove('active'); });
+          document.getElementById('cfg-product').value = currentPid;
+          loadStorefront();
+        }
+      });
+
+      document.getElementById('same-category-toggle').addEventListener('change', function() {
+        loadStorefront();
+      });
+
+      // 7. Settings Modal
+      var modal = document.getElementById('settings-modal');
+      document.getElementById('open-settings-btn').addEventListener('click', function() { modal.classList.add('open'); });
+      document.getElementById('close-settings-btn').addEventListener('click', function() { modal.classList.remove('open'); });
+      document.getElementById('cancel-settings-btn').addEventListener('click', function() { modal.classList.remove('open'); });
+
+      document.getElementById('settings-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        currentBase = document.getElementById('cfg-base').value.trim() || window.location.origin;
+        currentKey = document.getElementById('cfg-key').value.trim() || 'pk-telco-xxxx';
+        currentPid = document.getElementById('cfg-product').value.trim() || 'SP-01';
+        modal.classList.remove('open');
+        initSDK();
+        loadStorefront();
+      });
+
+      // Boot
+      initSDK();
+      loadStorefront();
+    })();
+  </script>
+</body>
+</html>

@@ -135,7 +135,76 @@ def get_tenant_telemetry(
     similar_source_counter: Counter[str] = Counter()
     daily_events: dict[str, Counter[str]] = {ds: Counter() for ds in date_strs}
 
+    similar_clicks = 0
+    similar_add_to_carts = 0
+    similar_purchases = 0
+    similar_clicked_rec_ids: set[str] = set()
+
+    recommendation_clicks = 0
+    recommendation_add_to_carts = 0
+    recommendation_purchases = 0
+    recommendation_clicked_rec_ids: set[str] = set()
+
     files_read = 0
+
+    def _process_record(rec: dict[str, Any], non_local_today_str: str) -> None:
+        nonlocal total_recommendations, requests_today, fallback_count, similar_requests
+        nonlocal similar_clicks, similar_add_to_carts, similar_purchases
+        nonlocal recommendation_clicks, recommendation_add_to_carts, recommendation_purchases
+
+        r_type = rec.get("type")
+
+        if r_type == "recommendation":
+            # CRITICAL: Exclude test traffic from all dashboard metrics
+            if rec.get("source") == "test" or rec.get("request_source") == "test":
+                return
+            r_kind = rec.get("kind", "recommendation")
+            if r_kind == "similar":
+                similar_requests += 1
+                src_pid = rec.get("target_product_id") or rec.get("customer_id")
+                if src_pid:
+                    similar_source_counter[str(src_pid)] += 1
+            else:
+                total_recommendations += 1
+                rec_date = rec.get("ts", "")[:10]
+                if rec_date == non_local_today_str:
+                    requests_today += 1
+                if rec.get("fallback"):
+                    fallback_count += 1
+                for pid in rec.get("recommended_products", []):
+                    if pid:
+                        product_rec_counter[str(pid)] += 1
+
+        elif r_type == "event":
+            # Exclude test traffic
+            if rec.get("request_source") == "test" or rec.get("source") == "test":
+                return
+            rec_date = rec.get("ts", "")[:10]
+            ev_type = rec.get("event_type", "view")
+            if rec_date in daily_events:
+                daily_events[rec_date][ev_type] += 1
+
+            ev_source = rec.get("source")
+            ev_rec_id = rec.get("rec_id")
+
+            if ev_source == "similar":
+                if ev_type == "click":
+                    similar_clicks += 1
+                    if ev_rec_id:
+                        similar_clicked_rec_ids.add(str(ev_rec_id))
+                elif ev_type == "add_to_cart":
+                    similar_add_to_carts += 1
+                elif ev_type == "purchase":
+                    similar_purchases += 1
+            elif ev_source == "recommendation":
+                if ev_type == "click":
+                    recommendation_clicks += 1
+                    if ev_rec_id:
+                        recommendation_clicked_rec_ids.add(str(ev_rec_id))
+                elif ev_type == "add_to_cart":
+                    recommendation_add_to_carts += 1
+                elif ev_type == "purchase":
+                    recommendation_purchases += 1
 
     # 1. Read persisted part files from storage
     for ds in date_strs:
@@ -154,34 +223,7 @@ def get_tenant_telemetry(
                     if not line:
                         continue
                     rec = json.loads(line)
-                    r_type = rec.get("type")
-
-                    if r_type == "recommendation":
-                        # CRITICAL: Exclude test traffic from all dashboard metrics
-                        if rec.get("source") == "test":
-                            continue
-                        r_kind = rec.get("kind", "recommendation")
-                        if r_kind == "similar":
-                            similar_requests += 1
-                            src_pid = rec.get("target_product_id") or rec.get("customer_id")
-                            if src_pid:
-                                similar_source_counter[str(src_pid)] += 1
-                        else:
-                            total_recommendations += 1
-                            rec_date = rec.get("ts", "")[:10]
-                            if rec_date == today_str:
-                                requests_today += 1
-                            if rec.get("fallback"):
-                                fallback_count += 1
-                            for pid in rec.get("recommended_products", []):
-                                if pid:
-                                    product_rec_counter[str(pid)] += 1
-
-                    elif r_type == "event":
-                        rec_date = rec.get("ts", "")[:10]
-                        if rec_date in daily_events:
-                            ev_type = rec.get("event_type", "view")
-                            daily_events[rec_date][ev_type] += 1
+                    _process_record(rec, today_str)
             except Exception as exc:
                 logger.debug("Failed parsing telemetry part file %s: %s", pf, exc)
 
@@ -190,33 +232,8 @@ def get_tenant_telemetry(
         buffered = list(_BUFFER)
 
     for rec in buffered:
-        if rec.get("tenant_id") != tenant_id:
-            continue
-        r_type = rec.get("type")
-        if r_type == "recommendation":
-            if rec.get("source") == "test":
-                continue
-            r_kind = rec.get("kind", "recommendation")
-            if r_kind == "similar":
-                similar_requests += 1
-                src_pid = rec.get("target_product_id") or rec.get("customer_id")
-                if src_pid:
-                    similar_source_counter[str(src_pid)] += 1
-            else:
-                total_recommendations += 1
-                rec_date = rec.get("ts", "")[:10]
-                if rec_date == today_str:
-                    requests_today += 1
-                if rec.get("fallback"):
-                    fallback_count += 1
-                for pid in rec.get("recommended_products", []):
-                    if pid:
-                        product_rec_counter[str(pid)] += 1
-        elif r_type == "event":
-            rec_date = rec.get("ts", "")[:10]
-            if rec_date in daily_events:
-                ev_type = rec.get("event_type", "view")
-                daily_events[rec_date][ev_type] += 1
+        if rec.get("tenant_id") == tenant_id:
+            _process_record(rec, today_str)
 
     # Product names enrichment & top products (excluding archived products)
     active_cat = get_active_catalog(tenant_id, storage=storage)
@@ -266,18 +283,37 @@ def get_tenant_telemetry(
         else None
     )
 
+    similar_ctr = (
+        round(len(similar_clicked_rec_ids) / similar_requests, 4)
+        if similar_requests > 0
+        else None
+    )
+    recommendation_ctr = (
+        round(len(recommendation_clicked_rec_ids) / total_recommendations, 4)
+        if total_recommendations > 0
+        else None
+    )
+
     result = {
         "days": days,
         "total_recommendations": total_recommendations,
         "requests_today": requests_today,
         "fallback_count": fallback_count,
         "fallback_rate": fallback_rate,
-        "ctr": None,  # Computed honestly only if tracking click-attribution; else null
+        "ctr": recommendation_ctr,
         "total_events": total_events,
         "events_by_day": events_by_day,
         "top_products": top_products,
         "similar_requests": similar_requests,
         "top_similar_source_products": top_similar_source_products,
+        "similar_clicks": similar_clicks,
+        "similar_add_to_carts": similar_add_to_carts,
+        "similar_purchases": similar_purchases,
+        "similar_ctr": similar_ctr,
+        "recommendation_clicks": recommendation_clicks,
+        "recommendation_add_to_carts": recommendation_add_to_carts,
+        "recommendation_purchases": recommendation_purchases,
+        "recommendation_ctr": recommendation_ctr,
     }
 
     if use_cache:

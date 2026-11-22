@@ -15,6 +15,7 @@ from collections import Counter
 import io
 import logging
 import math
+import secrets
 import threading
 import time
 from typing import Any
@@ -24,6 +25,7 @@ import pandas as pd
 
 from src.catalog.active_set import get_active_catalog
 from src.similarity.feature_matrix import SimilarityIndex, build_similarity_index
+from src.similarity.specs_parser import format_human_readable_specs
 from src.storage import get_storage_backend
 from src.storage.base_storage import StorageBackend
 from src.utils.config import load_config
@@ -33,10 +35,21 @@ logger = logging.getLogger(__name__)
 _SIMILARITY_CACHE: dict[str, SimilarityIndex] = {}
 _SIMILARITY_METADATA: dict[str, dict[str, Any]] = {}
 _SIMILARITY_LOCK = threading.Lock()
+_TENANT_BUILD_LOCKS: dict[str, threading.Lock] = {}
+_TENANT_BUILD_LOCKS_LOCK = threading.Lock()
 _CONFIG_CACHE: dict[str, Any] | None = None
 
 CACHE_TTL_SECONDS = 15.0
 MAX_UNBOUNDED_CATALOG_SIZE = 100_000
+LARGE_CATALOG_THRESHOLD = 10_000
+
+
+def _get_tenant_build_lock(tenant_id: str) -> threading.Lock:
+    """Retrieve or create a reentrant build lock for single-flight index generation."""
+    with _TENANT_BUILD_LOCKS_LOCK:
+        if tenant_id not in _TENANT_BUILD_LOCKS:
+            _TENANT_BUILD_LOCKS[tenant_id] = threading.Lock()
+        return _TENANT_BUILD_LOCKS[tenant_id]
 
 
 def _get_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -58,8 +71,10 @@ def clear_similarity_cache(tenant_id: str | None = None) -> None:
             _SIMILARITY_METADATA.clear()
             _CONFIG_CACHE = None
         else:
-            _SIMILARITY_CACHE.pop(tenant_id, None)
-            _SIMILARITY_METADATA.pop(tenant_id, None)
+            for k in list(_SIMILARITY_CACHE.keys()):
+                if k == tenant_id or k.startswith(f"{tenant_id}__"):
+                    _SIMILARITY_CACHE.pop(k, None)
+                    _SIMILARITY_METADATA.pop(k, None)
 
 
 def _load_products_from_processed(
@@ -137,64 +152,100 @@ def get_similarity_index(
     tenant_id: str,
     storage: StorageBackend | None = None,
     config: dict[str, Any] | None = None,
+    category: str | None = None,
 ) -> SimilarityIndex:
-    """Retrieve or build the in-memory SimilarityIndex for a tenant with 15s TTL version checks."""
+    """Retrieve or build the in-memory SimilarityIndex for a tenant with 15s TTL version checks.
+
+    Uses per-tenant single-flight locking so concurrent cold requests build the index once.
+    When catalogue size > 10,000 and category is specified, builds lazy-per-category to
+    keep cold build times well under 1 second.
+    """
     now = time.monotonic()
+    norm_cat = str(category).strip().lower() if category and str(category).strip() else None
+    cache_key = f"{tenant_id}__cat__{norm_cat}" if norm_cat else tenant_id
 
-    # Fast path: in-memory cache hit within TTL without any I/O
+    # Fast path: in-memory cache hit within TTL without any I/O or locking
     with _SIMILARITY_LOCK:
-        meta = _SIMILARITY_METADATA.get(tenant_id)
-        if (
-            meta is not None
-            and (now - meta.get("last_checked", 0.0) < CACHE_TTL_SECONDS)
-            and tenant_id in _SIMILARITY_CACHE
-        ):
-            return _SIMILARITY_CACHE[tenant_id]
+        for ck in (cache_key, tenant_id):
+            meta = _SIMILARITY_METADATA.get(ck)
+            if (
+                meta is not None
+                and (now - meta.get("last_checked", 0.0) < CACHE_TTL_SECONDS)
+                and ck in _SIMILARITY_CACHE
+            ):
+                return _SIMILARITY_CACHE[ck]
 
-    cfg = _get_config(config)
-    if storage is None:
-        storage = get_storage_backend(cfg)
+    # Single-flight per-tenant build lock
+    tenant_lock = _get_tenant_build_lock(tenant_id)
+    with tenant_lock:
+        now = time.monotonic()
+        # Double check after acquiring lock
+        with _SIMILARITY_LOCK:
+            for ck in (cache_key, tenant_id):
+                meta = _SIMILARITY_METADATA.get(ck)
+                if (
+                    meta is not None
+                    and (now - meta.get("last_checked", 0.0) < CACHE_TTL_SECONDS)
+                    and ck in _SIMILARITY_CACHE
+                ):
+                    return _SIMILARITY_CACHE[ck]
 
-    cat_path = f"data/catalog/{tenant_id}/catalog.csv"
-    has_catalog = storage.exists(cat_path)
+        cfg = _get_config(config)
+        if storage is None:
+            storage = get_storage_backend(cfg)
 
-    active_path = cat_path if has_catalog else f"data/processed/{tenant_id}/products.csv"
-    if not has_catalog and not storage.exists(active_path) and tenant_id == "telco_default":
-        if storage.exists("data/processed/products.csv"):
-            active_path = "data/processed/products.csv"
+        cat_path = f"data/catalog/{tenant_id}/catalog.csv"
+        has_catalog = storage.exists(cat_path)
 
-    # Check version marker
-    current_marker = storage.get_version_marker(active_path) if storage.exists(active_path) else None
+        active_path = cat_path if has_catalog else f"data/processed/{tenant_id}/products.csv"
+        if not has_catalog and not storage.exists(active_path) and tenant_id == "telco_default":
+            if storage.exists("data/processed/products.csv"):
+                active_path = "data/processed/products.csv"
 
-    with _SIMILARITY_LOCK:
-        meta = _SIMILARITY_METADATA.get(tenant_id)
-        if (
-            meta is not None
-            and current_marker is not None
-            and current_marker == meta.get("version_marker")
-            and tenant_id in _SIMILARITY_CACHE
-        ):
-            meta["last_checked"] = now
-            return _SIMILARITY_CACHE[tenant_id]
+        # Check version marker
+        current_marker = storage.get_version_marker(active_path) if storage.exists(active_path) else None
 
-    # Rebuild index
-    if has_catalog:
-        active_map = get_active_catalog(tenant_id, storage=storage) or {}
-        products_list = list(active_map.values())
-    else:
-        products_list = _load_products_from_processed(tenant_id, storage=storage)
+        with _SIMILARITY_LOCK:
+            for ck in (cache_key, tenant_id):
+                meta = _SIMILARITY_METADATA.get(ck)
+                if (
+                    meta is not None
+                    and current_marker is not None
+                    and current_marker == meta.get("version_marker")
+                    and ck in _SIMILARITY_CACHE
+                ):
+                    meta["last_checked"] = now
+                    return _SIMILARITY_CACHE[ck]
 
-    new_index = build_similarity_index(tenant_id, products_list, config=cfg)
+        # Rebuild index
+        if has_catalog:
+            active_map = get_active_catalog(tenant_id, storage=storage) or {}
+            products_list = list(active_map.values())
+        else:
+            products_list = _load_products_from_processed(tenant_id, storage=storage)
 
-    with _SIMILARITY_LOCK:
-        _SIMILARITY_METADATA[tenant_id] = {
-            "version_marker": current_marker,
-            "last_checked": now,
-            "has_catalog": has_catalog,
-        }
-        _SIMILARITY_CACHE[tenant_id] = new_index
+        # Lazy-per-category build if catalogue is large (> 10,000 items) and category requested
+        target_ck = tenant_id
+        if len(products_list) > LARGE_CATALOG_THRESHOLD and norm_cat:
+            filtered_list = [
+                p for p in products_list
+                if str(p.get("category") or "").strip().lower() == norm_cat
+            ]
+            if len(filtered_list) > 0:
+                products_list = filtered_list
+                target_ck = cache_key
 
-    return new_index
+        new_index = build_similarity_index(tenant_id, products_list, config=cfg)
+
+        with _SIMILARITY_LOCK:
+            _SIMILARITY_METADATA[target_ck] = {
+                "version_marker": current_marker,
+                "last_checked": now,
+                "has_catalog": has_catalog,
+            }
+            _SIMILARITY_CACHE[target_ck] = new_index
+
+        return new_index
 
 
 def _get_active_popular_product_ids(
@@ -407,6 +458,44 @@ def _generate_similarity_reasons(
     return reasons
 
 
+def _build_similar_item(
+    rank: int,
+    prod_id: str,
+    prod_dict: dict[str, Any],
+    similarity: float,
+    reasons: list[str],
+    target_price: float | None,
+) -> dict[str, Any]:
+    """Helper to build a complete similar item with specs and price diff calculations."""
+    c_price = prod_dict.get("price")
+    p_diff = None
+    p_diff_pct = None
+    if c_price is not None and target_price is not None:
+        try:
+            fp_c = float(c_price)
+            fp_t = float(target_price)
+            p_diff = round(fp_c - fp_t, 2)
+            if fp_t > 0:
+                p_diff_pct = round(((fp_c - fp_t) / fp_t) * 100.0, 1)
+        except (ValueError, TypeError):
+            pass
+
+    return {
+        "rank": rank,
+        "product_id": prod_id,
+        "product_name": prod_dict.get("product_name", prod_id),
+        "category": prod_dict.get("category"),
+        "brand": prod_dict.get("brand"),
+        "price": prod_dict.get("price"),
+        "image_url": prod_dict.get("image_url"),
+        "similarity": round(similarity, 2),
+        "reasons": reasons,
+        "specs": format_human_readable_specs(prod_dict),
+        "price_diff": p_diff,
+        "price_diff_pct": p_diff_pct,
+    }
+
+
 def find_similar_products(
     tenant_id: str,
     product_id: str,
@@ -415,6 +504,7 @@ def find_similar_products(
     max_price_ratio: float = 2.0,
     storage: StorageBackend | None = None,
     config: dict[str, Any] | None = None,
+    rec_id: str | None = None,
 ) -> dict[str, Any]:
     """Find top_n similar products for product_id.
 
@@ -423,17 +513,23 @@ def find_similar_products(
     """
     clean_pid = str(product_id).strip()
     top_n_clamped = max(1, min(20, top_n))
+    active_rec_id = str(rec_id).strip() if rec_id and str(rec_id).strip() else secrets.token_hex(8)
 
     cfg = _get_config(config)
     if storage is None:
         storage = get_storage_backend(cfg)
 
-    index = get_similarity_index(tenant_id, storage=storage, config=cfg)
+    # For large catalogues, pass target product category if known for lazy loading
+    active_map = get_active_catalog(tenant_id, storage=storage) or {}
+    known_target = active_map.get(clean_pid)
+    hint_cat = known_target.get("category") if known_target else None
+
+    index = get_similarity_index(tenant_id, storage=storage, config=cfg, category=hint_cat)
 
     # -------------------------------------------------------------------------
     # Case 1: Check if product exists in active catalogue / index
     # -------------------------------------------------------------------------
-    target_product = index.products.get(clean_pid)
+    target_product = index.products.get(clean_pid) or known_target
 
     if target_product is None:
         # Check if product exists in catalog.csv with status="archived"
@@ -441,6 +537,10 @@ def find_similar_products(
         is_archived = False
         target_name = clean_pid
         target_cat = None
+        target_brand = None
+        target_price = None
+        target_img = None
+        archived_record: dict[str, Any] = {}
 
         if storage.exists(cat_path):
             try:
@@ -453,6 +553,14 @@ def find_similar_products(
                         target_row = row_matches.iloc[0]
                         target_name = str(target_row.get("product_name") or clean_pid).strip()
                         target_cat = target_row.get("category")
+                        target_brand = target_row.get("brand")
+                        raw_tp = target_row.get("price")
+                        try:
+                            target_price = float(raw_tp) if raw_tp is not None and not pd.isna(raw_tp) else None
+                        except (ValueError, TypeError):
+                            target_price = None
+                        target_img = target_row.get("image_url")
+                        archived_record = {k: (None if pd.isna(v) else v) for k, v in target_row.to_dict().items()}
                         status_val = str(target_row.get("status") or "").strip().lower()
                         if status_val == "archived":
                             is_archived = True
@@ -460,6 +568,16 @@ def find_similar_products(
                 pass
 
         fallback_reason = "inactive_product" if is_archived else "unknown_product"
+
+        target_obj = {
+            "product_id": clean_pid,
+            "product_name": target_name,
+            "category": target_cat,
+            "brand": target_brand,
+            "price": target_price,
+            "image_url": target_img,
+            "specs": format_human_readable_specs(archived_record) if archived_record else {},
+        }
 
         # Popularity fallback
         pop_pids = _get_active_popular_product_ids(
@@ -474,32 +592,46 @@ def find_similar_products(
         similar_items = []
         for rank, pid in enumerate(pop_pids[:top_n_clamped], start=1):
             prod = index.products.get(pid, {})
-            similar_items.append({
-                "rank": rank,
-                "product_id": pid,
-                "product_name": prod.get("product_name", pid),
-                "category": prod.get("category"),
-                "brand": prod.get("brand"),
-                "price": prod.get("price"),
-                "image_url": prod.get("image_url"),
-                "similarity": 0.0,
-                "reasons": ["Popular in this category"] if target_cat else ["Popular product"],
-            })
+            similar_items.append(
+                _build_similar_item(
+                    rank=rank,
+                    prod_id=pid,
+                    prod_dict=prod,
+                    similarity=0.0,
+                    reasons=["Popular in this category"] if target_cat else ["Popular product"],
+                    target_price=target_price,
+                )
+            )
 
         return {
             "tenant_id": tenant_id,
             "product_id": clean_pid,
             "product_name": target_name,
             "similar": similar_items,
+            "similar_products": similar_items,
             "fallback": True,
             "reason": fallback_reason,
+            "rec_id": active_rec_id,
+            "target": target_obj,
         }
 
     target_name = str(target_product.get("product_name") or clean_pid).strip()
     target_cat = target_product.get("category")
     target_price = target_product.get("price")
+    target_brand = target_product.get("brand")
+    target_img = target_product.get("image_url")
     target_specs = index.specs_map.get(clean_pid, {})
     target_idx = index.pid_to_idx.get(clean_pid)
+
+    target_obj = {
+        "product_id": clean_pid,
+        "product_name": target_name,
+        "category": target_cat,
+        "brand": target_brand,
+        "price": target_price,
+        "image_url": target_img,
+        "specs": format_human_readable_specs(target_product),
+    }
 
     # -------------------------------------------------------------------------
     # Case 2: Product is active, compute similarity
@@ -575,17 +707,16 @@ def find_similar_products(
             candidate_specs=c_specs,
             is_fallback_item=False,
         )
-        similar_items.append({
-            "rank": rank,
-            "product_id": c_pid,
-            "product_name": c_prod.get("product_name", c_pid),
-            "category": c_prod.get("category"),
-            "brand": c_prod.get("brand"),
-            "price": c_prod.get("price"),
-            "image_url": c_prod.get("image_url"),
-            "similarity": round(sim, 2),
-            "reasons": reasons,
-        })
+        similar_items.append(
+            _build_similar_item(
+                rank=rank,
+                prod_id=c_pid,
+                prod_dict=c_prod,
+                similarity=sim,
+                reasons=reasons,
+                target_price=target_price,
+            )
+        )
 
     # If fewer than top_n results pass filters, fill from same-category popularity
     is_fallback = False
@@ -611,23 +742,25 @@ def find_similar_products(
         start_rank = len(similar_items) + 1
         for i, pid in enumerate(pop_fill_pids, start=start_rank):
             prod = index.products.get(pid, {})
-            similar_items.append({
-                "rank": i,
-                "product_id": pid,
-                "product_name": prod.get("product_name", pid),
-                "category": prod.get("category"),
-                "brand": prod.get("brand"),
-                "price": prod.get("price"),
-                "image_url": prod.get("image_url"),
-                "similarity": 0.0,
-                "reasons": ["Popular in this category"] if target_cat else ["Popular product"],
-            })
+            similar_items.append(
+                _build_similar_item(
+                    rank=i,
+                    prod_id=pid,
+                    prod_dict=prod,
+                    similarity=0.0,
+                    reasons=["Popular in this category"] if target_cat else ["Popular product"],
+                    target_price=target_price,
+                )
+            )
 
     return {
         "tenant_id": tenant_id,
         "product_id": clean_pid,
         "product_name": target_name,
         "similar": similar_items,
+        "similar_products": similar_items,
         "fallback": is_fallback,
         "reason": fallback_reason,
+        "rec_id": active_rec_id,
+        "target": target_obj,
     }

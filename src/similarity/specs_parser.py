@@ -103,3 +103,50 @@ def extract_numeric_specs(row: dict[str, Any]) -> dict[str, float]:
 
     return specs
 
+
+SPEC_NAME_MAPPINGS = {
+    "ram_gb": "RAM (GB)",
+    "ram": "RAM (GB)",
+    "storage_gb": "Storage (GB)",
+    "storage": "Storage (GB)",
+    "rom_gb": "Storage (GB)",
+    "screen_in": "Screen (in)",
+    "screen_size": "Screen (in)",
+    "display_in": "Screen (in)",
+    "battery_mah": "Battery (mAh)",
+    "battery": "Battery (mAh)",
+    "camera_mp": "Camera (MP)",
+    "camera": "Camera (MP)",
+    "cpu_cores": "CPU (Cores)",
+    "cores": "CPU (Cores)",
+    "weight_g": "Weight (g)",
+    "weight": "Weight (g)",
+    "refresh_rate_hz": "Refresh Rate (Hz)",
+}
+
+
+def format_human_readable_specs(row: dict[str, Any], max_specs: int = 8) -> dict[str, Any]:
+    """Format extracted product specs into up to 8 human-readable key-value pairs.
+
+    Example:
+        {'ram_gb': 8.0, 'storage_gb': 256.0} -> {'RAM (GB)': 8, 'Storage (GB)': 256}
+    """
+    raw_specs = extract_numeric_specs(row)
+    formatted: dict[str, Any] = {}
+
+    for k, v in raw_specs.items():
+        if len(formatted) >= max_specs:
+            break
+        label = SPEC_NAME_MAPPINGS.get(k.lower())
+        if not label:
+            label = k.replace("_", " ").title()
+
+        if isinstance(v, (int, float)):
+            val = int(v) if float(v).is_integer() else round(float(v), 2)
+        else:
+            val = v
+
+        formatted[label] = val
+
+    return formatted
+

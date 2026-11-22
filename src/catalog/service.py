@@ -343,11 +343,6 @@ def save_catalog(
 
     # Invalidate in-memory caches on the current worker
     try:
-        from src.catalog.active_set import clear_active_catalog_cache
-        clear_active_catalog_cache(tenant_id)
-    except Exception:
-        pass
-    try:
         from src.similarity.service import clear_similarity_cache
         clear_similarity_cache(tenant_id)
     except Exception:
