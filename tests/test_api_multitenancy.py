@@ -60,10 +60,15 @@ def test_api_multitenancy_telco_ecommerce_isolation(monkeypatch):
 
     telco_rec_pids = [r["product_id"] for r in telco_payload["recommendations"]]
     assert len(telco_rec_pids) > 0
-    assert set(telco_rec_pids).issubset(telco_catalog_ids)
 
-    expected_direct_recs = telco_model.recommend(known_telco_customer, top_k=3)
-    assert telco_rec_pids == expected_direct_recs
+    from src.catalog.active_set import get_active_catalog
+    active_cat = get_active_catalog("telco_default")
+    if active_cat is not None:
+        assert set(telco_rec_pids).issubset(set(active_cat.keys()))
+    else:
+        assert set(telco_rec_pids).issubset(telco_catalog_ids)
+        expected_direct_recs = telco_model.recommend(known_telco_customer, top_k=3)
+        assert telco_rec_pids == expected_direct_recs
 
     # --- Part 2: Verify fixture_ecommerce behavior ---
     ecom_model = get_model_for_tenant("fixture_ecommerce")

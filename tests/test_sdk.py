@@ -24,10 +24,12 @@ def client():
 
 
 def test_sdk_served_at_root(client):
-    """GET /sdk.js must serve the JavaScript SDK with application/javascript content-type."""
+    """GET /sdk.js must serve the JavaScript SDK with application/javascript content-type, CORS, and short cache."""
     res = client.get("/sdk.js")
     assert res.status_code == 200
     assert "application/javascript" in res.headers["content-type"]
+    assert res.headers.get("access-control-allow-origin") == "*"
+    assert "max-age=300" in res.headers.get("cache-control", "")
     content = res.text
     assert "AIPod" in content
     assert "data-tenant-key" in content
@@ -38,10 +40,12 @@ def test_sdk_served_at_root(client):
 
 
 def test_sdk_served_at_v1(client):
-    """GET /v1/sdk.js must also serve the JavaScript SDK."""
+    """GET /v1/sdk.js must also serve the JavaScript SDK with CORS and short cache."""
     res = client.get("/v1/sdk.js")
     assert res.status_code == 200
     assert "application/javascript" in res.headers["content-type"]
+    assert res.headers.get("access-control-allow-origin") == "*"
+    assert "max-age=300" in res.headers.get("cache-control", "")
     assert "AIPod" in res.text
 
 

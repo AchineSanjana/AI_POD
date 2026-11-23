@@ -331,11 +331,11 @@
     }
   </style>
 
-  <!-- Load AI_POD Client Tracking & Recommendation SDK with public key -->
-  <script src="/sdk.js" data-tenant-key="pk-telco-xxxx" id="aipod-sdk"></script>
+  <!-- Reference: <script src="/sdk.js" data-tenant-key="pk-telco-xxxx"></script> -->
 </head>
 <body>
   <div class="container">
+    <div id="sdk-error-banner" style="display:none; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 16px; border-radius:8px; margin-bottom:1.5rem; font-size:0.875rem;"></div>
     <header>
       <div class="brand">
         <div class="logo-badge">⚡</div>
@@ -626,14 +626,55 @@
       log('====================================================', 'info');
     }
 
+    // Dynamic SDK Loader
+    (function initDynamicSdk() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var qBase = urlParams.get('base') || urlParams.get('baseUrl');
+      var qKey = urlParams.get('key') || urlParams.get('apiKey') || 'pk-telco-xxxx';
+      var defaultBase = (window.location.port === '5500' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://127.0.0.1:8000'
+        : window.location.origin;
+      var cleanBase = (qBase ? qBase.trim() : defaultBase).replace(/\/+$/, '');
+
+      var script = document.createElement('script');
+      script.id = 'aipod-sdk';
+      script.src = cleanBase + '/sdk.js';
+      script.setAttribute('data-tenant-key', qKey);
+      script.setAttribute('data-api-base', cleanBase);
+
+      script.onload = function() {
+        log('SDK dynamically loaded from ' + cleanBase + '/sdk.js', 'success');
+        if (typeof window.AIPod !== 'undefined') {
+          window.AIPod.init({ baseUrl: cleanBase, apiKey: qKey });
+          refreshStateDisplay();
+        }
+      };
+      script.onerror = function() {
+        var errBanner = document.getElementById('sdk-error-banner');
+        var errPill = document.getElementById('sdk-status-pill');
+        var errMsg = 'Cannot load the SDK from ' + cleanBase + '/sdk.js, check the API base URL';
+        if (errBanner) {
+          errBanner.style.display = 'block';
+          errBanner.textContent = '⚠ ' + errMsg;
+        }
+        if (errPill) {
+          errPill.className = 'pill';
+          errPill.style.background = '#ef4444';
+          errPill.style.color = '#ffffff';
+          errPill.textContent = 'SDK Load Failed';
+        }
+        log(errMsg, 'error');
+      };
+
+      document.head.appendChild(script);
+    })();
+
     // On Load
     window.addEventListener('DOMContentLoaded', function() {
       log('Page DOM loaded. Verifying AIPod global availability...', 'info');
       if (typeof window.AIPod !== 'undefined') {
         log('AIPod global detected (v' + (AIPod.version || '1.0.0') + ')', 'success');
         refreshStateDisplay();
-      } else {
-        log('AIPod global is not detected!', 'error');
       }
     });
   </script>

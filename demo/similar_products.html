@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mobitel LifeStore | Smartphones &amp; Connected Devices</title>
+  <link rel="icon" href="data:,">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <!-- AI_POD Storefront SDK -->
-  <script src="/sdk.js" data-currency="LKR" data-locale="en-LK" id="aipod-sdk"></script>
+  <!-- AI_POD Storefront SDK (dynamically loaded from <base>/sdk.js) -->
 
   <style>
     :root {
@@ -63,6 +63,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
+      flex-wrap: wrap;
     }
     .brand-wrap {
       display: flex;
@@ -70,6 +71,7 @@
       gap: 10px;
       text-decoration: none;
       color: inherit;
+      min-width: 0;
     }
     .brand-logo {
       width: 38px;
@@ -103,6 +105,8 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
+      min-width: 0;
     }
     .status-badge {
       display: flex;
@@ -122,6 +126,8 @@
       background: #94a3b8;
     }
     .status-dot.active { background: var(--success); }
+    .status-dot.error { background: var(--danger); box-shadow: 0 0 8px rgba(220, 38, 38, 0.4); }
+    .status-dot.warning { background: var(--warning); box-shadow: 0 0 8px rgba(217, 119, 6, 0.4); }
     .btn-settings {
       border: 1px solid var(--border);
       background: #fff;
@@ -219,6 +225,19 @@
       cursor: pointer;
     }
 
+    /* Shimmer Skeleton */
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer-anim 1.5s infinite;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+    }
+    @keyframes skeleton-shimmer-anim {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
     /* Target Product Detail Card */
     .target-card {
       background: var(--card-bg);
@@ -230,6 +249,8 @@
       grid-template-columns: 320px 1fr;
       gap: 28px;
       box-shadow: var(--shadow-md);
+      min-width: 0;
+      max-width: 100%;
     }
     @media (max-width: 768px) {
       .target-card {
@@ -247,6 +268,12 @@
       min-height: 280px;
       border: 1px solid #f1f5f9;
       position: relative;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .target-info {
+      min-width: 0;
+      max-width: 100%;
     }
     .target-image {
       max-width: 90%;
@@ -486,15 +513,41 @@
       margin-top: 20px;
     }
 
-    /* Error Message */
+    /* Error and Notification Banners */
     .error-banner {
       background: #fef2f2;
       border: 1px solid #fecaca;
+      border-left: 5px solid #dc2626;
       color: #991b1b;
       padding: 12px 16px;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-sm);
       margin-bottom: 16px;
-      font-size: 0.85rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      display: none;
+    }
+    .warning-banner {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-left: 5px solid #d97706;
+      color: #92400e;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      display: none;
+    }
+    .fallback-banner {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 5px solid #059669;
+      color: #166534;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      font-weight: 500;
       display: none;
     }
   </style>
@@ -525,17 +578,19 @@
 
   <main class="container">
     <div id="error-banner" class="error-banner"></div>
+    <div id="warning-banner" class="warning-banner"></div>
+    <div id="fallback-banner" class="fallback-banner"></div>
 
     <!-- Product Switcher Bar -->
     <div class="switcher-bar">
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; max-width: 100%;">
         <span class="switcher-label">Select Device:</span>
         <div class="switcher-pills" id="switcher-pills">
-          <!-- Populated dynamically or static pills -->
-          <button class="switch-pill active" data-pid="SP-01">Galaxy S24 Ultra</button>
-          <button class="switch-pill" data-pid="SP-02">iPhone 15 Pro</button>
-          <button class="switch-pill" data-pid="SP-03">Pixel 8 Pro</button>
-          <button class="switch-pill" data-pid="SP-04">Redmi Note 13</button>
+          <!-- Product IDs only, no device names, prices or specs -->
+          <button class="switch-pill active" data-pid="SP-01">SP-01</button>
+          <button class="switch-pill" data-pid="SP-02">SP-02</button>
+          <button class="switch-pill" data-pid="SP-03">SP-03</button>
+          <button class="switch-pill" data-pid="SP-04">SP-04</button>
         </div>
       </div>
       <div class="custom-product-input">
@@ -546,24 +601,42 @@
 
     <!-- Target Product Section -->
     <section class="target-card" id="target-product-card">
-      <div class="target-image-wrap">
-        <span class="target-badge-stock" id="target-stock-badge">In Stock</span>
+      <div class="target-image-wrap" id="target-image-wrap">
+        <span class="target-badge-stock" id="target-stock-badge" style="display:none;"></span>
         <img src="" alt="" class="target-image" id="target-image" style="display:none;">
-        <span id="target-image-fallback" style="font-size: 3.5rem; opacity: 0.35;">📱</span>
+        <span id="target-image-fallback" style="font-size: 3.5rem; opacity: 0.35; display:none;">📱</span>
+        <div id="target-image-skeleton" class="skeleton-shimmer" style="width: 160px; height: 160px; border-radius: var(--radius-md);"></div>
       </div>
-      <div class="target-info">
-        <div class="target-brand" id="target-brand">Samsung</div>
-        <h1 class="target-name" id="target-name">Galaxy S24 Ultra 5G</h1>
-        <div class="target-category-pill" id="target-category">Smartphones</div>
-        <div class="target-price-wrap">
-          <div class="target-price" id="target-price">LKR 285,000</div>
+      <div class="target-info" id="target-info">
+        <div id="target-card-skeleton">
+          <div class="skeleton-shimmer" style="width: 80px; height: 14px; margin-bottom: 8px;"></div>
+          <div class="skeleton-shimmer" style="width: 240px; height: 28px; margin-bottom: 12px; display: block;"></div>
+          <div class="skeleton-shimmer" style="width: 100px; height: 20px; border-radius: 999px; margin-bottom: 16px;"></div>
+          <div class="skeleton-shimmer" style="width: 140px; height: 32px; margin-bottom: 16px; display: block;"></div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div class="skeleton-shimmer" style="width: 110px; height: 48px;"></div>
+            <div class="skeleton-shimmer" style="width: 110px; height: 48px;"></div>
+            <div class="skeleton-shimmer" style="width: 110px; height: 48px;"></div>
+          </div>
         </div>
-        <div class="target-specs-grid" id="target-specs-grid">
-          <!-- Dynamically filled with specs -->
+        <div id="target-card-content" style="display: none;">
+          <div class="target-brand" id="target-brand"></div>
+          <h1 class="target-name" id="target-name"></h1>
+          <div class="target-category-pill" id="target-category"></div>
+          <div class="target-price-wrap">
+            <div class="target-price" id="target-price"></div>
+          </div>
+          <div class="target-specs-grid" id="target-specs-grid">
+            <!-- Dynamically filled with specs -->
+          </div>
+          <div class="target-actions">
+            <button class="btn-primary" id="btn-add-to-cart">🛒 Add to Cart</button>
+            <button class="btn-secondary" id="btn-buy-now">⚡ Buy Now with Plan</button>
+          </div>
         </div>
-        <div class="target-actions">
-          <button class="btn-primary" id="btn-add-to-cart">🛒 Add to Cart</button>
-          <button class="btn-secondary" id="btn-buy-now">⚡ Buy Now with Plan</button>
+        <div id="target-card-error" style="display: none; padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); color: #991b1b;">
+          <strong>Unable to load target product</strong>
+          <p id="target-card-error-msg" style="font-size: 0.85rem; margin-top: 4px;">An error occurred while fetching product information.</p>
         </div>
       </div>
     </section>
@@ -625,15 +698,15 @@
       <form id="settings-form">
         <div class="form-group">
           <label for="cfg-base">API Base URL</label>
-          <input type="text" id="cfg-base" placeholder="http://localhost:8000">
+          <input type="text" id="cfg-base" placeholder="http://127.0.0.1:8000">
         </div>
         <div class="form-group">
           <label for="cfg-key">Tenant Public Key (pk-...)</label>
-          <input type="text" id="cfg-key" placeholder="pk-telco-xxxx">
+          <input type="text" id="cfg-key" placeholder="PASTE_YOUR_PUBLIC_KEY_HERE">
         </div>
         <div class="form-group">
           <label for="cfg-product">Active Product ID</label>
-          <input type="text" id="cfg-product" placeholder="SP-01">
+          <input type="text" id="cfg-product" placeholder="PASTE_PRODUCT_ID_HERE">
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" id="cancel-settings-btn">Cancel</button>
@@ -645,11 +718,37 @@
 
   <script>
     (function() {
-      // 1. Read URL query parameters
+      // 1. Constants & Placeholders
+      var PLACEHOLDER_KEY = 'PASTE_YOUR_PUBLIC_KEY_HERE';
+      var PLACEHOLDER_PID = 'PASTE_PRODUCT_ID_HERE';
+
+      function isPlaceholderKey(k) {
+        if (!k) return true;
+        var norm = String(k).trim().toUpperCase();
+        return norm === 'YOUR_PUBLIC_KEY' || norm === 'PASTE_YOUR_PUBLIC_KEY_HERE' || norm === 'YOUR_PK_KEY' || norm === 'PASTE_KEY_HERE';
+      }
+
+      function isPlaceholderPid(p) {
+        if (!p) return true;
+        var norm = String(p).trim().toUpperCase();
+        return norm === 'YOUR_PRODUCT_ID' || norm === 'PASTE_PRODUCT_ID_HERE' || norm === 'PRODUCT_ID';
+      }
+
+      // Default API Base:
+      // When served on local demo port (e.g. 5500), API is typically at 127.0.0.1:8000
+      var defaultBase = (window.location.port === '5500' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://127.0.0.1:8000'
+        : window.location.origin;
+
+      // Read URL query parameters
       var urlParams = new URLSearchParams(window.location.search);
-      var currentBase = urlParams.get('base') || window.location.origin;
-      var currentKey = urlParams.get('key') || 'pk-telco-xxxx';
-      var currentPid = urlParams.get('product') || 'SP-01';
+      var queryBase = urlParams.get('base');
+      var queryKey = urlParams.get('key');
+      var queryPid = urlParams.get('product');
+
+      var currentBase = (queryBase && queryBase.trim()) ? queryBase.trim() : defaultBase;
+      var currentKey = (queryKey && queryKey.trim()) ? queryKey.trim() : PLACEHOLDER_KEY;
+      var currentPid = (queryPid && queryPid.trim()) ? queryPid.trim() : PLACEHOLDER_PID;
 
       var currentTargetData = null;
       var currentRecId = null;
@@ -658,6 +757,8 @@
       var sdkStatusDot = document.getElementById('sdk-status-dot');
       var sdkStatusText = document.getElementById('sdk-status-text');
       var errorBanner = document.getElementById('error-banner');
+      var warningBanner = document.getElementById('warning-banner');
+      var fallbackBanner = document.getElementById('fallback-banner');
       var telemetryLog = document.getElementById('telemetry-log');
       var logCountEl = document.getElementById('log-count');
       var eventCount = 0;
@@ -668,9 +769,11 @@
         var line = document.createElement('div');
         line.className = 'log-line';
         var timeStr = new Date().toLocaleTimeString();
+        var safeType = (window.aipod && window.aipod.escape) ? window.aipod.escape(type) : type;
+        var safeDetail = (window.aipod && window.aipod.escape) ? window.aipod.escape(detail) : detail;
         line.innerHTML = '<span class="log-time">[' + timeStr + ']</span>' +
-          '<span class="log-tag">' + (window.aipod ? window.aipod.escape(type) : type) + '</span>' +
-          '<span class="log-detail">' + (window.aipod ? window.aipod.escape(detail) : detail) + '</span>';
+          '<span class="log-tag">' + safeType + '</span>' +
+          '<span class="log-detail">' + safeDetail + '</span>';
         telemetryLog.prepend(line);
       }
 
@@ -684,140 +787,259 @@
         }
       }
 
-      // Initialize Settings Modal values
-      document.getElementById('cfg-base').value = currentBase;
-      document.getElementById('cfg-key').value = currentKey;
-      document.getElementById('cfg-product').value = currentPid;
-
-      // 2. Initialize SDK
-      function initSDK() {
-        if (!window.aipod) {
-          sdkStatusText.textContent = 'SDK not loaded';
-          showError('AI_POD SDK script failed to load. Ensure /sdk.js is available.');
-          return;
+      function showWarning(msg) {
+        if (!msg) {
+          warningBanner.style.display = 'none';
+          warningBanner.textContent = '';
+        } else {
+          warningBanner.style.display = 'block';
+          warningBanner.textContent = 'ℹ ' + msg;
         }
-        window.aipod.init({
-          baseUrl: currentBase,
-          apiKey: currentKey,
-          currency: 'LKR',
-          locale: 'en-LK'
-        });
-        sdkStatusDot.classList.add('active');
-        sdkStatusText.textContent = 'Connected (' + currentKey.slice(0, 10) + '...)';
-        logEvent('SDK_INIT', 'Base: ' + currentBase + ' | Key: ' + currentKey);
+      }
+
+      function showFallbackBanner(msg) {
+        if (!msg) {
+          fallbackBanner.style.display = 'none';
+          fallbackBanner.textContent = '';
+        } else {
+          fallbackBanner.style.display = 'block';
+          fallbackBanner.textContent = '⚡ ' + msg;
+        }
+      }
+
+      // 2. Dynamic SDK Loader
+      function loadSdkDynamically(baseUrl, apiKey, onSuccess, onError) {
+        var cleanBase = (baseUrl || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+        var oldScript = document.getElementById('aipod-sdk');
+        if (oldScript) {
+          oldScript.remove();
+        }
+
+        var script = document.createElement('script');
+        script.id = 'aipod-sdk';
+        script.src = cleanBase + '/sdk.js';
+        if (apiKey && !isPlaceholderKey(apiKey)) {
+          script.setAttribute('data-tenant-key', apiKey);
+        }
+        script.setAttribute('data-api-base', cleanBase);
+        script.setAttribute('data-currency', 'LKR');
+        script.setAttribute('data-locale', 'en-LK');
+
+        script.onload = function() {
+          onSuccess();
+        };
+        script.onerror = function() {
+          onError('Cannot load the SDK from ' + cleanBase + '/sdk.js, check the API base URL');
+        };
+
+        document.head.appendChild(script);
       }
 
       // 3. Render Target Product Card
-      function updateTargetCard(target) {
+      function showTargetSkeleton() {
+        var skel = document.getElementById('target-card-skeleton');
+        var cont = document.getElementById('target-card-content');
+        var err = document.getElementById('target-card-error');
+        var imgSkel = document.getElementById('target-image-skeleton');
+        var img = document.getElementById('target-image');
+        var imgFb = document.getElementById('target-image-fallback');
+        var stockBadge = document.getElementById('target-stock-badge');
+        if (skel) skel.style.display = 'block';
+        if (cont) cont.style.display = 'none';
+        if (err) err.style.display = 'none';
+        if (imgSkel) imgSkel.style.display = 'block';
+        if (img) img.style.display = 'none';
+        if (imgFb) imgFb.style.display = 'none';
+        if (stockBadge) stockBadge.style.display = 'none';
+      }
+
+      function showTargetError(msg) {
+        var skel = document.getElementById('target-card-skeleton');
+        var cont = document.getElementById('target-card-content');
+        var err = document.getElementById('target-card-error');
+        var imgSkel = document.getElementById('target-image-skeleton');
+        var img = document.getElementById('target-image');
+        var imgFb = document.getElementById('target-image-fallback');
+        var stockBadge = document.getElementById('target-stock-badge');
+        var errMsg = document.getElementById('target-card-error-msg');
+        if (skel) skel.style.display = 'none';
+        if (cont) cont.style.display = 'none';
+        if (err) err.style.display = 'block';
+        if (errMsg) errMsg.textContent = msg || 'Could not load product details from server.';
+        if (imgSkel) imgSkel.style.display = 'none';
+        if (img) img.style.display = 'none';
+        if (imgFb) imgFb.style.display = 'block';
+        if (stockBadge) stockBadge.style.display = 'none';
+      }
+
+      function updateTargetCard(target, isFallback, fallbackReason) {
         currentTargetData = target;
-        if (!target) return;
-        document.getElementById('target-brand').textContent = target.brand || 'Electronics';
-        document.getElementById('target-name').textContent = target.product_name || target.product_id;
-        document.getElementById('target-category').textContent = target.category || 'General';
-        
-        var priceStr = target.price !== undefined && target.price !== null ? (window.aipod ? window.aipod.formatPrice(target.price) : 'LKR ' + target.price) : 'Contact for Price';
-        document.getElementById('target-price').textContent = priceStr;
+        if (!target) {
+          showTargetError('No product data returned by server');
+          return;
+        }
+        var skel = document.getElementById('target-card-skeleton');
+        var cont = document.getElementById('target-card-content');
+        var err = document.getElementById('target-card-error');
+        var imgSkel = document.getElementById('target-image-skeleton');
+        if (skel) skel.style.display = 'none';
+        if (err) err.style.display = 'none';
+        if (cont) cont.style.display = 'block';
+        if (imgSkel) imgSkel.style.display = 'none';
+
+        var aipod = window.aipod || window.AIPod;
+        var brandEl = document.getElementById('target-brand');
+        var nameEl = document.getElementById('target-name');
+        var catEl = document.getElementById('target-category');
+        var priceEl = document.getElementById('target-price');
+        var stockBadge = document.getElementById('target-stock-badge');
+
+        brandEl.textContent = target.brand || (isFallback ? 'Unspecified Brand' : 'Electronics');
+        nameEl.textContent = target.product_name || target.product_id;
+        catEl.textContent = target.category || (isFallback ? 'Uncategorized' : 'General');
+
+        stockBadge.style.display = 'inline-block';
+        if (isFallback) {
+          stockBadge.textContent = 'Uncatalogued / Fallback';
+          stockBadge.style.background = '#fef3c7';
+          stockBadge.style.color = '#b45309';
+        } else {
+          stockBadge.textContent = 'In Stock';
+          stockBadge.style.background = '';
+          stockBadge.style.color = '';
+        }
+
+        var priceStr = (target.price !== undefined && target.price !== null)
+          ? ((aipod && aipod.formatPrice) ? aipod.formatPrice(target.price) : 'LKR ' + target.price)
+          : (isFallback ? 'Price unavailable' : 'Contact for Price');
+        priceEl.textContent = priceStr;
 
         var img = document.getElementById('target-image');
-        var fallback = document.getElementById('target-image-fallback');
-        var cleanImg = window.aipod ? window.aipod.sanitizeUrl(target.image_url) : '';
+        var fallbackImg = document.getElementById('target-image-fallback');
+        var cleanImg = (aipod && aipod.sanitizeUrl) ? aipod.sanitizeUrl(target.image_url) : '';
         if (cleanImg) {
           img.src = cleanImg;
           img.style.display = 'block';
-          fallback.style.display = 'none';
+          fallbackImg.style.display = 'none';
         } else {
           img.style.display = 'none';
-          fallback.style.display = 'block';
+          fallbackImg.style.display = 'block';
         }
 
         // Render Specs
         var specsGrid = document.getElementById('target-specs-grid');
         specsGrid.innerHTML = '';
         var specs = target.specs || {};
+        var hasSpecs = false;
         for (var k in specs) {
+          hasSpecs = true;
           var div = document.createElement('div');
           div.className = 'spec-item';
-          div.innerHTML = '<div class="spec-item-label">' + (window.aipod ? window.aipod.escape(k.replace(/_/g, ' ')) : k) + '</div>' +
-            '<div class="spec-item-val">' + (window.aipod ? window.aipod.escape(specs[k]) : specs[k]) + '</div>';
+          var esc = (aipod && aipod.escape) ? aipod.escape : function(s) { return s; };
+          div.innerHTML = '<div class="spec-item-label">' + esc(k.replace(/_/g, ' ')) + '</div>' +
+            '<div class="spec-item-val">' + esc(String(specs[k])) + '</div>';
           specsGrid.appendChild(div);
+        }
+        if (!hasSpecs && isFallback) {
+          var divStatus = document.createElement('div');
+          divStatus.className = 'spec-item';
+          divStatus.innerHTML = '<div class="spec-item-label">Status</div><div class="spec-item-val" style="color:var(--warning)">Fallback: ' + ((aipod && aipod.escape) ? aipod.escape(fallbackReason) : fallbackReason) + '</div>';
+          specsGrid.appendChild(divStatus);
         }
       }
 
       // 4. Load Similar Products & Compare Table
       function loadStorefront() {
         showError(null);
+        showTargetSkeleton();
         var sameCat = document.getElementById('same-category-toggle').checked;
+        var aipod = window.aipod || window.AIPod;
+        if (!aipod) return;
 
         // Track page view for the current product
-        if (window.aipod) {
-          window.aipod.track('view', currentPid).then(function(res) {
-            logEvent('TRACK_VIEW', 'product: ' + currentPid + ' | status: ' + (res.status || 'sent'));
-          });
-        }
+        aipod.track('view', currentPid).then(function(res) {
+          logEvent('TRACK_VIEW', 'product: ' + currentPid + ' | status: ' + ((res && res.status) || 'sent'));
+        });
 
         // Call aipod.getSimilar()
-        if (window.aipod) {
-          window.aipod.getSimilar({
-            product_id: currentPid,
-            top_n: 6,
-            same_category: sameCat,
-            containerId: 'similar-products-container',
-            onRender: function(data) {
-              if (data && data.rec_id) currentRecId = data.rec_id;
-              if (data && data.target) {
-                updateTargetCard(data.target);
-              }
-              logEvent('SIMILAR_RENDERED', 'Found ' + ((data && data.similar_products) ? data.similar_products.length : 0) + ' items (rec_id: ' + currentRecId + ')');
-            },
-            onProductClick: function(item, e) {
-              logEvent('TRACK_CLICK', 'product: ' + (item.product_id || item.product_name) + ' | source: similar | rec_id: ' + currentRecId);
-            },
-            onError: function(err) {
-              showError('Failed to load similar products: ' + (err.message || err));
-              logEvent('ERROR', err.message || 'getSimilar failed');
-            }
-          });
+        aipod.getSimilar({
+          product_id: currentPid,
+          top_n: 6,
+          same_category: sameCat,
+          containerId: 'similar-products-container',
+          onRender: function(data) {
+            if (data && data.rec_id) currentRecId = data.rec_id;
+            var isFallback = Boolean(data && data.fallback);
+            var fallbackReason = (data && data.reason) || 'unknown_product';
 
-          // Call aipod.compare()
-          window.aipod.compare({
-            product_id: currentPid,
-            max_items: 4,
-            same_category: sameCat,
-            containerId: 'compare-table-container',
-            onRender: function(data) {
-              logEvent('COMPARE_RENDERED', 'Rendered comparison table with target + ' + (data && data.similar_products ? data.similar_products.length : 0) + ' models');
-            },
-            onError: function(err) {
-              logEvent('COMPARE_ERROR', err.message || 'compare failed');
+            if (data && data.target) {
+              updateTargetCard(data.target, isFallback, fallbackReason);
+            } else {
+              showTargetError('No target product data received');
             }
-          });
-        }
+
+            if (isFallback) {
+              showFallbackBanner('Notice: Product "' + currentPid + '" is not in the active catalog (reason: ' + fallbackReason + '). Displaying popular catalog alternatives.');
+              logEvent('FALLBACK', 'Response is fallback (reason: ' + fallbackReason + '). Showing popular alternatives.');
+            } else {
+              showFallbackBanner(null);
+            }
+
+            var count = (data && data.similar_products) ? data.similar_products.length : 0;
+            logEvent('SIMILAR_RENDERED', 'Found ' + count + ' items (rec_id: ' + currentRecId + (isFallback ? ', fallback=' + fallbackReason : '') + ')');
+          },
+          onProductClick: function(item, e) {
+            logEvent('TRACK_CLICK', 'product: ' + (item.product_id || item.product_name) + ' | source: similar | rec_id: ' + currentRecId);
+          },
+          onError: function(err) {
+            showError('Failed to load similar products: ' + (err.message || err));
+            showTargetError('Failed to load product details: ' + (err.message || err));
+            logEvent('ERROR', err.message || 'getSimilar failed');
+          }
+        });
+
+        // Call aipod.compare()
+        aipod.compare({
+          product_id: currentPid,
+          max_items: 4,
+          same_category: sameCat,
+          containerId: 'compare-table-container',
+          onRender: function(data) {
+            var simCount = (data && data.similar_products) ? data.similar_products.length : 0;
+            logEvent('COMPARE_RENDERED', 'Rendered comparison table with target + ' + simCount + ' models');
+          },
+          onError: function(err) {
+            logEvent('COMPARE_ERROR', err.message || 'compare failed');
+          }
+        });
       }
 
       // 5. Button Actions & Tracking
       document.getElementById('btn-add-to-cart').addEventListener('click', function() {
-        if (window.aipod) {
-          window.aipod.track('add_to_cart', currentPid, {
+        var aipod = window.aipod || window.AIPod;
+        if (aipod) {
+          aipod.track('add_to_cart', currentPid, {
             source: 'organic',
             quantity: 1
           }).then(function(res) {
-            logEvent('TRACK_ATC', 'product: ' + currentPid + ' | source: organic | status: ' + (res.status || 'sent'));
+            logEvent('TRACK_ATC', 'product: ' + currentPid + ' | source: organic | status: ' + ((res && res.status) || 'sent'));
           });
         }
       });
 
       document.getElementById('btn-buy-now').addEventListener('click', function() {
-        if (window.aipod) {
-          window.aipod.track('purchase', currentPid, {
+        var aipod = window.aipod || window.AIPod;
+        if (aipod) {
+          aipod.track('purchase', currentPid, {
             source: 'organic',
             quantity: 1
           }).then(function(res) {
-            logEvent('TRACK_PURCHASE', 'product: ' + currentPid + ' | source: organic | status: ' + (res.status || 'sent'));
+            logEvent('TRACK_PURCHASE', 'product: ' + currentPid + ' | source: organic | status: ' + ((res && res.status) || 'sent'));
           });
         }
       });
 
-      // 6. Switcher Pills
+      // 6. Switcher Pills & Custom Product Input
       var pills = document.querySelectorAll('.switch-pill');
       pills.forEach(function(pill) {
         pill.addEventListener('click', function() {
@@ -825,7 +1047,11 @@
           pill.classList.add('active');
           currentPid = pill.getAttribute('data-pid');
           document.getElementById('cfg-product').value = currentPid;
-          loadStorefront();
+          if (isPlaceholderKey(currentKey)) {
+            showWarning('Public API Key required — add key in Settings (⚙) or URL (?key=...) to fetch live recommendations.');
+          } else {
+            loadStorefront();
+          }
         });
       });
 
@@ -835,12 +1061,18 @@
           currentPid = inputVal;
           pills.forEach(function(p) { p.classList.remove('active'); });
           document.getElementById('cfg-product').value = currentPid;
-          loadStorefront();
+          if (isPlaceholderKey(currentKey)) {
+            showWarning('Public API Key required — add key in Settings (⚙) or URL (?key=...) to fetch live recommendations.');
+          } else {
+            loadStorefront();
+          }
         }
       });
 
       document.getElementById('same-category-toggle').addEventListener('change', function() {
-        loadStorefront();
+        if (!isPlaceholderKey(currentKey) && !isPlaceholderPid(currentPid)) {
+          loadStorefront();
+        }
       });
 
       // 7. Settings Modal
@@ -851,17 +1083,83 @@
 
       document.getElementById('settings-form').addEventListener('submit', function(e) {
         e.preventDefault();
-        currentBase = document.getElementById('cfg-base').value.trim() || window.location.origin;
-        currentKey = document.getElementById('cfg-key').value.trim() || 'pk-telco-xxxx';
-        currentPid = document.getElementById('cfg-product').value.trim() || 'SP-01';
+        currentBase = document.getElementById('cfg-base').value.trim() || defaultBase;
+        currentKey = document.getElementById('cfg-key').value.trim() || PLACEHOLDER_KEY;
+        currentPid = document.getElementById('cfg-product').value.trim() || PLACEHOLDER_PID;
         modal.classList.remove('open');
-        initSDK();
-        loadStorefront();
+        bootSdkAndStorefront();
       });
 
-      // Boot
-      initSDK();
-      loadStorefront();
+      // 8. Boot Sequence
+      function bootSdkAndStorefront() {
+        showError(null);
+        showWarning(null);
+        showFallbackBanner(null);
+
+        // Update Settings Modal inputs
+        document.getElementById('cfg-base').value = currentBase;
+        document.getElementById('cfg-key').value = currentKey;
+        document.getElementById('cfg-product').value = currentPid;
+
+        var cleanBase = currentBase.replace(/\/+$/, '');
+
+        sdkStatusDot.className = 'status-dot';
+        sdkStatusText.textContent = 'Loading SDK from ' + cleanBase + '/sdk.js...';
+
+        loadSdkDynamically(currentBase, currentKey, function() {
+          var aipod = window.aipod || window.AIPod;
+          if (!aipod) {
+            var loadErr = 'Cannot load the SDK from ' + cleanBase + '/sdk.js, check the API base URL';
+            showError(loadErr);
+            sdkStatusDot.className = 'status-dot error';
+            sdkStatusText.textContent = 'SDK load failed';
+            logEvent('SDK_LOAD_FAILED', loadErr);
+            return;
+          }
+
+          if (isPlaceholderKey(currentKey)) {
+            sdkStatusDot.className = 'status-dot warning';
+            sdkStatusText.textContent = 'Awaiting API Key';
+            showWarning('Demo not connected yet — add your API Base URL and Tenant Public Key in the URL (?key=...&product=...) or Settings (⚙) to activate live recommendations.');
+            logEvent('AWAITING_CONFIG', 'Public key is placeholder. Enter valid key in Settings.');
+            return;
+          }
+
+          aipod.init({
+            baseUrl: currentBase,
+            apiKey: currentKey,
+            currency: 'LKR',
+            locale: 'en-LK'
+          });
+
+          sdkStatusDot.className = 'status-dot active';
+          sdkStatusText.textContent = 'Connected (' + currentKey.slice(0, 10) + '...)';
+          logEvent('SDK_INIT', 'Base: ' + currentBase + ' | Key: ' + currentKey);
+
+          if (isPlaceholderPid(currentPid)) {
+            showWarning('Select a device above or enter a product ID in Settings / URL to view similar products.');
+            return;
+          }
+
+          // Sync switcher pill if matching
+          pills.forEach(function(pill) {
+            if (pill.getAttribute('data-pid') === currentPid) {
+              pill.classList.add('active');
+            } else {
+              pill.classList.remove('active');
+            }
+          });
+
+          loadStorefront();
+        }, function(errorMsg) {
+          showError(errorMsg);
+          sdkStatusDot.className = 'status-dot error';
+          sdkStatusText.textContent = 'SDK load failed';
+          logEvent('SDK_LOAD_FAILED', errorMsg);
+        });
+      }
+
+      bootSdkAndStorefront();
     })();
   </script>
 </body>

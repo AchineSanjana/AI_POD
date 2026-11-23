@@ -87,10 +87,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_origins_env = os.environ.get("CORS_ORIGINS", "").strip()
+if cors_origins_env:
+    allowed_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=[
         "*",
@@ -157,7 +168,10 @@ def serve_sdk_file():
         return FileResponse(
             sdk_path,
             media_type="application/javascript",
-            headers={"Cache-Control": "public, max-age=3600"},
+            headers={
+                "Cache-Control": "public, max-age=300",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
     return HTMLResponse("// SDK file not found", status_code=404)
 

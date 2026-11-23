@@ -144,7 +144,8 @@ def test_cors_preflight_and_exposed_headers(client: TestClient):
     }
     r_sim_opt = client.options("/v1/recommendations/similar/SP-01", headers=sim_headers)
     assert r_sim_opt.status_code == 200
-    assert r_sim_opt.headers.get("access-control-allow-origin") in (origin, "*")
+    assert r_sim_opt.headers.get("access-control-allow-origin") == origin
+    assert r_sim_opt.headers.get("access-control-allow-credentials") is None
     allowed_headers = r_sim_opt.headers.get("access-control-allow-headers", "").lower()
     for h in ["x-api-key", "content-type", "x-aipod-source"]:
         assert h in allowed_headers or "*" in allowed_headers
@@ -157,9 +158,18 @@ def test_cors_preflight_and_exposed_headers(client: TestClient):
     }
     r_track_opt = client.options("/v1/track", headers=track_headers)
     assert r_track_opt.status_code == 200
-    assert r_track_opt.headers.get("access-control-allow-origin") in (origin, "*")
+    assert r_track_opt.headers.get("access-control-allow-origin") == origin
+    assert r_track_opt.headers.get("access-control-allow-credentials") is None
 
-    # 3. Verify normal response exposes ETag and X-Catalog-Version
+    # 3. Disallowed origin receives no access-control-allow-origin header
+    bad_origin_headers = {
+        "Origin": "http://evil-unauthorized-site.com",
+        "Access-Control-Request-Method": "GET",
+    }
+    r_bad_opt = client.options("/v1/recommendations/similar/SP-01", headers=bad_origin_headers)
+    assert r_bad_opt.headers.get("access-control-allow-origin") is None
+
+    # 4. Verify normal response exposes ETag and X-Catalog-Version
     r_get = client.get(
         "/v1/recommendations/similar/SP-01",
         headers={"Origin": origin, "X-API-Key": "pk-telco-xxxx"},
@@ -410,6 +420,123 @@ def test_dashboard_analytics_similar_and_rec_metrics(tmp_path, monkeypatch, clie
     assert analytics["similar_ctr"] > 0.0
 
     assert analytics["recommendation_clicks"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Test 7: CTR Calculation: Distinct rec_ids, Multiple Clicks, Wizard-Test Exclusion & Clamping <= 1.0
+# ---------------------------------------------------------------------------
+def test_ctr_distinct_rec_ids_and_clamping(tmp_path, monkeypatch, client: TestClient):
+    storage = LocalStorage(base_dir=tmp_path)
+    _patch_all_storage(monkeypatch, storage)
+
+    tenant_id = "telco_default"
+    admin_headers = {"X-API-Key": "sk-telco_default-xxxx"}
+    client_headers = {"X-API-Key": "pk-telco_default-xxxx"}
+
+    # 1. Zero requests -> CTR must be None
+    res_zero = client.get("/v1/dashboard/analytics", headers=admin_headers)
+    assert res_zero.status_code == 200
+    assert res_zero.json()["similar_ctr"] is None
+    assert res_zero.json()["recommendation_ctr"] is None
+
+    # 2. Issue 2 real similar requests
+    r_sim1 = client.get("/v1/recommendations/similar/SP-01", headers=client_headers)
+    assert r_sim1.status_code == 200
+    rec_id_1 = r_sim1.json()["rec_id"]
+
+    r_sim2 = client.get("/v1/recommendations/similar/SP-02", headers=client_headers)
+    assert r_sim2.status_code == 200
+    rec_id_2 = r_sim2.json()["rec_id"]
+
+    # 3. Issue 1 test similar request (wizard-test) - must NOT increment similar_requests
+    r_sim_test = client.get(
+        "/v1/recommendations/similar/SP-03",
+        headers={**client_headers, "X-AIPOD-Source": "wizard-test"},
+    )
+    assert r_sim_test.status_code == 200
+    rec_id_test = r_sim_test.json()["rec_id"]
+
+    # 4. Track 3 clicks on the SAME rec_id_1 -> 3 clicks, but only 1 distinct rec_id
+    for i in range(3):
+        r_clk = client.post(
+            "/v1/track",
+            json={
+                "event_type": "click",
+                "product_id": "SP-01",
+                "session_id": f"sess_multi_{i}",
+                "source": "similar",
+                "rec_id": rec_id_1,
+            },
+            headers=client_headers,
+        )
+        assert r_clk.status_code == 202
+
+    # 5. Track 1 click with X-AIPOD-Source: wizard-test -> must be completely ignored
+    r_test_clk = client.post(
+        "/v1/track",
+        json={
+            "event_type": "click",
+            "product_id": "SP-03",
+            "session_id": "sess_test_clk",
+            "source": "similar",
+            "rec_id": rec_id_test,
+        },
+        headers={**client_headers, "X-AIPOD-Source": "wizard-test"},
+    )
+    assert r_test_clk.status_code == 202
+
+    flush_telemetry(storage)
+    clear_telemetry_cache()
+
+    res1 = client.get("/v1/dashboard/analytics", headers=admin_headers)
+    assert res1.status_code == 200
+    data1 = res1.json()
+
+    # 2 non-test requests, 3 clicks on 1 distinct rec_id
+    assert data1["similar_requests"] == 2
+    assert data1["similar_clicks"] == 3
+    # CTR = 1 distinct clicked rec_id / 2 requests = 0.5
+    assert data1["similar_ctr"] == 0.5
+
+    # 6. Now click rec_id_2 as well -> 2 distinct rec_ids clicked out of 2 requests
+    client.post(
+        "/v1/track",
+        json={
+            "event_type": "click",
+            "product_id": "SP-02",
+            "session_id": "sess_rec2",
+            "source": "similar",
+            "rec_id": rec_id_2,
+        },
+        headers=client_headers,
+    )
+
+    # Also simulate an extra click for a distinct rec_id without corresponding request
+    r_extra = client.post(
+        "/v1/track",
+        json={
+            "event_type": "click",
+            "product_id": "SP-04",
+            "session_id": "sess_rec3",
+            "source": "similar",
+            "rec_id": "eeee000000000001",
+        },
+        headers=client_headers,
+    )
+    assert r_extra.status_code == 202
+
+    flush_telemetry(storage)
+    clear_telemetry_cache()
+
+    res2 = client.get("/v1/dashboard/analytics", headers=admin_headers)
+    assert res2.status_code == 200
+    data2 = res2.json()
+
+    assert data2["similar_requests"] == 2
+    assert data2["similar_clicks"] == 5
+    # 3 distinct rec_ids / 2 requests = 1.5, strictly clamped to <= 1.0
+    assert data2["similar_ctr"] <= 1.0
+    assert data2["similar_ctr"] == 1.0
 
 
 # ---------------------------------------------------------------------------

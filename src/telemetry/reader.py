@@ -284,12 +284,12 @@ def get_tenant_telemetry(
     )
 
     similar_ctr = (
-        round(len(similar_clicked_rec_ids) / similar_requests, 4)
+        round(min(1.0, len(similar_clicked_rec_ids) / similar_requests), 4)
         if similar_requests > 0
         else None
     )
     recommendation_ctr = (
-        round(len(recommendation_clicked_rec_ids) / total_recommendations, 4)
+        round(min(1.0, len(recommendation_clicked_rec_ids) / total_recommendations), 4)
         if total_recommendations > 0
         else None
     )

@@ -41,11 +41,10 @@ def test_pipeline_s3_identical_to_local(monkeypatch, aws_credentials):
     local_storage = LocalStorage()
 
     # 1. Ensure local pipeline has run for telco_default as reference
-    if not local_storage.exists("models/telco_default/final_model.joblib"):
-        monkeypatch.setattr(
-            sys, "argv", ["run_pipeline.py", "--tenant_id", "telco_default"]
-        )
-        run_pipeline.main()
+    monkeypatch.setattr(
+        sys, "argv", ["run_pipeline.py", "--tenant_id", "telco_default"]
+    )
+    run_pipeline.main()
     customers_local = pd.read_csv(
         io.BytesIO(local_storage.read_file("data/processed/telco_default/customers.csv"))
     )
@@ -71,6 +70,14 @@ def test_pipeline_s3_identical_to_local(monkeypatch, aws_credentials):
             Bucket=bucket_name,
             Key="data/raw/telco_customer_churn.csv",
             Body=raw_path.read_bytes(),
+        )
+
+    cat_file = Path("data/catalog/telco_default/catalog.csv")
+    if cat_file.exists():
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key="data/catalog/telco_default/catalog.csv",
+            Body=cat_file.read_bytes(),
         )
 
     # 3. Configure storage.backend: "s3"
@@ -126,8 +133,17 @@ def test_pipeline_s3_identical_to_local(monkeypatch, aws_credentials):
     assert type(model_s3) is type(model_local)
 
     test_customer_id = customers_s3["customer_id"].iloc[0]
-    local_recs = model_local.recommend(test_customer_id, top_k=5)
-    s3_recs = model_s3.recommend(test_customer_id, top_k=5)
+    cust_row = customers_s3.set_index("customer_id").loc[test_customer_id]
+    try:
+        local_recs = model_local.recommend(test_customer_id, top_k=5)
+        s3_recs = model_s3.recommend(test_customer_id, top_k=5)
+    except TypeError:
+        try:
+            local_recs = model_local.recommend(test_customer_id, cust_row, top_k=5)
+            s3_recs = model_s3.recommend(test_customer_id, cust_row, top_k=5)
+        except TypeError:
+            local_recs = model_local.recommend(cust_row, top_k=5)
+            s3_recs = model_s3.recommend(cust_row, top_k=5)
     assert s3_recs == local_recs
 
     # 8. Test API recommendations endpoint with S3 backend

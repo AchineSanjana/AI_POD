@@ -29,7 +29,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Load AI_POD Client Tracking & Recommendation SDK with Demo Public Key -->
-  <script src="/sdk.js" data-tenant-key="pk-fresh_cart_co-xxxx" id="aipod-sdk"></script>
+  <!-- Reference: <script src="/sdk.js" data-tenant-key="pk-fresh_cart_co-xxxx" id="aipod-sdk"></script> -->
   
   <style>
     :root {
@@ -1485,15 +1485,21 @@
     }
 
     function resolveApiBase(customUrl) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const qBase = urlParams.get('baseUrl') || urlParams.get('base');
+      if (qBase && qBase.trim()) return qBase.trim();
+
       const isHttp = typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:');
-      const defaultOrigin = isHttp ? window.location.origin : 'http://localhost:8000';
       const inputEl = document.getElementById('inputBaseUrl');
       const val = (customUrl !== undefined ? customUrl : (inputEl ? inputEl.value : '')).trim();
 
-      if (val && val !== defaultOrigin) {
+      if (val && val !== 'http://localhost:8000') {
         return val;
       }
       if (isHttp) {
+        if (window.location.port === '5500') {
+          return 'http://127.0.0.1:8000';
+        }
         return window.location.origin;
       }
       try {
@@ -1501,6 +1507,29 @@
         if (stored) return stored;
       } catch (e) {}
       return 'http://localhost:8000';
+    }
+
+    function loadSdkDynamically(baseUrl, apiKey) {
+      return new Promise((resolve, reject) => {
+        if (typeof window.AIPod !== 'undefined') {
+          resolve(window.AIPod);
+          return;
+        }
+        const cleanBase = (baseUrl || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+        const oldScript = document.getElementById('aipod-sdk');
+        if (oldScript) oldScript.remove();
+
+        const script = document.createElement('script');
+        script.id = 'aipod-sdk';
+        script.src = cleanBase + '/sdk.js';
+        script.setAttribute('data-tenant-key', apiKey);
+        script.setAttribute('data-api-base', cleanBase);
+        script.onload = () => resolve(window.AIPod);
+        script.onerror = () => {
+          reject(new Error(`Cannot load the SDK from ${cleanBase}/sdk.js, check the API base URL`));
+        };
+        document.head.appendChild(script);
+      });
     }
 
     const CONFIG = {
@@ -1736,7 +1765,7 @@
 
       try {
         if (typeof window.AIPod === 'undefined') {
-          throw new Error(`AIPod SDK is not loaded. Verify sdk.js is served at ${CONFIG.baseUrl}/sdk.js`);
+          await loadSdkDynamically(CONFIG.baseUrl, CONFIG.publicKey);
         }
 
         // Initialize SDK with configured base URL and public key

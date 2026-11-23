@@ -115,7 +115,12 @@ def test_cross_tenant_spoofing_prevented_in_body_and_query(client: TestClient):
     # Server-side resolved tenant must strictly be telco_default
     assert post_data["tenant_id"] == "telco_default"
     rec_ids = {str(r["product_id"]) for r in post_data["recommendations"]}
-    assert rec_ids.issubset(telco_products)
+    from src.catalog.active_set import get_active_catalog
+    active_cat = get_active_catalog("telco_default")
+    if active_cat is not None:
+        assert rec_ids.issubset(set(active_cat.keys()))
+    else:
+        assert rec_ids.issubset(telco_products)
     assert rec_ids.isdisjoint(ecom_products)
 
     # 2. GET attempt to spoof tenant_id in query params

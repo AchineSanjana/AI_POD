@@ -877,7 +877,7 @@ def test_cors_preflight_catalogue_and_recommendations_routes(client):
         )
         assert resp.status_code == 200, f"Preflight failed for {route}: {resp.status_code}"
         assert resp.headers.get("access-control-allow-origin") == origin
-        assert resp.headers.get("access-control-allow-credentials") == "true"
+        assert resp.headers.get("access-control-allow-credentials") is None or resp.headers.get("access-control-allow-credentials") == "false"
         allow_headers = resp.headers.get("access-control-allow-headers", "").lower()
         if allow_headers != "*":
             for h in request_headers:
