@@ -909,6 +909,293 @@
       from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* Simulation Bar & Controls */
+    .simulation-actions-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-simulate-interactions {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #ffffff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+    }
+
+    .btn-simulate-interactions:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);
+    }
+
+    .btn-activity-toggle {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--telco-navy);
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-activity-toggle:hover {
+      background: #ffffff;
+      border-color: var(--telco-blue);
+    }
+
+    /* Live Activity Log Tray */
+    .activity-log-tray {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-bottom: 1px solid #1e293b;
+      padding: 12px 24px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.78rem;
+      max-height: 140px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .activity-log-tray.open {
+      display: block;
+    }
+
+    .activity-log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .activity-log-item {
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .activity-log-time {
+      color: #64748b;
+    }
+
+    .activity-log-badge {
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.7rem;
+    }
+
+    .badge-view { background: #1e3a8a; color: #93c5fd; }
+    .badge-click { background: #065f46; color: #6ee7b7; }
+    .badge-activate { background: #78350f; color: #fde68a; }
+
+    /* Similar Services Section Styles */
+    .similar-section {
+      margin-top: 48px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .similar-tabs-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .similar-tabs-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .plan-pill-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .plan-pill-btn {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .plan-pill-btn:hover {
+      border-color: var(--telco-blue);
+      color: var(--telco-blue);
+    }
+
+    .plan-pill-btn.active {
+      background: var(--telco-blue);
+      color: #ffffff;
+      border-color: var(--telco-blue);
+      box-shadow: 0 2px 6px rgba(0, 51, 153, 0.25);
+    }
+
+    .category-toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Target Plan Card */
+    .target-plan-card {
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+      border: 1px solid #bae6fd;
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .target-plan-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .target-plan-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .target-plan-title {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--telco-navy);
+    }
+
+    .target-plan-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .target-plan-badge {
+      background: var(--telco-blue);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .target-plan-price {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--telco-navy);
+      text-align: right;
+    }
+
+    /* Compare Button on Cards */
+    .btn-view-similar {
+      background: transparent;
+      color: var(--telco-blue);
+      border: 1px solid #cbd5e1;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-view-similar:hover {
+      background: #f0f7ff;
+      border-color: var(--telco-blue);
+    }
+
+    /* Telco Similar Cards Styling (Opts template) */
+    .telco-sim-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      cursor: pointer;
+    }
+
+    .telco-sim-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--telco-blue);
+    }
+
+    .telco-sim-icon-wrap {
+      font-size: 1.8rem;
+      width: 44px;
+      height: 44px;
+      background: var(--surface-subtle);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .telco-sim-match {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--telco-green);
+      background: var(--telco-green-light);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
   </style>
 </head>
 <body>
@@ -1029,12 +1316,36 @@
         </div>
       </div>
 
-      <div class="engine-status-wrap">
-        <div class="status-dot" id="engineStatusDot"></div>
-        <span id="engineStatusText">Checking AI_POD SDK...</span>
+      <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <div class="simulation-actions-wrap">
+          <button id="btnSimulateInteractions" class="btn-simulate-interactions" onclick="simulateCustomerInteractions(5)" title="Generate live customer interactions (views, clicks, activations) for this subscriber">
+            <span>⚡</span> <span>Simulate Interactions</span> (<span id="interactionsCount">0</span>)
+          </button>
+          <button id="btnToggleActivityLog" class="btn-activity-toggle" onclick="toggleActivityLog()" title="Toggle live interaction event stream log">
+            📋 Activity Stream
+          </button>
+        </div>
+
+        <div class="engine-status-wrap">
+          <div class="status-dot" id="engineStatusDot"></div>
+          <span id="engineStatusText">Checking AI_POD SDK...</span>
+        </div>
       </div>
     </div>
   </section>
+
+  <!-- Live Telemetry / Interaction Event Stream Tray -->
+  <div id="activityLogTray" class="activity-log-tray">
+    <div class="activity-log-header">
+      <span>📡 Live Telemetry Event Stream (Fake &amp; Real Customer Interactions)</span>
+      <span style="font-size: 0.72rem; color: #64748b; cursor: pointer;" onclick="clearActivityLog()">Clear Log</span>
+    </div>
+    <div id="activityLogContent">
+      <div class="activity-log-item" style="color: #64748b;">
+        <em>No interactions recorded yet. Click "⚡ Simulate Interactions" or browse services below.</em>
+      </div>
+    </div>
+  </div>
 
   <!-- Hero Promotional Section -->
   <section class="hero-section">
@@ -1098,6 +1409,64 @@
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <!-- Similar Services & Plan Comparison Section (AI_POD Similarity Insert) -->
+    <section class="similar-section" id="similarSection">
+      <div class="section-header">
+        <div>
+          <div class="section-title-wrap">
+            <h2 class="section-title">Similar Services &amp; Plan Alternatives</h2>
+            <span class="badge-ml" id="similarBadge">⚡ AI Similarity Engine</span>
+          </div>
+          <p class="section-subtitle">
+            Direct alternatives, bundle comparisons, and related add-ons powered by AI_POD content-based similarity matching.
+          </p>
+        </div>
+        <div class="similar-toggle-wrap">
+          <label class="category-toggle-label">
+            <input type="checkbox" id="sameCategoryToggle" onchange="reloadSimilarServices()" checked>
+            <span>Restrict to same category (Core vs Add-on)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Target Plan Selector Pills -->
+      <div class="similar-tabs-bar">
+        <span class="similar-tabs-label">Inspect Service:</span>
+        <div class="plan-pill-tabs" id="similarPlanTabs">
+          <!-- Populated dynamically with all telco services -->
+        </div>
+      </div>
+
+      <!-- Currently Selected Target Plan Banner -->
+      <div class="target-plan-card" id="targetPlanCard">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Similar Services Insert (Rendered by AIPod.getSimilar) -->
+      <div style="margin-top: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; color: var(--telco-navy);">
+            🎯 Top Recommended Alternatives
+          </h3>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">Loaded via <code>AIPod.getSimilar()</code></span>
+        </div>
+        <div id="similarPlansContainer">
+          <div class="skeleton-card" style="height: 180px;"></div>
+        </div>
+      </div>
+
+      <!-- Side-by-Side Comparison Table Insert (Rendered by AIPod.compare) -->
+      <div style="margin-top: 36px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; color: var(--telco-navy);">
+            📊 Feature &amp; Specification Comparison
+          </h3>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">Loaded via <code>AIPod.compare()</code></span>
+        </div>
+        <div id="comparePlansContainer"></div>
       </div>
     </section>
 
@@ -1423,9 +1792,14 @@
                   <div class="plan-price-val">${meta.price}</div>
                   <div class="plan-price-note">*billed monthly</div>
                 </div>
-                <button class="btn-activate" onclick="activateServicePlan(event, '${pid}', '${meta.name}')">
-                  + Add to Plan
-                </button>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button class="btn-view-similar" onclick="selectPlanForSimilarity(event, '${pid}', '${meta.name}')" title="Compare similar alternative plans">
+                    🔍 Similar
+                  </button>
+                  <button class="btn-activate" onclick="activateServicePlan(event, '${pid}', '${meta.name}')">
+                    + Add to Plan
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -1459,9 +1833,14 @@
                   <div class="plan-price-val">${meta.price}</div>
                   <div class="plan-price-note">*billed monthly</div>
                 </div>
-                <button class="btn-activate" onclick="activateServicePlan(event, '${pid}', '${meta.name}')">
-                  + Add to Plan
-                </button>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button class="btn-view-similar" onclick="selectPlanForSimilarity(event, '${pid}', '${meta.name}')" title="Compare similar alternative plans">
+                    🔍 Similar
+                  </button>
+                  <button class="btn-activate" onclick="activateServicePlan(event, '${pid}', '${meta.name}')">
+                    + Add to Plan
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -1526,6 +1905,279 @@
       }
     }
 
+    // =====================================================================
+    // Similar Services Insert & Customer Interaction Simulation
+    // =====================================================================
+    let currentSelectedPlanId = 'OnlineSecurity';
+    let currentSimilarRecId = null;
+    let totalInteractionsSent = 0;
+
+    function renderSimilarPlanTabs() {
+      const tabsContainer = document.getElementById('similarPlanTabs');
+      if (!tabsContainer) return;
+      const pids = Object.keys(TELCO_PRODUCT_METADATA);
+      tabsContainer.innerHTML = pids.map(pid => {
+        const meta = TELCO_PRODUCT_METADATA[pid];
+        const isActive = pid === currentSelectedPlanId ? 'active' : '';
+        return `<button class="plan-pill-btn ${isActive}" onclick="selectPlanForSimilarity(event, '${pid}', '${escapeHtml(meta.name)}')">
+          <span>${meta.icon}</span> <span>${escapeHtml(meta.name)}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function selectPlanForSimilarity(event, productId, productName) {
+      if (event) event.stopPropagation();
+      currentSelectedPlanId = productId;
+      renderSimilarPlanTabs();
+
+      const section = document.getElementById('similarSection');
+      if (section && event && event.type === 'click') {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      loadSimilarServices(productId);
+
+      if (typeof window.AIPod !== 'undefined') {
+        const custId = (document.getElementById('subscriberSelect') || {}).value || '7590-VHVEG';
+        window.AIPod.track('view', productId, { source: 'similar' });
+        totalInteractionsSent++;
+        updateInteractionsDisplay();
+        logActivityStream(custId, 'view', productId, 'similar');
+      }
+      showToast(`Comparing similar services for: ${productName || productId}`);
+    }
+
+    async function loadSimilarServices(productId) {
+      const pid = productId || currentSelectedPlanId || 'OnlineSecurity';
+      currentSelectedPlanId = pid;
+      const targetCard = document.getElementById('targetPlanCard');
+      const simContainer = document.getElementById('similarPlansContainer');
+      const sameCatToggle = document.getElementById('sameCategoryToggle');
+      const sameCat = sameCatToggle ? sameCatToggle.checked : true;
+      const rawMeta = TELCO_PRODUCT_METADATA[pid] || {
+        name: pid,
+        category: 'Digital Service',
+        icon: '⚡',
+        desc: 'High-speed telecommunications service plan.',
+        price: '$9.99/mo',
+        features: ['Instant Activation', 'High Reliability']
+      };
+
+      // 1. Render Target Plan Banner
+      if (targetCard) {
+        targetCard.innerHTML = `
+          <div class="target-plan-left">
+            <div class="target-plan-icon">${rawMeta.icon}</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span class="target-plan-badge">Target Selected Plan</span>
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--telco-blue);">${escapeHtml(rawMeta.category)}</span>
+              </div>
+              <div class="target-plan-title">${escapeHtml(rawMeta.name)}</div>
+              <div class="target-plan-sub">${escapeHtml(rawMeta.desc)}</div>
+            </div>
+          </div>
+          <div>
+            <div class="target-plan-price">${escapeHtml(rawMeta.price)}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right;">Standard Monthly Rate</div>
+          </div>
+        `;
+      }
+
+      if (typeof window.AIPod === 'undefined') {
+        if (simContainer) {
+          simContainer.innerHTML = '<div style="padding:24px; text-align:center; color:var(--text-muted); background:#fff; border-radius:12px; border:1px solid var(--border);">Connecting to AI_POD Similarity Engine...</div>';
+        }
+        return;
+      }
+
+      // 2. Call AIPod.getSimilar()
+      try {
+        await window.AIPod.getSimilar({
+          product_id: pid,
+          top_n: 4,
+          same_category: sameCat,
+          containerId: 'similarPlansContainer',
+          template: function(it, recId) {
+            const itemPid = it.product_id;
+            const meta = TELCO_PRODUCT_METADATA[itemPid] || {
+              name: it.product_name || itemPid,
+              category: it.category || 'Add-on',
+              icon: '⚡',
+              price: it.price ? `$${it.price}/mo` : '$9.99/mo'
+            };
+            const simScore = Math.round((it.similarity || 0.75) * 100);
+            const reasons = (it.reasons && it.reasons.length) ? it.reasons.join(', ') : 'Category match';
+            
+            return `
+              <div class="aipod-sim-card telco-sim-card" onclick="selectPlanForSimilarity(event, '${itemPid}', '${escapeHtml(it.product_name || meta.name)}')">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div class="telco-sim-icon-wrap">${meta.icon}</div>
+                  <span class="telco-sim-match">${simScore}% Match</span>
+                </div>
+                <div class="aipod-sim-brand">Mobitel • ${escapeHtml(it.category || meta.category)}</div>
+                <div class="aipod-sim-name" style="font-weight: 700; color: var(--telco-navy); font-size: 1rem;">${escapeHtml(it.product_name || meta.name)}</div>
+                <div class="aipod-sim-pricing" style="margin-top: 4px;">
+                  <span class="aipod-sim-price" style="font-weight: 800; color: var(--telco-blue);">${escapeHtml(meta.price)}</span>
+                </div>
+                <div class="aipod-sim-chips" style="margin: 8px 0;">
+                  <span class="aipod-sim-chip">💡 ${escapeHtml(reasons)}</span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 8px;">
+                  <button class="btn-activate" style="width: 100%; padding: 8px; font-size: 0.8rem;" onclick="activateServicePlan(event, '${itemPid}', '${escapeHtml(it.product_name || meta.name)}')">
+                    + Add to Plan
+                  </button>
+                </div>
+              </div>
+            `;
+          },
+          onRender: function(data) {
+            if (data && data.rec_id) {
+              currentSimilarRecId = data.rec_id;
+            }
+          },
+          onProductClick: function(item, e) {
+            const itemPid = item.product_id || item.id;
+            const custId = (document.getElementById('subscriberSelect') || {}).value || '7590-VHVEG';
+            logActivityStream(custId, 'click', itemPid, 'similar');
+            totalInteractionsSent++;
+            updateInteractionsDisplay();
+            showToast(`Clicked similar service alternative: ${item.product_name || itemPid}`);
+          },
+          onError: function(err) {
+            console.warn('AIPod.getSimilar error:', err);
+            if (simContainer) {
+              simContainer.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-muted); background:#fff; border-radius:12px; border:1px solid var(--border);">No similar alternatives returned for ${escapeHtml(pid)}.</div>`;
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('Failed getSimilar:', err);
+      }
+
+      // 3. Call AIPod.compare()
+      try {
+        await window.AIPod.compare({
+          product_id: pid,
+          max_items: 4,
+          same_category: sameCat,
+          containerId: 'comparePlansContainer',
+          onRender: function(data) {
+            // Compare table rendered
+          },
+          onError: function(err) {
+            console.warn('AIPod.compare error:', err);
+          }
+        });
+      } catch (err) {
+        console.warn('Failed compare:', err);
+      }
+    }
+
+    function reloadSimilarServices() {
+      loadSimilarServices(currentSelectedPlanId);
+    }
+
+    async function simulateCustomerInteractions(batchSize = 5) {
+      const custSelect = document.getElementById('subscriberSelect');
+      const custId = (custSelect && custSelect.value) ? custSelect.value : '7590-VHVEG';
+      const targetPid = currentSelectedPlanId || 'OnlineSecurity';
+      const aipod = window.aipod || window.AIPod;
+
+      if (!aipod) {
+        showToast('⚠️ AI_POD SDK not ready yet. Please check API settings.');
+        return;
+      }
+
+      if (typeof aipod.identify === 'function') {
+        aipod.identify(custId);
+      }
+
+      const candidatePool = [
+        { type: 'view', pid: targetPid, source: 'similar' },
+        { type: 'click', pid: targetPid, source: 'similar' },
+        { type: 'view', pid: 'OnlineBackup', source: 'similar' },
+        { type: 'click', pid: 'OnlineBackup', source: 'similar' },
+        { type: 'activate_service', pid: 'OnlineBackup', qty: 1, source: 'similar' },
+        { type: 'view', pid: 'InternetService_Fiber', source: 'recommendation' },
+        { type: 'click', pid: 'InternetService_Fiber', source: 'recommendation' },
+        { type: 'activate_service', pid: 'InternetService_Fiber', qty: 1, source: 'recommendation' },
+        { type: 'view', pid: 'StreamingTV', source: 'organic' },
+        { type: 'click', pid: 'StreamingTV', source: 'similar' },
+        { type: 'activate_service', pid: 'OnlineSecurity', qty: 1, source: 'similar' }
+      ];
+
+      const shuffled = candidatePool.sort(() => 0.5 - Math.random());
+      const batch = shuffled.slice(0, batchSize);
+
+      showToast(`⚡ Dispatching ${batch.length} customer interactions for line ${custId}...`);
+
+      for (const item of batch) {
+        try {
+          const recId = currentSimilarRecId || undefined;
+          if (item.type === 'view') {
+            await aipod.track('view', item.pid, { source: item.source, rec_id: recId, customer_id: custId });
+          } else if (item.type === 'click') {
+            await aipod.track('click', item.pid, { source: item.source, rec_id: recId, customer_id: custId });
+          } else if (item.type === 'activate_service') {
+            await aipod.track('activate_service', item.pid, { quantity: item.qty || 1, source: item.source, rec_id: recId, customer_id: custId });
+            activeServicesCount++;
+            const cartEl = document.getElementById('cartCount');
+            if (cartEl) cartEl.textContent = activeServicesCount;
+          }
+          totalInteractionsSent++;
+          updateInteractionsDisplay();
+          logActivityStream(custId, item.type, item.pid, item.source);
+        } catch (e) {
+          console.warn('Simulated event failed:', e);
+        }
+        await new Promise(r => setTimeout(r, 60));
+      }
+
+      showToast(`✅ Recorded ${batch.length} customer interactions for ${custId}! Telemetry & popular fallback updated.`);
+    }
+
+    function updateInteractionsDisplay() {
+      const el = document.getElementById('interactionsCount');
+      if (el) el.textContent = totalInteractionsSent;
+    }
+
+    function toggleActivityLog() {
+      const tray = document.getElementById('activityLogTray');
+      if (tray) tray.classList.toggle('open');
+    }
+
+    function clearActivityLog() {
+      const content = document.getElementById('activityLogContent');
+      if (content) {
+        content.innerHTML = '<div class="activity-log-item" style="color: #64748b;"><em>Log cleared.</em></div>';
+      }
+    }
+
+    function logActivityStream(customerId, eventType, productId, source) {
+      const content = document.getElementById('activityLogContent');
+      if (!content) return;
+      const timeStr = new Date().toLocaleTimeString();
+      const rawMeta = TELCO_PRODUCT_METADATA[productId] || { name: productId };
+      const badgeClass = eventType === 'view' ? 'badge-view' : (eventType === 'click' ? 'badge-click' : 'badge-activate');
+      
+      const row = document.createElement('div');
+      row.className = 'activity-log-item';
+      row.innerHTML = `
+        <span class="activity-log-time">[${timeStr}]</span>
+        <span class="activity-log-badge ${badgeClass}">${eventType.toUpperCase()}</span>
+        <span style="color:#38bdf8;">${escapeHtml(customerId)}</span>
+        <span>&rarr;</span>
+        <strong style="color:#ffffff;">${escapeHtml(rawMeta.name || productId)}</strong>
+        <span style="color:#94a3b8; font-size:0.72rem;">(source: ${escapeHtml(source || 'direct')})</span>
+      `;
+      
+      if (content.children.length > 30) {
+        content.removeChild(content.lastChild);
+      }
+      content.insertBefore(row, content.firstChild);
+    }
+
     // Page Lifecycle
     document.addEventListener('DOMContentLoaded', () => {
       const subscriberSelect = document.getElementById('subscriberSelect');
@@ -1585,6 +2237,7 @@
           updateConnectionBannerState();
           showToast('Public key saved successfully!');
           loadSubscriberRecommendations(subscriberSelect.value);
+          loadSimilarServices(currentSelectedPlanId);
         }, (errMsg) => {
           showToast(`SDK error: ${errMsg}`);
         });
@@ -1603,12 +2256,17 @@
 
         showToast(`Switched active account to ${custId}`);
         loadSubscriberRecommendations(custId);
+        loadSimilarServices(currentSelectedPlanId);
       });
 
       // Initial Renders
       renderStaticCatalog();
+      renderSimilarPlanTabs();
       loadSdkDynamically(CONFIG.baseUrl, CONFIG.publicKey, () => {
         loadSubscriberRecommendations(subscriberSelect.value);
+        loadSimilarServices(currentSelectedPlanId);
+        // Seed initial customer interactions for realism
+        setTimeout(() => simulateCustomerInteractions(3), 600);
       }, (errMsg) => {
         const grid = document.getElementById('recommendationsGrid');
         const engineDot = document.getElementById('engineStatusDot');

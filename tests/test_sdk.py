@@ -299,6 +299,14 @@ def test_telco_portal_demo_page(client):
         assert "Internet - Fiber Optic" in html or "InternetService_Fiber" in html
         assert "Online Security" in html or "OnlineSecurity" in html
 
+        # Similar Products Insert and Interaction Simulation
+        assert "similarSection" in html
+        assert "similarPlansContainer" in html
+        assert "comparePlansContainer" in html
+        assert "AIPod.getSimilar(" in html
+        assert "AIPod.compare(" in html
+        assert "simulateCustomerInteractions(" in html
+
 
 
 
