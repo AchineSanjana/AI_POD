@@ -273,3 +273,10 @@ p  { color: var(--text-secondary); line-height: 1.75; }
   .container { padding: 0 16px; }
   h1 { font-size: 2rem; }
 }
+
+@media (max-width: 640px) {
+  .preview-similar-drawer {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+}

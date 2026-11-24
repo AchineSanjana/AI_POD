@@ -96,6 +96,8 @@ else:
         "http://127.0.0.1:5173",
         "http://localhost:5500",
         "http://127.0.0.1:5500",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ]
 
 app.add_middleware(
@@ -272,7 +274,7 @@ app.include_router(open_onboarding_router)
 app.include_router(shopify_router)
 app.include_router(retrain_router)
 app.include_router(accounts_router)
-app.include_router(dashboard_router)
+# dashboard_router is mounted under /v1 (v1_router) so /dashboard/* routes serve the SPA
 app.include_router(catalog_router)
 
 
@@ -376,8 +378,10 @@ def demo_ui_portal():
 @app.get("/how-it-works", response_class=HTMLResponse)
 @app.get("/signup", response_class=HTMLResponse)
 @app.get("/signin", response_class=HTMLResponse)
+@app.get("/verify-email", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
 @app.get("/dashboard/{full_path:path}", response_class=HTMLResponse)
+@app.get("/onboarding/{full_path:path}", response_class=HTMLResponse)
 def ui_root():
     frontend_dist_index = PROJECT_ROOT / "frontend" / "dist" / "index.html"
     if frontend_dist_index.exists():

@@ -115,12 +115,7 @@ def test_cross_tenant_spoofing_prevented_in_body_and_query(client: TestClient):
     # Server-side resolved tenant must strictly be telco_default
     assert post_data["tenant_id"] == "telco_default"
     rec_ids = {str(r["product_id"]) for r in post_data["recommendations"]}
-    from src.catalog.active_set import get_active_catalog
-    active_cat = get_active_catalog("telco_default")
-    if active_cat is not None:
-        assert rec_ids.issubset(set(active_cat.keys()))
-    else:
-        assert rec_ids.issubset(telco_products)
+    assert rec_ids.issubset(telco_products)
     assert rec_ids.isdisjoint(ecom_products)
 
     # 2. GET attempt to spoof tenant_id in query params
@@ -548,6 +543,61 @@ def test_alias_keys_security_and_production_lockout(client: TestClient, monkeypa
     # 3. An alias for an unknown/non-configured tenant cannot be exploited
     assert get_key_record("sk-arbitrary_hacker_tenant-xxxx") is None
     assert get_key_record("pk-arbitrary_hacker_tenant-xxxx") is None
+
+
+def test_alias_keys_cannot_mutate_catalog_for_real_tenants(client: TestClient, monkeypatch):
+    """Guard 3.b: Demo alias keys (*-xxxx) cannot call catalogue write endpoints (POST/PATCH/DELETE)
+    for real tenants like telco_default, while reads (GET) remain allowed.
+    """
+    from pathlib import Path
+    from starlette.requests import Request
+    from src.api.auth import get_tenant_for_admin_action
+
+    monkeypatch.setenv("ENV", "development")
+    monkeypatch.setenv("AI_POD_ENV", "development")
+
+    # 1. POST /v1/catalog/products with sk-telco-xxxx -> 403 Forbidden
+    resp_post = client.post(
+        "/v1/catalog/products",
+        json={"product_id": "STRAY_DEV_1", "product_name": "Forbidden Device", "price": 999.0},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert resp_post.status_code == 403
+    assert "Demo alias key" in resp_post.json()["detail"]
+
+    # 2. PATCH /v1/catalog/products/{id} with sk-telco-xxxx -> 403 Forbidden
+    resp_patch = client.patch(
+        "/v1/catalog/products/STRAY_DEV_1",
+        json={"price": 888.0},
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert resp_patch.status_code == 403
+    assert "Demo alias key" in resp_patch.json()["detail"]
+
+    # 3. DELETE /v1/catalog/products/{id} with sk-telco-xxxx -> 403 Forbidden
+    resp_delete = client.delete(
+        "/v1/catalog/products/STRAY_DEV_1",
+        headers={"X-API-Key": "sk-telco-xxxx"},
+    )
+    assert resp_delete.status_code == 403
+    assert "Demo alias key" in resp_delete.json()["detail"]
+
+    # 4. POST /v1/catalog/products with pk-telco-xxxx -> 403 Forbidden (public key lockout)
+    resp_pk_post = client.post(
+        "/v1/catalog/products",
+        json={"product_id": "STRAY_DEV_1", "product_name": "Forbidden Device", "price": 999.0},
+        headers={"X-API-Key": "pk-telco-xxxx"},
+    )
+    assert resp_pk_post.status_code == 403
+
+    # 5. Verify reads (GET) remain allowed for sk-telco-xxxx via auth dependency
+    mock_get_req = Request(scope={"type": "http", "method": "GET", "path": "/v1/catalog/products", "headers": []})
+    resolved = get_tenant_for_admin_action(request=mock_get_req, x_api_key="sk-telco-xxxx")
+    assert resolved == "telco_default"
+
+    # 6. Verify that telco_default has NO catalog.csv created
+    assert not Path("data/catalog/telco_default/catalog.csv").exists()
+
 
 
 

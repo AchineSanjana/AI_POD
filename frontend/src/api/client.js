@@ -1,4 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '/v1';
+const BASE_URL = import.meta.env.VITE_API_URL && !import.meta.env.PROD
+  ? import.meta.env.VITE_API_URL
+  : '/v1';
 
 export function getSessionToken() {
   return localStorage.getItem('aipod_token');
@@ -142,6 +144,19 @@ export const getRecommendations = (customerId, topN = 5, pk = null, customHeader
       ...customHeaders,
     },
   });
+
+export const getSimilarProducts = (productId, { topN = 4, sameCategory = true } = {}, pk = null) => {
+  const resolvedPk = pk || localStorage.getItem('aipod_pk') || '';
+  const params = new URLSearchParams();
+  if (topN != null) params.set('top_n', String(topN));
+  if (sameCategory !== undefined) params.set('same_category', String(sameCategory));
+  return request(`/recommendations/similar/${encodeURIComponent(productId)}?${params.toString()}`, {
+    headers: {
+      'X-API-Key': resolvedPk,
+      'X-AIPOD-Source': 'wizard-test',
+    },
+  });
+};
 
 // Dashboard
 export const getDashboardOverview = () => request('/dashboard/overview');

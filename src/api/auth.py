@@ -35,6 +35,20 @@ PUBLIC_KEY_ALLOWED_PREFIXES: list[tuple[str, str]] = [
 ]
 
 
+def is_real_tenant(tenant_id: str) -> bool:
+    """Check if a tenant is a real / production-like tenant vs throwaway test tenant.
+
+    Tenants starting with test prefixes ('e2e_', 'test_', 'tenant_', 'bench_', 'mock_', 'tmp_')
+    are test-scoped. System tenants like 'telco_default', 'fixture_ecommerce', 'movielens_demo'
+    and customer-onboarded tenants are real tenants.
+    """
+    t = str(tenant_id).strip().lower()
+    test_prefixes = ("e2e_", "test_", "tenant_", "bench_", "mock_", "tmp_")
+    if any(t.startswith(prefix) for prefix in test_prefixes):
+        return False
+    return True
+
+
 def is_request_allowed_for_key(key_type: str, method: str, path: str) -> bool:
     """Check whether an HTTP request (method + path) is permitted for a given key type.
 
@@ -256,6 +270,23 @@ def get_current_tenant(
                 ),
             )
 
+    # Prevent demo alias keys (*-xxxx) from calling catalogue write endpoints for real tenants
+    if x_api_key.strip().endswith("-xxxx") and request is not None:
+        norm_method = (request.method or "").upper()
+        norm_path = request.url.path or ""
+        if norm_method in ("POST", "PATCH", "DELETE") and (
+            norm_path.startswith("/v1/catalog") or norm_path.startswith("/catalog")
+        ):
+            if is_real_tenant(record["tenant_id"]):
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"Forbidden: Demo alias key '{x_api_key.strip()}' cannot perform catalogue write "
+                        f"operations ({norm_method} {norm_path}) for real tenant '{record['tenant_id']}'. "
+                        "Use a real private API key or session token."
+                    ),
+                )
+
     return record["tenant_id"]
 
 
@@ -324,7 +355,27 @@ def get_tenant_for_admin_action(
                     "onboarding actions. Use a private API key (sk-...) or session token."
                 ),
             )
-        return record["tenant_id"]
+
+        resolved_tenant = record["tenant_id"]
+
+        # Prevent demo alias keys (*-xxxx) from calling catalogue write endpoints for real tenants
+        if clean_key.endswith("-xxxx") and request is not None:
+            norm_method = (request.method or "").upper()
+            norm_path = request.url.path or ""
+            if norm_method in ("POST", "PATCH", "DELETE") and (
+                norm_path.startswith("/v1/catalog") or norm_path.startswith("/catalog")
+            ):
+                if is_real_tenant(resolved_tenant):
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            f"Forbidden: Demo alias key '{clean_key}' cannot perform catalogue write "
+                            f"operations ({norm_method} {norm_path}) for real tenant '{resolved_tenant}'. "
+                            "Use a real private API key or session token."
+                        ),
+                    )
+
+        return resolved_tenant
 
     # 2. Inspect session JWT (Authorization: Bearer <token> or X-Session-Token)
     token: str | None = None

@@ -1,6 +1,0 @@
-product_id,product_name,category,status,brand,price,in_stock,description,image_url,product_url,created_at,updated_at,title,product_type,name,custom_ports
-LIVE-P1,Premium Wireless Mouse,Accessories,active,,49.99,1,,,,2026-11-20T09:38:59.910451+00:00,2026-11-20T09:38:59.910451+00:00,,,,
-LIVE-P2,Mechanical Gaming Keyboard,Keyboards,active,,129.99,1,,,,2026-11-20T09:38:59.910451+00:00,2026-11-20T09:38:59.910451+00:00,Mechanical Gaming Keyboard,Keyboards,,
-LIVE-P3,Ultra-Wide 4K Monitor,Monitors,active,,599.99,1,,,,2026-11-20T09:38:59.910451+00:00,2026-11-20T09:38:59.910451+00:00,,,,
-LIVE-P4,Ergonomic Mesh Chair,Furniture,active,,349.99,1,,,,2026-11-20T09:38:59.910451+00:00,2026-11-20T09:38:59.910451+00:00,,,Ergonomic Mesh Chair,
-LIVE-P5,USB-C Multiport Dock,Accessories,active,HyperLink Pro,69.99,1,10-in-1 Aluminum USB-C Hub,,,2026-11-20T09:39:00.562582+00:00,2026-11-20T09:39:02.510370+00:00,,,,10.0

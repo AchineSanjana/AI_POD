@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getDashboardOverview, getDashboardEvents, getMe } from '../../api/client';
-import { Brain, Key, BarChart3, Zap, ArrowRight, RefreshCw, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { getDashboardOverview, getDashboardEvents, getDashboardAnalytics, getMe } from '../../api/client';
+import { Brain, Key, BarChart3, Zap, ArrowRight, RefreshCw, CheckCircle2, AlertCircle, Clock, Layers } from 'lucide-react';
 
 function StatCard({ label, value, sub, color, icon: Icon }) {
   return (
@@ -32,6 +32,7 @@ export default function Overview() {
   const { user, setUser } = useAuth();
   const [overview, setOverview] = useState(null);
   const [events,   setEvents]   = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading,  setLoading]  = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -40,15 +41,17 @@ export default function Overview() {
     else setRefreshing(true);
 
     try {
-      const [meRes, ovRes, evRes] = await Promise.allSettled([
+      const [meRes, ovRes, evRes, anRes] = await Promise.allSettled([
         getMe(),
         getDashboardOverview(),
         getDashboardEvents(20),
+        getDashboardAnalytics(7),
       ]);
 
       if (meRes.status === 'fulfilled') setUser(meRes.value);
       if (ovRes.status === 'fulfilled') setOverview(ovRes.value);
       if (evRes.status === 'fulfilled') setEvents(evRes.value?.events || []);
+      if (anRes.status === 'fulfilled') setAnalytics(anRes.value);
     } catch {
       // Graceful fallback to empty state
     } finally {
@@ -150,6 +153,32 @@ export default function Overview() {
           color="#06b6d4"
           icon={Key}
         />
+      </div>
+
+      {/* Compact Similar Products Card */}
+      <div className="card mb-8" style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Layers size={18} color="#3b82f6" />
+            </div>
+            <div>
+              <div style={{ fontFamily: 'Outfit', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                Similar products: {loading ? '…' : (analytics?.similar_requests ?? 0).toLocaleString()} requests, {loading ? '…' : (analytics?.similar_ctr != null ? `${(analytics.similar_ctr * 100).toFixed(1)}%` : '—')} CTR
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Storefront similarity engine performance over the last 7 days
+              </div>
+            </div>
+          </div>
+          <Link
+            to="/dashboard/analytics"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            View Analytics <ArrowRight size={13} />
+          </Link>
+        </div>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>

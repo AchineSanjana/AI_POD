@@ -156,6 +156,44 @@ All screenshots captured using Playwright `full_page=True`:
 |---|---|
 | `tests/test_similar_storefront.py` | Added Step S2 test suite covering cold start benchmarks, CORS preflight, `rec_id` response schemas, `POST /v1/track` source/rec_id validation, and CTR distinct `rec_id` click de-duplication/clamping. |
 | `tests/test_catalog.py` | Updated line 880 in `test_cors_preflight_catalogue_and_recommendations_routes` to assert `access-control-allow-credentials` is not true, matching the new standard `allow_credentials=False` CORS configuration. |
-| `tests/test_api_auth.py` | Updated `test_cross_tenant_spoofing_prevented_in_body_and_query` to verify recommendations against active catalogue when a tenant catalogue exists on disk, preserving test validity with persistent tenant catalogue. |
-| `tests/test_api_multitenancy.py` | Updated `test_api_multitenancy_telco_ecommerce_isolation` to dynamically verify recommendations against active catalogue when one exists for `telco_default`. |
-| `tests/test_pipeline_s3_e2e.py` | Synchronized `data/catalog/telco_default/catalog.csv` into mocked S3 bucket and used defensive customer feature extraction for hybrid model comparison. |
+| `tests/test_api_auth.py` | Restored original strict assertion `rec_ids.issubset(telco_products)` against clean telco tenant with no catalogue; added `test_alias_keys_cannot_mutate_catalog_for_real_tenants`. |
+| `tests/test_api_multitenancy.py` | Restored original strict assertion `telco_rec_pids == expected_direct_recs` and subset check against the 10 clean telco products. |
+| `tests/test_pipeline_s3_e2e.py` | Removed S3 catalogue seeding workaround and restored direct `model_local.recommend(test_customer_id, top_k=5)`. |
+
+---
+
+## 8. Post-S2 Cleanup & Hardening Report
+
+### A. Stray Catalogue Investigation & Source Identification
+- **Root Cause:** In commit `f48165e`, a 30-product demo catalogue (`SP-01`..`SP-10`, `LP-01`..`LP-10`, `AD-01`..`AD-10` from `build_30_products()`) was committed into `data/catalog/telco_default/catalog.csv` during manual testing of `demo/similar_products.html` with default query parameters `key=pk-telco-xxxx&product=SP-01`.
+- **Catalogue Removal & Model Retraining:** The stray catalogue directory `data/catalog/telco_default/` was removed by the user. Running `scripts/run_pipeline.py --tenant_id telco_default` retrained the tournament models cleanly against the original 10 Telco services (`InternetService_Fiber`, `DeviceProtection`, `OnlineSecurity`, `TechSupport`, `PhoneService`, `MultipleLines`, `OnlineBackup`, `StreamingTV`, `StreamingMovies`, `InternetService_DSL`). `LearnedRankingRecommender` was restored as the champion model.
+- **Script Audit:** Verified all verification scripts (`scripts/verify_s2_browser.py`, `scripts/verify_s2_storefront.py`, `scripts/live_check_s1.py`, `scripts/live_check_c1.py`, `scripts/live_check_c2.py`). All scripts generate unique throwaway tenants (prefixed with `e2e_tenant_*` or `e2e_test_*`) and exclusively use their own isolated credentials and datasets.
+
+### B. Reversion of Test Workarounds
+All three test suites modified in commit `781d5e7` were restored to their original strict assertions:
+1. `tests/test_api_auth.py`: Reverted `test_cross_tenant_spoofing_prevented_in_body_and_query` to assert `assert rec_ids.issubset(telco_products)` directly without active catalogue fallbacks.
+2. `tests/test_api_multitenancy.py`: Reverted `test_api_multitenancy_telco_ecommerce_isolation` to assert `assert set(telco_rec_pids).issubset(telco_catalog_ids)` and `assert telco_rec_pids == expected_direct_recs`.
+3. `tests/test_pipeline_s3_e2e.py`: Removed mocked S3 catalogue uploading code (`s3_client.put_object(...)` for `data/catalog/telco_default/catalog.csv`) and restored clean direct recommendation assertion `assert s3_recs == local_recs`.
+
+### C. Implementation of System Guards
+1. **Repository State Guard Fixture (`tests/conftest.py`):**
+   - Implemented a session-scoped autouse pytest fixture (`guard_repository_state`) that snapshots file paths, sizes, and tenant records for `data/catalog/`, `data/telemetry/`, `config/config.yaml`, `config/accounts.local.yaml`, and `config/tenants_auth.local.yaml`.
+   - At session teardown, fails the test session if any files or records belonging to real/production tenants (non-`e2e_*` / non-test tenants) were created, modified, or deleted, or if persistent configuration (`config.yaml`) was mutated.
+2. **Catalogue Write Lockout for Demo Alias Keys (`src/api/auth.py`):**
+   - Hardened `get_tenant_for_admin_action` and `get_current_tenant` to check `is_real_tenant(resolved_tenant)`.
+   - When a demo alias key (`sk-*-xxxx` or `pk-*-xxxx`) attempts to invoke catalogue write endpoints (`POST`, `PATCH`, `DELETE` under `/v1/catalog/*` or `/catalog/*`) on any real tenant, the request is rejected with `HTTP 403 Forbidden`.
+   - Catalogue read endpoints (`GET /v1/catalog/*`) continue to function for demo keys.
+   - Added unit test `test_alias_keys_cannot_mutate_catalog_for_real_tenants` in `tests/test_api_auth.py`.
+
+### D. Telco Tenant Verification
+- Executed `GET /v1/recommendations/7590-VHVEG?top_n=5` with public key `pk-telco-xxxx`.
+- Result: Returned 5 telecom core & add-on products (`InternetService_Fiber`, `MultipleLines`, `PhoneService`, `DeviceProtection`, `OnlineSecurity`). Zero phones, laptops, or audio products returned.
+- Verified `Path("data/catalog/telco_default/catalog.csv").exists() == False`.
+
+### E. Verification Suite Exact Totals
+- **Pytest Full Suite (`pytest tests/ -q`):** 430 passed, 0 failures, 0 guard violations.
+- **Frontend Linter (`npm run lint`):** 16 warnings, 0 errors.
+- **Frontend Production Build (`npm run build`):** Built successfully in 1.37s (`dist/index.html` 0.93 kB, `dist/assets/index-DzKvr4YD.css` 8.36 kB, `dist/assets/index-BSi05Ez2.js` 857 kB).
+- **Playwright Browser Suite (`scripts/verify_s2_browser.py`):** 8/8 assertions passed across viewports 390x844, 360x800, and 1280x900.
+
+

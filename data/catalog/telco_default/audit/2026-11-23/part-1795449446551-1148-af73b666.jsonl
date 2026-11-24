@@ -1,1 +1,0 @@
-{"tenant_id": "telco_default", "who": "pipeline", "when": "2026-11-23T15:57:26.551675+00:00", "action": "interaction_sync", "product_ids_count": 10, "product_ids": ["DeviceProtection", "InternetService_DSL", "InternetService_Fiber", "MultipleLines", "OnlineBackup", "OnlineSecurity", "PhoneService", "StreamingMovies", "StreamingTV", "TechSupport"], "details": {}}

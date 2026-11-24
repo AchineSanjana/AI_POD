@@ -4,8 +4,9 @@ import {
   Package, Plus, Upload, History, RotateCcw, Search,
   CheckCircle2, AlertTriangle, AlertCircle, X, Download,
   Trash2, Archive, RefreshCw, FileText, ChevronLeft, ChevronRight,
-  Layers, Check, ArrowRight
+  Layers, Check, ArrowRight, Eye
 } from 'lucide-react';
+import SimilarResults from '../../components/SimilarResults';
 import {
   getCatalogProducts,
   getCatalogSummary,
@@ -57,6 +58,7 @@ export default function Catalog() {
   const [editingProduct, setEditingProduct] = useState(null); // null = Add, object = Edit
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [previewSimilarProduct, setPreviewSimilarProduct] = useState(null);
   const [permanentDeleteModal, setPermanentDeleteModal] = useState(null); // product to delete
   const [bulkConfirmModal, setBulkConfirmModal] = useState(null); // { action, count }
   const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
@@ -529,27 +531,51 @@ export default function Catalog() {
                         )}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                        {isArchived ? (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={e => handleRestoreSingle(p, e)}
-                            disabled={actionLoading}
-                            style={{ padding: '4px 10px', fontSize: 12 }}
-                            title="Restore product to active status"
-                          >
-                            <RotateCcw size={13} /> Restore
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={e => handleArchiveSingle(p, e)}
-                            disabled={actionLoading}
-                            style={{ padding: '4px 10px', fontSize: 12 }}
-                            title="Archive product"
-                          >
-                            <Archive size={13} /> Archive
-                          </button>
-                        )}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                          {isArchived ? (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              disabled
+                              style={{ padding: '4px 10px', fontSize: 12, opacity: 0.45, cursor: 'not-allowed' }}
+                              title="Similar products preview is only available for active products"
+                            >
+                              <Eye size={13} /> Preview
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setPreviewSimilarProduct(p);
+                              }}
+                              style={{ padding: '4px 10px', fontSize: 12 }}
+                              title="Preview similar products"
+                            >
+                              <Eye size={13} /> Preview
+                            </button>
+                          )}
+                          {isArchived ? (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={e => handleRestoreSingle(p, e)}
+                              disabled={actionLoading}
+                              style={{ padding: '4px 10px', fontSize: 12 }}
+                              title="Restore product to active status"
+                            >
+                              <RotateCcw size={13} /> Restore
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={e => handleArchiveSingle(p, e)}
+                              disabled={actionLoading}
+                              style={{ padding: '4px 10px', fontSize: 12 }}
+                              title="Archive product"
+                            >
+                              <Archive size={13} /> Archive
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -651,7 +677,66 @@ export default function Catalog() {
             setPermanentDeleteModal(p);
           }}
           onConflict={() => setConflictError(true)}
+          onPreviewSimilar={p => {
+            setDrawerOpen(false);
+            setPreviewSimilarProduct(p);
+          }}
         />
+      )}
+
+      {/* Similar Products Preview Side Panel */}
+      {previewSimilarProduct && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.65)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+          onClick={() => setPreviewSimilarProduct(null)}
+        >
+          <div
+            className="preview-similar-drawer"
+            style={{
+              width: typeof window !== 'undefined' && window.innerWidth <= 640 ? '100vw' : 580,
+              maxWidth: '100vw',
+              height: '100%',
+              background: 'var(--bg-card)',
+              borderLeft: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-lg)',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '24px 20px',
+              overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Layers size={20} color="var(--accent-1)" />
+                <h4 style={{ margin: 0 }}>Similar Products Preview</h4>
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setPreviewSimilarProduct(null)}
+                style={{ padding: 6 }}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <SimilarResults
+              productId={previewSimilarProduct.product_id}
+              pk={localStorage.getItem('aipod_pk')}
+              initialTopN={4}
+              initialSameCategory={true}
+              showControls={true}
+            />
+          </div>
+        </div>
       )}
 
       {/* Upload Wizard Modal */}
@@ -964,7 +1049,7 @@ function TrainingBanner({ summary, retraining, onRetrain }) {
 /* ─────────────────────────────────────────────────────────────────────────────
    Add / Edit Product Drawer
 ───────────────────────────────────────────────────────────────────────────── */
-function ProductDrawer({ product, onClose, onSaved, onPermanentDeleteRequest, onConflict }) {
+function ProductDrawer({ product, onClose, onSaved, onPermanentDeleteRequest, onConflict, onPreviewSimilar }) {
   const isEditing = Boolean(product);
 
   const [productId, setProductId] = useState(product?.product_id || '');
@@ -1201,14 +1286,39 @@ function ProductDrawer({ product, onClose, onSaved, onPermanentDeleteRequest, on
             />
           </div>
 
-          <div style={{ marginTop: 'auto', paddingTop: 20, display: 'flex', gap: 12, borderTop: '1px solid var(--border)' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
-              {saving ? <RefreshCw size={15} className="animate-spin" /> : null}
-              {isEditing ? 'Save Changes' : 'Create Product'}
-            </button>
+          <div style={{ marginTop: 'auto', paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 12, borderTop: '1px solid var(--border)' }}>
+            {isEditing && (
+              isArchived ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled
+                  title="Similar products preview is only available for active products"
+                  style={{ opacity: 0.45, cursor: 'not-allowed', width: '100%' }}
+                >
+                  <Eye size={14} /> Preview Similar Products
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onPreviewSimilar && onPreviewSimilar(product)}
+                  title="Preview similar products"
+                  style={{ width: '100%' }}
+                >
+                  <Eye size={14} /> Preview Similar Products
+                </button>
+              )
+            )}
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
+                {saving ? <RefreshCw size={15} className="animate-spin" /> : null}
+                {isEditing ? 'Save Changes' : 'Create Product'}
+              </button>
+            </div>
           </div>
         </form>
 
