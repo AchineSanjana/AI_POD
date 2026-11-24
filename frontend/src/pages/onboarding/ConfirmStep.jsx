@@ -52,7 +52,7 @@ export default function ConfirmStep() {
       {/* Summary card */}
       <div className="card mb-6">
         <h4 style={{ marginBottom:20 }}>Configuration Summary</h4>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div className="grid-2" style={{ gap:16 }}>
           {[
             { label:'Customer ID', val: mapping?.customer_id_column || '—' },
             { label:'Product ID',  val: mapping?.product_id_column  || '—' },
@@ -82,7 +82,7 @@ export default function ConfirmStep() {
 
       {error && <div className="alert alert-error mb-4">{error}</div>}
 
-      <div style={{ display:'flex', justifyContent:'space-between', marginTop:24 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', marginTop:24, flexWrap:'wrap', gap:12 }}>
         <button className="btn btn-secondary" onClick={() => navigate('/onboarding/schema')}>
           <ArrowLeft size={16}/> Edit Mapping
         </button>

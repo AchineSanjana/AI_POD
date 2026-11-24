@@ -173,7 +173,7 @@ export default function ApiKeys() {
             <RefreshCw size={15}/> Rotate API Keys
           </button>
         ) : (
-          <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+          <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
             <span style={{ fontSize:14, color:'var(--text-secondary)' }}>Are you sure? This cannot be undone.</span>
             <button className="btn btn-danger btn-sm" onClick={handleRotate} disabled={loading}>
               {loading ? 'Rotating…' : 'Yes, Rotate'}

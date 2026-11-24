@@ -87,7 +87,7 @@ def test_cold_start_and_single_flight(tmp_path, monkeypatch):
     storage = LocalStorage(base_dir=tmp_path)
     _patch_all_storage(monkeypatch, storage)
 
-    tenant_id = "bench_storefront_tenant"
+    tenant_id = "e2e_bench_storefront_tenant"
     # Generate 5,000 products
     products = [
         {

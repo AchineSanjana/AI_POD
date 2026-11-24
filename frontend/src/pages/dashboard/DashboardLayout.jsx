@@ -122,7 +122,7 @@ export default function DashboardLayout() {
           <button onClick={() => setSideOpen(true)} style={{ color:'var(--text-primary)' }}><Menu size={22}/></button>
           <span style={{ fontFamily:'Outfit',fontWeight:700 }}>AI_POD</span>
         </div>
-        <div style={{ flex:1, padding:'32px', overflowY:'auto' }}>
+        <div className="dashboard-content-area">
           <UnverifiedBanner />
           <Outlet />
         </div>

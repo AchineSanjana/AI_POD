@@ -276,7 +276,8 @@ def run_browser_verification(base_url: str = "http://127.0.0.1:8000", headless: 
           f"similar_add_to_carts={analytics_data.get('similar_add_to_carts')}")
 
     viewports = [
-        {"name": "mobile_390", "width": 390, "height": 844, "label": "390x844 (Mobile)"},
+        {"name": "mobile_360", "width": 360, "height": 800, "label": "360x800 (Mobile Small)"},
+        {"name": "mobile_390", "width": 390, "height": 844, "label": "390x844 (Mobile Standard)"},
         {"name": "desktop_1280", "width": 1280, "height": 900, "label": "1280x900 (Desktop)"},
     ]
 
@@ -404,7 +405,7 @@ def run_browser_verification(base_url: str = "http://127.0.0.1:8000", headless: 
             assertion_c_ok = xss_rendered_as_text and no_malicious_img and no_xss_dialog
 
             # Screenshot Integrate Step
-            integrate_shot = SCREENSHOTS_DIR / f"s3_integrate_{vp_w}.png"
+            integrate_shot = SCREENSHOTS_DIR / f"s3b_integrate_{vp_w}.png"
             page.screenshot(path=str(integrate_shot), full_page=True)
             print(f"      Saved screenshot: {integrate_shot.name}")
 
@@ -424,7 +425,7 @@ def run_browser_verification(base_url: str = "http://127.0.0.1:8000", headless: 
             assertion_b_ok = drawer_visible and len(drawer_cards) >= 3
 
             # Screenshot Catalogue Page with Drawer
-            catalog_shot = SCREENSHOTS_DIR / f"s3_catalog_{vp_w}.png"
+            catalog_shot = SCREENSHOTS_DIR / f"s3b_catalog_{vp_w}.png"
             page.screenshot(path=str(catalog_shot), full_page=True)
             print(f"      Saved screenshot: {catalog_shot.name}")
 
@@ -446,9 +447,17 @@ def run_browser_verification(base_url: str = "http://127.0.0.1:8000", headless: 
             assertion_d_ok = sim_req_shown and sim_clicks_shown and sim_ctr_shown
 
             # Screenshot Analytics Page
-            analytics_shot = SCREENSHOTS_DIR / f"s3_analytics_{vp_w}.png"
+            analytics_shot = SCREENSHOTS_DIR / f"s3b_analytics_{vp_w}.png"
             page.screenshot(path=str(analytics_shot), full_page=True)
             print(f"      Saved screenshot: {analytics_shot.name}")
+
+            # Dedicated screenshot of mobile Analytics Similar Products section
+            if vp_w == 390:
+                sim_section = page.locator("#similar-products-analytics-section")
+                if sim_section.count() > 0:
+                    sim_shot = SCREENSHOTS_DIR / "s3b_analytics_similar_section_390.png"
+                    sim_section.screenshot(path=str(sim_shot))
+                    print(f"      Saved mobile section screenshot: {sim_shot.name}")
 
             # ---------------------------------------------------------------
             # Assertion (e): Overview Card
@@ -461,21 +470,110 @@ def run_browser_verification(base_url: str = "http://127.0.0.1:8000", headless: 
             assertion_e_ok = overview_ok
 
             # Screenshot Overview Page
-            overview_shot = SCREENSHOTS_DIR / f"s3_overview_{vp_w}.png"
+            overview_shot = SCREENSHOTS_DIR / f"s3b_overview_{vp_w}.png"
             page.screenshot(path=str(overview_shot), full_page=True)
             print(f"      Saved screenshot: {overview_shot.name}")
 
             # ---------------------------------------------------------------
-            # Assertion (g): Page overflow & console errors
+            # Assertion (g): Page overflow & console errors (all pages checked)
             # ---------------------------------------------------------------
-            overflow_info = page.evaluate("""() => {
-                const docEl = document.documentElement;
-                return {
-                    scrollWidth: docEl.scrollWidth,
-                    innerWidth: window.innerWidth,
-                };
-            }""")
-            no_overflow = overflow_info["scrollWidth"] <= overflow_info["innerWidth"]
+            pages_to_check = [
+                ("Overview", f"{base_url}/dashboard"),
+                ("Catalogue", f"{base_url}/dashboard/catalog"),
+                ("API Keys", f"{base_url}/dashboard/keys"),
+                ("Model Status", f"{base_url}/dashboard/model"),
+                ("Analytics", f"{base_url}/dashboard/analytics"),
+                ("Settings", f"{base_url}/dashboard/settings"),
+                ("Upload Step", f"{base_url}/onboarding/upload"),
+                ("Schema Step", f"{base_url}/onboarding/schema"),
+                ("Confirm Step", f"{base_url}/onboarding/confirm"),
+                ("Training Step", f"{base_url}/onboarding/training"),
+                ("Integrate Step", f"{base_url}/onboarding/integrate"),
+                ("Recommendations", f"{base_url}/ui"),
+            ]
+
+            layout_failures = []
+            for page_name, page_url in pages_to_check:
+                page.goto(page_url, wait_until="networkidle")
+                page.wait_for_timeout(200)
+                layout_res = page.evaluate("""() => {
+                    const docEl = document.documentElement;
+                    const windowWidth = window.innerWidth;
+                    const violations = [];
+
+                    function isVisible(el) {
+                        if (!el || el.nodeType !== 1) return false;
+                        const style = window.getComputedStyle(el);
+                        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+                        const rect = el.getBoundingClientRect();
+                        return rect.width > 0 && rect.height > 0;
+                    }
+
+                    function hasScrollableAncestor(el) {
+                        let parent = el.parentElement;
+                        while (parent && parent !== document.body && parent !== document.documentElement) {
+                            const style = window.getComputedStyle(parent);
+                            const ox = style.overflowX;
+                            if (ox === 'auto' || ox === 'scroll') return true;
+                            parent = parent.parentElement;
+                        }
+                        return false;
+                    }
+
+                    const allEls = document.querySelectorAll('*');
+                    for (const el of allEls) {
+                        if (!isVisible(el)) continue;
+                        const style = window.getComputedStyle(el);
+
+                        // Ignore decorative background elements
+                        if (el.classList.contains('orb') || style.pointerEvents === 'none') continue;
+
+                        const rect = el.getBoundingClientRect();
+                        if (rect.right > windowWidth + 1 && !hasScrollableAncestor(el)) {
+                            violations.push({
+                                tag: el.tagName,
+                                className: String(el.className || ''),
+                                id: el.id,
+                                rectRight: Math.round(rect.right),
+                                windowWidth: windowWidth,
+                                reason: 'bounding_box_overflow'
+                            });
+                            if (violations.length >= 5) break;
+                        }
+
+                        if (style.overflowX === 'hidden' || style.overflow === 'hidden') {
+                            // Elements with intentional text-overflow ellipsis truncate text legitimately
+                            if (style.textOverflow === 'ellipsis') continue;
+
+                            if (el.scrollWidth > el.clientWidth + 1) {
+                                const cls = String(el.className || '');
+                                if (el !== document.documentElement && el !== document.body && !cls.includes('preview-similar-drawer') && !cls.includes('code-block')) {
+                                    violations.push({
+                                        tag: el.tagName,
+                                        className: cls,
+                                        id: el.id,
+                                        scrollWidth: el.scrollWidth,
+                                        clientWidth: el.clientWidth,
+                                        reason: 'overflow_hidden_clipping_child'
+                                    });
+                                    if (violations.length >= 5) break;
+                                }
+                            }
+                        }
+                    }
+
+                    return {
+                        scrollWidth: docEl.scrollWidth,
+                        innerWidth: windowWidth,
+                        violations: violations,
+                        passed: docEl.scrollWidth <= windowWidth && violations.length === 0
+                    };
+                }""")
+                if not layout_res["passed"]:
+                    layout_failures.append((page_name, layout_res))
+                    print(f"      [LAYOUT VIOLATION] {page_name} on {vp['label']}: scrollWidth={layout_res['scrollWidth']}, innerWidth={layout_res['innerWidth']}, violations={layout_res['violations']}")
+
+            no_overflow = len(layout_failures) == 0
             no_console_errors = len(console_errors) == 0
             assertion_g_ok = no_overflow and no_console_errors
 

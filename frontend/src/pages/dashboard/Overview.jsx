@@ -6,15 +6,15 @@ import { Brain, Key, BarChart3, Zap, ArrowRight, RefreshCw, CheckCircle2, AlertC
 
 function StatCard({ label, value, sub, color, icon: Icon }) {
   return (
-    <div className="card" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+    <div className="card" style={{ display:'flex', flexDirection:'column', gap:16, minWidth:0, overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
         <span style={{ fontSize:13, color:'var(--text-secondary)' }}>{label}</span>
-        <div style={{ width:36,height:36,borderRadius:10,background:`${color}18`,border:`1px solid ${color}30`,display:'flex',alignItems:'center',justifyContent:'center' }}>
+        <div style={{ width:36,height:36,borderRadius:10,background:`${color}18`,border:`1px solid ${color}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
           <Icon size={16} color={color}/>
         </div>
       </div>
-      <div>
-        <div style={{ fontFamily:'Outfit',fontWeight:700,fontSize:'1.8rem' }}>{value}</div>
+      <div style={{ minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ fontFamily:'Outfit',fontWeight:700,fontSize:'1.8rem', overflowWrap:'anywhere', wordBreak:'break-word' }}>{value}</div>
         {sub && <div style={{ fontSize:12,color:'var(--text-muted)',marginTop:4 }}>{sub}</div>}
       </div>
     </div>
@@ -103,12 +103,12 @@ export default function Overview() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:32 }}>
-        <div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:32, flexWrap:'wrap', gap:12 }}>
+        <div style={{ minWidth: 0 }}>
           <h3 style={{ marginBottom:4 }}>Welcome back{user?.company_name ? `, ${user.company_name}` : ''} 👋</h3>
           <p style={{ fontSize:14 }}>Here's what's happening with your recommendation engine.</p>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, flexShrink: 0 }}>
           {refreshing && (
             <span style={{ fontSize:12, color:'var(--text-muted)', display:'flex', alignItems:'center', gap:6 }}>
               <RefreshCw size={12} className="animate-spin"/> Updating…
@@ -181,7 +181,7 @@ export default function Overview() {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
+      <div className="grid-2">
         {/* Model Health */}
         <div className="card">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
@@ -278,17 +278,17 @@ export default function Overview() {
             {events.map((ev, idx) => {
               const evColor = EVENT_COLOR[ev.event_type] || '#3b82f6';
               return (
-                <div key={ev.ts || idx} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
-                  <span className="badge" style={{ background:`${evColor}18`, color:evColor, border:`1px solid ${evColor}30`, minWidth:80, justifyContent:'center' }}>
+                <div key={ev.ts || idx} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)', flexWrap:'wrap' }}>
+                  <span className="badge" style={{ background:`${evColor}18`, color:evColor, border:`1px solid ${evColor}30`, minWidth:80, justifyContent:'center', flexShrink:0 }}>
                     {ev.event_type}
                   </span>
-                  <code style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'monospace' }}>
+                  <code style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'monospace', overflowWrap:'anywhere', wordBreak:'break-all' }}>
                     {ev.customer_id || ev.session_id || 'anonymous'}
                   </code>
-                  <span style={{ flex:1, fontSize:13 }}>
+                  <span style={{ flex:1, fontSize:13, minWidth:120, overflowWrap:'anywhere', wordBreak:'break-word' }}>
                     {ev.product_name || ev.product_id || '—'}
                   </span>
-                  <span style={{ fontSize:12, color:'var(--text-muted)' }}>
+                  <span style={{ fontSize:12, color:'var(--text-muted)', flexShrink:0 }}>
                     {ev.time_ago || 'recent'}
                   </span>
                 </div>

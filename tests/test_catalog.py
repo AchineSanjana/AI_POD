@@ -75,7 +75,7 @@ def setup_auth_and_env(monkeypatch):
     monkeypatch.setenv("AI_POD_ENV", "development")
     load_tenant_auth()
     # Register test tenant keys
-    for t in ("tenant_cat_a", "tenant_cat_b", "tenant_s3"):
+    for t in ("e2e_tenant_cat_a", "e2e_tenant_cat_b", "e2e_tenant_s3"):
         TENANT_KEY_RECORDS[f"sk-{t}-xxxx"] = {"tenant_id": t, "key_type": "private", "created_at": None}
         TENANT_AUTH_MAPPING[f"sk-{t}-xxxx"] = t
         TENANT_KEY_RECORDS[f"pk-{t}-xxxx"] = {"tenant_id": t, "key_type": "public", "created_at": None}
@@ -94,7 +94,7 @@ def client():
 
 def test_seeding_from_products_csv_on_first_access(tmp_path):
     storage = LocalStorage(base_dir=tmp_path)
-    tenant_id = "tenant_seed_test"
+    tenant_id = "e2e_tenant_seed_test"
 
     # Create dummy data/processed/{tenant}/products.csv
     proc_path = f"data/processed/{tenant_id}/products.csv"
@@ -140,7 +140,7 @@ def test_add_product_and_duplicate_409(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Add valid product
@@ -187,7 +187,7 @@ def test_patch_product(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     client.post(
@@ -228,7 +228,7 @@ def test_archive_restore_and_permanent_delete(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     client.post(
@@ -282,7 +282,7 @@ def test_bulk_mutations(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     for i in range(1, 4):
@@ -348,7 +348,7 @@ def test_concurrent_edit_conflict_409(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Add initial product
@@ -391,7 +391,7 @@ def test_upload_preview_and_commit_both_modes(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Seed with P1 and P2
@@ -478,7 +478,7 @@ def test_upload_bad_rows_reported_with_row_numbers(client, tmp_path, monkeypatch
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Row 1: Header
@@ -529,7 +529,7 @@ def test_undo_and_snapshots(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Initial state: 1 item
@@ -581,7 +581,7 @@ def test_pagination_and_query_filters(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Seed 25 items across categories
@@ -636,8 +636,8 @@ def test_auth_public_key_403_and_tenant_isolation(client, tmp_path, monkeypatch)
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant_a = "tenant_cat_a"
-    tenant_b = "tenant_cat_b"
+    tenant_a = "e2e_tenant_cat_a"
+    tenant_b = "e2e_tenant_cat_b"
 
     # Public key (pk-*) rejected with 403 Forbidden
     pk_headers = {"X-API-Key": f"pk-{tenant_a}-xxxx"}
@@ -675,7 +675,7 @@ def test_auth_public_key_403_and_tenant_isolation(client, tmp_path, monkeypatch)
 # ---------------------------------------------------------------------------
 
 def test_template_download(client):
-    headers = {"X-API-Key": "sk-tenant_cat_a-xxxx"}
+    headers = {"X-API-Key": "sk-e2e_tenant_cat_a-xxxx"}
     resp = client.get("/v1/catalog/template?format=csv", headers=headers)
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/csv")
@@ -703,7 +703,7 @@ def test_full_catalogue_lifecycle_mocked_s3(monkeypatch):
     s3_client.create_bucket(Bucket="mock-ai-pod-bucket")
 
     storage = S3Storage(bucket_name="mock-ai-pod-bucket", s3_client=s3_client)
-    tenant_id = "tenant_s3"
+    tenant_id = "e2e_tenant_s3"
 
     # 1. First-access empty init
     df, v1 = ensure_catalog_exists(tenant_id, storage=storage, who="s3_tester")
@@ -784,7 +784,7 @@ def test_snapshot_pruning_to_10(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     # Commit 12 successive uploads
@@ -810,7 +810,7 @@ def test_audit_log_contains_no_secrets(client, tmp_path, monkeypatch):
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     secret_key = f"sk-{tenant}-xxxx"
     headers = {"X-API-Key": secret_key}
 
@@ -842,7 +842,7 @@ def test_undo_when_no_snapshot_exists_returns_friendly_message(client, tmp_path,
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     headers = {"X-API-Key": f"sk-{tenant}-xxxx"}
 
     resp = client.post("/v1/catalog/undo", headers=headers)
@@ -891,7 +891,7 @@ def test_cors_get_response_exposes_etag_and_catalog_version(client, tmp_path, mo
     monkeypatch.setattr("src.catalog.service.get_storage_backend", lambda cfg=None: storage)
     monkeypatch.setattr("src.catalog.audit.get_storage_backend", lambda cfg=None: storage)
 
-    tenant = "tenant_cat_a"
+    tenant = "e2e_tenant_cat_a"
     origin = "http://localhost:5173"
     headers = {
         "X-API-Key": f"sk-{tenant}-xxxx",

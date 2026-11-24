@@ -691,7 +691,7 @@ def test_s3_storage_catalog_engine_lifecycle(monkeypatch):
     s3_client.create_bucket(Bucket="mock-ai-pod-bucket-c2")
     storage = S3Storage(bucket_name="mock-ai-pod-bucket-c2", s3_client=s3_client)
 
-    tenant_id = "tenant_s3_c2"
+    tenant_id = "e2e_tenant_s3_c2"
 
     # Seed catalog on S3
     prods = [

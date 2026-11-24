@@ -37,7 +37,7 @@ Step S3 brings the Similar Products engine into the AI_POD dashboard and onboard
   - `similar_clicks`: Total tracked click events with `source == "similar"`.
   - `similar_add_to_carts`: Total tracked add-to-cart events with `source == "similar"`.
   - `similar_purchases`: Total tracked purchase events with `source == "similar"`.
-  - `similar_ctr`: Click-through rate calculated as `similar_clicks / similar_requests` (displayed as percentage with 1 decimal, e.g. `40.0%`, or `—` when null). Tooltip: *"Share of requests that received at least one click."*
+  - `similar_ctr`: Click-through rate defined as distinct `rec_id`s with at least one click divided by non-test requests (displayed as percentage with 1 decimal, e.g. `40.0%`, or `—` when null). Tooltip: *"Share of requests that received at least one click."*
   - `top_similar_source_products`: List of `{ product_id, product_name, count }` displaying the top source products users viewed before clicking similar items.
 - **Personalised Recommendations Mini-Block**:
   - `recommendation_clicks`
@@ -127,15 +127,17 @@ The automated Playwright + Chromium browser test suite (`scripts/verify_s3_brows
 
 ## 8. Captured Screenshots
 
-Full-page screenshots captured during automated browser verification:
+Screenshots captured during automated browser verification:
 - [s3_integrate_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_integrate_390.png): Integrate step on mobile (390x844).
-- [s3_catalog_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_catalog_390.png): Catalogue "Preview similar" drawer on mobile (390x844).
-- [s3_analytics_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_analytics_390.png): Analytics page on mobile (390x844).
-- [s3_overview_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_overview_390.png): Overview page on mobile (390x844).
+- [s3_catalog_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_catalog_390.png): Catalogue "Preview similar" drawer on mobile (390x844, viewport-sized).
+- [s3_analytics_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_analytics_390.png): Analytics page on mobile (390x844, viewport-sized).
+- [s3_overview_390.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_overview_390.png): Overview page on mobile (390x844, viewport-sized).
 - [s3_integrate_1280.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_integrate_1280.png): Integrate step on desktop (1280x900).
 - [s3_catalog_1280.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_catalog_1280.png): Catalogue "Preview similar" drawer on desktop (1280x900).
 - [s3_analytics_1280.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_analytics_1280.png): Analytics page on desktop (1280x900).
 - [s3_overview_1280.png](file:///d:/Projects/AI_POD/docs/screenshots/s3_overview_1280.png): Overview page on desktop (1280x900).
+
+*(Note on screenshot completeness: As audited, `s3_overview_390.png`, `s3_analytics_390.png`, and `s3_catalog_390.png` above were captured at viewport dimensions (844px high) rather than full scrollable page height. The S3b wrap-up suite re-captured all screenshots with strict `full_page=True` as `docs/screenshots/s3b_*.png`, including the dedicated mobile Analytics similar-products section.)*
 
 ---
 

@@ -63,7 +63,7 @@ def client():
 def test_telemetry_buffering_and_flush(tmp_path):
     """Verify records accumulate in memory and flush to unique JSONL part files."""
     storage = LocalStorage(base_dir=str(tmp_path))
-    tenant = "test_buffering_tenant"
+    tenant = "e2e_buffering_tenant"
 
     # Record recommendations
     record_recommendation(
@@ -149,7 +149,7 @@ def test_telemetry_mock_s3_flush():
 def test_concurrent_multiworker_flush_collision_safety(tmp_path):
     """Simulate concurrent threads/workers flushing telemetry simultaneously."""
     storage = LocalStorage(base_dir=str(tmp_path))
-    tenant = "concurrent_tenant"
+    tenant = "e2e_concurrent_tenant"
 
     def worker_task(worker_id: int):
         for i in range(5):
@@ -362,7 +362,7 @@ def test_tenant_isolation(client):
 def test_retention_cleanup(tmp_path):
     """Verify cleanup_old_telemetry purges part files older than retention_days."""
     storage = LocalStorage(base_dir=str(tmp_path))
-    tenant = "retention_tenant"
+    tenant = "e2e_retention_tenant"
 
     old_date = (datetime.now(timezone.utc) - timedelta(days=35)).strftime("%Y-%m-%d")
     recent_date = (datetime.now(timezone.utc) - timedelta(days=10)).strftime("%Y-%m-%d")
@@ -415,7 +415,7 @@ def test_overview_never_modifies_running_status_file(client, tmp_path):
     from src.utils.config import load_config
     from src.api.auth import TENANT_AUTH_MAPPING, TENANT_KEY_RECORDS
 
-    tenant = "test_running_tenant_immutable"
+    tenant = "e2e_running_tenant_immutable"
     sk_key = "sk-running-test-sk"
     TENANT_AUTH_MAPPING[sk_key] = tenant
     TENANT_KEY_RECORDS[sk_key] = {"tenant_id": tenant, "key_type": "private", "created_at": None}
@@ -426,7 +426,7 @@ def test_overview_never_modifies_running_status_file(client, tmp_path):
     # Prepare status file with status="running" and NO dataset stats
     status_content = (
         b'{\n'
-        b'  "tenant_id": "test_running_tenant_immutable",\n'
+        b'  "tenant_id": "e2e_running_tenant_immutable",\n'
         b'  "status": "running",\n'
         b'  "stage": "training_models",\n'
         b'  "message": "Tournament in progress..."\n'

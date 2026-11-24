@@ -69,7 +69,7 @@ export default function SchemaStep() {
           {/* Interaction type */}
           <div className="form-group">
             <label className="form-label">Interaction Type</label>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="grid-2" style={{ gap:12 }}>
               {[
                 { val:'transactional', label:'Transactional', desc:'Order/receipt data: one row per purchase event' },
                 { val:'service_matrix', label:'Service Matrix', desc:'Wide data: one row per customer, columns = services' },

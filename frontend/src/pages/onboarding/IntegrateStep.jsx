@@ -96,6 +96,9 @@ export default function IntegrateStep() {
     return () => { isMounted = false; };
   }, [debouncedSearch]);
 
+  const firstActiveProductId = catalogProducts.find(p => p.status === 'active')?.product_id || catalogProducts[0]?.product_id || '';
+  const exampleProductId = firstActiveProductId || 'YOUR_PRODUCT_ID';
+
   const htmlSnippet = `<script
   src="${apiBase}/sdk.js"
   data-tenant-key="${isPkAvailable ? rawPk : KEY_UNAVAILABLE}">
@@ -103,18 +106,22 @@ export default function IntegrateStep() {
 
 <script>
   // Track events
-  aipod.track('view', { product_id: 'SKU-001' });
-  aipod.track('purchase', { product_id: 'SKU-001' });
+  aipod.track('view', { product_id: '${exampleProductId}' });
+  aipod.track('purchase', { product_id: '${exampleProductId}' });
 
   // Identify on login
   aipod.identify('cust_12345');
 
   // Render recommendations
+  // Always wrap API values with aipod.escape and URLs with aipod.sanitizeUrl to prevent XSS injection
   aipod.getRecommendations({
     top_n: 4,
     containerId: 'ai-recs',
     template: (item) =>
-      \`<div class="product">\${item.product_name}</div>\`
+      \`<div class="product">
+        <img src="\${aipod.sanitizeUrl(item.image_url)}" alt="\${aipod.escape(item.product_name)}" />
+        <span>\${aipod.escape(item.product_name)}</span>
+      </div>\`
   });
 </script>`;
 
@@ -124,9 +131,10 @@ import { AIPod } from '@aipod/sdk';
 
 const aipod = new AIPod({ tenantKey: '${isPkAvailable ? rawPk : KEY_UNAVAILABLE}' });
 
-aipod.track('view', { product_id: 'SKU-001' });
+aipod.track('view', { product_id: '${exampleProductId}' });
 aipod.identify('cust_12345');
 
+// Always wrap API values with aipod.escape and URLs with aipod.sanitizeUrl to prevent XSS injection
 const recs = await aipod.getRecommendations({ top_n: 5 });`;
 
   const apiSnippet = `curl -X GET \\
@@ -153,7 +161,7 @@ const recs = await aipod.getRecommendations({ top_n: 5 });`;
 
   const similarWidgetSnippet = `// Render similar products widget
 aipod.getSimilar({
-  product_id: '${selectedProduct || 'PRODUCT_ID'}',
+  product_id: '${selectedProduct || exampleProductId}',
   containerId: 'similar-products',
   top_n: ${simTopN},
   same_category: ${simSameCategory}
@@ -161,7 +169,7 @@ aipod.getSimilar({
 
   const compareWidgetSnippet = `// Render product comparison matrix
 aipod.compare({
-  product_id: '${selectedProduct || 'PRODUCT_ID'}',
+  product_id: '${selectedProduct || exampleProductId}',
   containerId: 'compare-products'
 });`;
 

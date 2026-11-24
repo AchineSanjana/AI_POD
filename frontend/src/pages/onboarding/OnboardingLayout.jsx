@@ -18,8 +18,8 @@ export default function OnboardingLayout() {
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       {/* Top bar */}
-      <header style={{ borderBottom:'1px solid var(--border)', padding:'0 24px', height:64, display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg-surface)' }}>
-        <Link to="/" style={{ display:'flex', alignItems:'center', gap:10 }}>
+      <header className="onboarding-header">
+        <Link to="/" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
           <div style={{ width:32,height:32,borderRadius:9,background:'linear-gradient(135deg,#3b82f6,#818cf8)',display:'flex',alignItems:'center',justifyContent:'center' }}>
             <Zap size={15} color="#fff"/>
           </div>
@@ -27,7 +27,7 @@ export default function OnboardingLayout() {
         </Link>
 
         {/* Step progress */}
-        <div style={{ display:'flex', alignItems:'center', gap:0 }}>
+        <div className="onboarding-steps-full">
           {STEPS.map((step, i) => {
             const done   = i < current;
             const active = i === current;
@@ -47,7 +47,7 @@ export default function OnboardingLayout() {
                   }}>
                     {done ? <Check size={13}/> : step.num}
                   </div>
-                  <span style={{ display: window.innerWidth < 640 ? 'none' : 'block' }}>{step.label}</span>
+                  <span>{step.label}</span>
                 </div>
                 {i < STEPS.length - 1 && (
                   <div style={{ width:32, height:1, background: done ? 'var(--success)' : 'var(--border)', margin:'0 6px', transition:'all .3s' }} />
@@ -57,15 +57,17 @@ export default function OnboardingLayout() {
           })}
         </div>
 
-        <div style={{ fontSize:13, color:'var(--text-muted)' }}>
+        <div style={{ fontSize:13, color:'var(--text-muted)', flexShrink:0 }}>
           Step {current + 1} of {STEPS.length}
         </div>
       </header>
 
       {/* Content */}
-      <main style={{ flex:1, padding:'48px 24px', position:'relative', overflow:'hidden' }}>
-        <div className="orb orb-blue"   style={{ width:400, height:400, top:-150, right:-100,  opacity:.3 }} />
-        <div className="orb orb-purple" style={{ width:350, height:350, bottom:-100, left:-80, opacity:.25 }} />
+      <main className="onboarding-main" style={{ position:'relative' }}>
+        <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
+          <div className="orb orb-blue"   style={{ width:400, height:400, top:-150, right:0,  opacity:.3 }} />
+          <div className="orb orb-purple" style={{ width:350, height:350, bottom:-100, left:0, opacity:.25 }} />
+        </div>
         <div style={{ position:'relative', zIndex:1 }}>
           <UnverifiedBanner />
           <Outlet />

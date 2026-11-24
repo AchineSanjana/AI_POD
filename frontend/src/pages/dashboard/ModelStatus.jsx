@@ -50,7 +50,7 @@ export default function ModelStatus() {
 
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:32 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:32, flexWrap:'wrap', gap:12 }}>
         <div>
           <h3 style={{ marginBottom:8 }}>Model Status</h3>
           <p style={{ fontSize:14 }}>Full performance breakdown for the latest tournament run.</p>
@@ -76,6 +76,7 @@ export default function ModelStatus() {
           marginBottom: 32,
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 20,
         }}>
           <div style={{
@@ -197,7 +198,7 @@ export default function ModelStatus() {
             <p style={{ fontSize:13, margin:0 }}>No processed dataset found for this tenant.</p>
           </div>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:24 }}>
+          <div className="grid-3">
             {[
               {
                 label: 'Customers',

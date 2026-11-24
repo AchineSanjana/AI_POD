@@ -233,7 +233,7 @@ export default function Analytics() {
             </p>
           </div>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))', gap:24 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap:24 }}>
             {/* Conversion Funnel */}
             <div style={{ background:'var(--bg-surface)', padding:'16px 20px', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
               <h5 style={{ margin:'0 0 16px 0' }}>Similar Products Conversion Funnel</h5>
