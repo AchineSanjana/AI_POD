@@ -55,3 +55,5 @@ dist/
 *.egg-info/
 
 data/catalog/
+
+config/demo_saved_keys.json
